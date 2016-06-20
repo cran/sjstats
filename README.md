@@ -25,6 +25,17 @@ devtools::install_github("sjPlot/sjstats")
 
 ### Officiale, stable release
 
+[![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/sjstats)](https://cran.r-project.org/package=sjstats)
+&#160;&#160;
+[![downloads](http://cranlogs.r-pkg.org/badges/sjstats)](http://cranlogs.r-pkg.org/)
+&#160;&#160;
+[![total](http://cranlogs.r-pkg.org/badges/grand-total/sjstats)](http://cranlogs.r-pkg.org/)
+
+To install the latest stable release from CRAN, type following command into the R console:
+
+```r
+install.packages("sjstats")
+```
 
 ## Citation
 
