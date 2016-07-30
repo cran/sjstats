@@ -1,15 +1,13 @@
-# sjstats 0.2.0
+# sjstats 0.3.0
+
+## General
+
+* Removed nom-necessary checks for package-availability.
 
 ## New functions
 
-* Added functions `weight` and `weight2` to weight vectors.
-* Added functions `wtd_sd` and `wtd_se` to compute weighted standard deviations and standard errors.
-* Added function `merMod_p` to compute p-values for merMod-objects.
-
-## Changes to functions
-
-* `r2` now supports `plm` objects.
-
-## Bug fixes
-
-* Fixed typo in print-method for `icc`.
+* `bootstrap` to generate bootstrap replicates of data frames.
+* `boot_ci` to compute confidence intervals from bootstrapped values.
+* `pred_vars` to get the names of predictor variables from fitted models.
+* `resp_var` to get the name of the response variable from fitted models.
+* `resp_val` to get the values of the response vector from fitted models.

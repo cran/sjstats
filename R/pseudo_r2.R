@@ -42,9 +42,6 @@ cod <- function(x) {
   # mixed models (lme4)
   if (any(class(x) == "glmerMod")) {
     # check for package availability
-    if (!requireNamespace("lme4", quietly = TRUE)) {
-      stop("Package `lme4` needed for this function to work. Please install it.", call. = FALSE)
-    }
     y <- lme4::getME(x, "y")
     pred <- stats::predict(x, type = "response", re.form = NULL)
   } else {
@@ -111,8 +108,8 @@ cod <- function(x) {
 #'
 #' @references \itemize{
 #'               \item \href{http://glmm.wikidot.com/faq}{DRAFT r-sig-mixed-models FAQ}
-#'               \item Byrnes, J. 2008. Re: Coefficient of determination (R^2) when using lme(). \href{http://thread.gmane.org/gmane.comp.lang.r.lme4.devel/684}{gmane.comp.lang.r.lme4.devel}
-#'               \item Kwok OM, Underhill AT, Berry JW, Luo W, Elliott TR, Yoon M. 2008. Analyzing Longitudinal Data with Multilevel Models: An Example with Individuals Living with Lower Extremity Intra-Articular Fractures. Rehabilitation Psychology 53(3): 370–86 (\doi{10.1037/a0012765})
+#'               \item Byrnes, J. 2008. Re: Coefficient of determination (R^2) when using lme() (\url{https://stat.ethz.ch/pipermail/r-sig-mixed-models/2008q2/000713.html})
+#'               \item Kwok OM, Underhill AT, Berry JW, Luo W, Elliott TR, Yoon M. 2008. Analyzing Longitudinal Data with Multilevel Models: An Example with Individuals Living with Lower Extremity Intra-Articular Fractures. Rehabilitation Psychology 53(3): 370–86. \doi{10.1037/a0012765}
 #'               \item Xu, R. 2003. Measuring explained variation in linear mixed effects models. Statist. Med. 22:3527-3541. \doi{10.1002/sim.1572}
 #'               \item Tjur T. 2009. Coefficients of determination in logistic regression models - a new proposal: The coefficient of discrimination. The American Statistician, 63(4): 366-372
 #'             }
@@ -191,11 +188,11 @@ r2 <- function(x, n = NULL) {
       return(structure(class = "sjstats_r2", list(r2_tau00 = rsq0, r2_tau11 = rsq1)))
     } else {
       # compute "correlation"
-      lmfit <-  lm(stats::model.response(stats::model.frame(x)) ~ stats::fitted(x))
+      lmfit <-  lm(resp_val(x) ~ stats::fitted(x))
       # get r-squared
       rsq <- summary(lmfit)$r.squared
       # get omega squared
-      osq <- 1 - stats::var(stats::residuals(x)) / stats::var(stats::model.response(stats::model.frame(x)))
+      osq <- 1 - stats::var(stats::residuals(x)) / stats::var(resp_val(x))
       # name vectors
       names(rsq) <- "R2"
       names(osq) <- "O2"
