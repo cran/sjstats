@@ -27,16 +27,19 @@ A \code{\link[tibble]{data_frame}} with either bootstrap standard error,
         bootstrapped estimates.
 }
 \description{
-Compute bootstrap standard error, confidence intervals and
-             p-value for a vector of bootstrap replicate estimates.
+Compute nonparametric bootstrap standard error, confidence
+             intervals and p-value for a vector of bootstrap replicate
+             estimates.
 }
 \details{
 This method requires one or more vectors of bootstrap replicate estimates
-         as input. The function then computes the bootstrap standard error
-         by calculating the standard deviation of the input vector. The mean
-         value of the input vector is used to calculate the lower and upper
-         confidence interval, assuming a t-distribution of bootstrap estimate
-         replicates.
+         as input. The function then computes the nonparametric bootstrap
+         standard error by calculating the standard deviation of the input
+         vector. The mean value of the input vector and its standard error is
+         used to calculate the lower and upper confidence interval, assuming
+         a t-distribution of bootstrap estimate replicates. P-values
+         from \code{boot_p} are also based on t-statistics, assuming normal
+         distribution.
 }
 \examples{
 data(efc)
@@ -81,8 +84,38 @@ efc \%>\%
 boot_p(bs$gender)
 summary(fit)$coefficients[3, ]
 
+
+# 'spread_coef()' from the 'sjmisc'-package makes it easy to generate
+# bootstrapped statistics like confidence intervals or p-values
+library(dplyr)
+library(sjmisc)
+efc \%>\%
+  # generate bootstrap replicates
+  bootstrap(100) \%>\%
+  # apply lm to all bootstrapped data sets
+  mutate(models = lapply(.$strap, function(x) {
+    lm(neg_c_7 ~ e42dep + c161sex + c172code, data = x)
+  })) \%>\%
+  # spread model coefficient for all 100 models
+  spread_coef(models) \%>\%
+  # compute the CI for all bootstrapped model coefficients
+  boot_ci(e42dep, c161sex, c172code)
+
+# or...
+efc \%>\%
+  # generate bootstrap replicates
+  bootstrap(100) \%>\%
+  # apply lm to all bootstrapped data sets
+  mutate(models = lapply(strap, function(x) {
+    lm(neg_c_7 ~ e42dep + c161sex + c172code, data = x)
+  })) \%>\%
+  # spread model coefficient for all 100 models
+  spread_coef(models, append = FALSE) \%>\%
+  # compute the CI for all bootstrapped model coefficients
+  boot_ci()
+
 }
 \seealso{
-\code{\link{bootstrap}} to genearte bootstrap samples.
+\code{\link{bootstrap}} to generate nonparametric bootstrap samples.
 }
 

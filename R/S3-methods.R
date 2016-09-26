@@ -1,5 +1,3 @@
-utils::globalVariables(c("zeit", "lo", "hi", "rr", "rd", "y", "grp"))
-
 #' @importFrom nlme getData getCovariateFormula
 #' @export
 model.matrix.gls <- function(object, ...) {
@@ -25,23 +23,30 @@ model.frame.gls <- function(formula, ...) {
 
 #' @export
 print.sjstats_r2 <- function(x, ...) {
+  s3 <- NULL
+  s4 <- NULL
   if (length(x) > 1) {
     if (identical(names(x[[2]]), "Nagelkerke")) {
       s1 <- "Cox & Snell's R-squared"
-      s2 <- "Nagelkerke's R-squared"
+      s2 <- " Nagelkerke's R-squared"
     } else if (identical(names(x[[2]]), "adj.R2")) {
-      s1 <- "R-squared"
+      s1 <- "         R-squared"
       s2 <- "adjusted R-squared"
     } else if (identical(names(x[[2]]), "O2")) {
-      s1 <- "R-squared"
+      s1 <- "    R-squared"
       s2 <- "Omega-squared"
     } else if (identical(names(x[[2]]), "R2(tau-11)")) {
       s1 <- "R-squared (tau-00)"
       s2 <- "R-squared (tau-11)"
+      s3 <- "     Omega-squared"
+      s4 <- "         R-squared"
     } else {
       return(NULL)
     }
-    cat(sprintf("%s: %.4f; %s: %.4f\n", s1, x[[1]], s2, x[[2]]))
+    cat(sprintf("%s: %.4f\n%s: %.4f\n", s1, x[[1]], s2, x[[2]]))
+    if (!is.null(s3)) {
+      cat(sprintf("%s: %.4f\n%s: %.4f\n", s3, x[[3]], s4, x[[4]]))
+    }
   } else {
     if (identical(names(x[[1]]), "D")) {
       s1 <- "Tjur's D"
@@ -148,7 +153,17 @@ print.sj_resample <- function(x, ...) {
 }
 
 
-#' @importFrom tidyr gather
+#' @export
+print.se.icc.lme4 <- function(x, ...) {
+  cat("Standard Error of ICC\n")
+  cat(sprintf("      Model: %s\n", x$result$model))
+  cat(sprintf("        ICC: %.4f\n", x$result$icc))
+  cat(sprintf("  std. err.: %.4f\n", x$result$std.err))
+  cat(sprintf("    p-value: %.4f\n", x$result$p.value))
+}
+
+
+#' @importFrom tidyr gather_
 #' @export
 plot.sj_inequ_trend <- function(x, ...) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
@@ -156,20 +171,24 @@ plot.sj_inequ_trend <- function(x, ...) {
   }
 
   # add time indicator
-  x$data$zeit <- 1:nrow(x$data)
+  x$data$zeit <- seq_len(nrow(x$data))
+
+  # get gather column names
+  gather.cols1 <- colnames(x$data)[!colnames(x$data) %in% c("zeit", "lo", "hi")]
+  gather.cols2 <- colnames(x$data)[!colnames(x$data) %in% c("zeit", "rr", "rd")]
 
   # gather data to plot rr and rd
-  dat1 <- tidyr::gather(x$data, "grp", "y", -zeit, -lo, -hi)
+  dat1 <- tidyr::gather_(x$data, key_col = "grp", value_col = "y", gather_cols = gather.cols1)
 
   # gather data for raw prevalences
-  dat2 <- tidyr::gather(x$data, "grp", "y", -zeit, -rr, -rd)
+  dat2 <- tidyr::gather_(x$data, key_col = "grp", value_col = "y", gather_cols = gather.cols2)
 
   # Proper value names, for facet labels
   dat1$grp[dat1$grp == "rr"] <- "Rate Ratios"
   dat1$grp[dat1$grp == "rd"] <- "Rate Differences"
 
   # plot prevalences
-  gp1 <- ggplot2::ggplot(dat2, ggplot2::aes(x = zeit, y = y, colour = grp)) +
+  gp1 <- ggplot2::ggplot(dat2, ggplot2::aes_string(x = "zeit", y = "y", colour = "grp")) +
     ggplot2::stat_smooth(se = F) +
     ggplot2::labs(title = "Prevalance Rates for Lower and Higher SES Groups",
                   y = "Prevalances", x = "Time", colour = "") +
@@ -177,7 +196,7 @@ plot.sj_inequ_trend <- function(x, ...) {
 
 
   # plot rr and rd
-  gp2 <- ggplot2::ggplot(dat1, ggplot2::aes(x = zeit, y = y, colour = grp)) +
+  gp2 <- ggplot2::ggplot(dat1, ggplot2::aes_string(x = "zeit", y = "y", colour = "grp")) +
     ggplot2::stat_smooth(se = F) +
     ggplot2::facet_wrap(~grp, ncol = 1, scales = "free") +
     ggplot2::labs(title = "Proportional Change in Rate Ratios and Rate Differences",
@@ -186,4 +205,57 @@ plot.sj_inequ_trend <- function(x, ...) {
 
   graphics::plot(gp1)
   graphics::plot(gp2)
+}
+
+
+#' @export
+print.sj_mwu <- function(x, ...) {
+  cat("Mann-Whitney-U-Test\n")
+  cat("-------------------\n")
+  cat("showing statistics between groups (x|y)\n\n")
+  # get data
+  .dat <- x$df
+  # print to console
+  for (i in seq_len(nrow(.dat))) {
+    # get value labels
+    l1 <- .dat[i, "grp1.label"]
+    l2 <- .dat[i, "grp2.label"]
+    # do we have value labels?
+    if (!is.null(l1) && !is.na(l1) %% !is.null(l2) && !is.na(l2)) {
+      cat(sprintf("Groups %i = %s (n = %i) | %i = %s (n = %i):\n",
+                  .dat[i, "grp1"], l1, .dat[i, "grp1.n"],
+                  .dat[i, "grp2"], l2, .dat[i, "grp2.n"]))
+    } else {
+      cat(sprintf("Groups (%i|%i), n = %i/%i:\n",
+                  .dat[i, "grp1"], .dat[i, "grp2"],
+                  .dat[i, "grp1.n"], .dat[i, "grp2.n"]))
+    }
+
+    pval <- .dat[i, "p"]
+    if (pval < 0.001) {
+      pval <- 0.001
+      p.string <- "<"
+    } else {
+      p.string <- "="
+    }
+    cat(sprintf("  U = %.3f, W = %.3f, p %s %.3f, Z = %.3f\n  effect-size r = %.3f\n  rank-mean(%i) = %.2f\n  rank-mean(%i) = %.2f\n\n",
+                .dat[i, "u"], .dat[i, "w"], p.string, pval, .dat[i, "z"], .dat[i, "r"], .dat[i, "grp1"], .dat[i, "rank.mean.grp1"], .dat[i, "grp2"], .dat[i, "rank.mean.grp2"]))
+  }
+
+  # if we have more than 2 groups, also perfom kruskal-wallis-test
+  if (length(unique(stats::na.omit(x$data$grp))) > 2) {
+    cat("\nPerforming Kruskal-Wallis-Test\n")
+    cat("------------------------------\n")
+    kw <- stats::kruskal.test(x$data$x, x$data$grp)
+    cat(sprintf("chi-squared = %.3f\n", kw$statistic))
+    cat(sprintf("df = %i\n", kw$parameter))
+    if (kw$p.value < 0.001) {
+      p  <- 0.001
+      p.string <- "<"
+    } else {
+      p <- kw$p.value
+      p.string <- "="
+    }
+    cat(sprintf("p %s %.3f\n", p.string, p))
+  }
 }

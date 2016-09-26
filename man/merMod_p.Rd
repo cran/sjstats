@@ -2,7 +2,7 @@
 % Please edit documentation in R/merMod_p.R
 \name{merMod_p}
 \alias{merMod_p}
-\title{Get p-values for merMod objects}
+\title{Compute p-values for merMod objects}
 \usage{
 merMod_p(x, p.kr = TRUE)
 }
@@ -19,19 +19,19 @@ A named vector with p-values for the model coefficients.
 \description{
 This function computes p-values for mixed effects models
                (\code{merMod}-objects) that have been fitted with the
-               \pkg{lme4}-package.
+               \CRANpkg{lme4}-package.
 }
 \details{
 For linear mixed models (\code{lmerMod}-objects), the computation of
         p-values (if \code{p.kr = TRUE}) is based on conditional F-tests
         with Kenward-Roger approximation for the df, using the
-        \pkg{pbkrtest}-package. If \pkg{pbkrtest} is not available or
+        \CRANpkg{pbkrtest}-package. If \pkg{pbkrtest} is not available or
         \code{p.kr = FALSE}, or if \code{x} is a \code{glmerMod}-object,
         computation of p-values is based on normal-distribution assumption,
         treating the t-statistics as Wald z-statistics.
         \cr \cr
         If p-values already have been computed (e.g. for \code{merModLmerTest})-objects
-        from the \pkg{lmerTest}-package), these will be returned.
+        from the \CRANpkg{lmerTest}-package), these will be returned.
 }
 \examples{
 library(lme4)

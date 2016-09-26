@@ -1,8 +1,9 @@
 #' @title Standard Error and Confidence Intervals for bootstrapped estimates
 #' @name boot_ci
 #'
-#' @description Compute bootstrap standard error, confidence intervals and
-#'              p-value for a vector of bootstrap replicate estimates.
+#' @description Compute nonparametric bootstrap standard error, confidence
+#'              intervals and p-value for a vector of bootstrap replicate
+#'              estimates.
 #'
 #' @param data A data frame that containts the vector with bootstrapped
 #'          estimates, or directly the vector (see 'Examples').
@@ -16,13 +17,15 @@
 #'         bootstrapped estimates.
 #'
 #' @details This method requires one or more vectors of bootstrap replicate estimates
-#'          as input. The function then computes the bootstrap standard error
-#'          by calculating the standard deviation of the input vector. The mean
-#'          value of the input vector is used to calculate the lower and upper
-#'          confidence interval, assuming a t-distribution of bootstrap estimate
-#'          replicates.
+#'          as input. The function then computes the nonparametric bootstrap
+#'          standard error by calculating the standard deviation of the input
+#'          vector. The mean value of the input vector and its standard error is
+#'          used to calculate the lower and upper confidence interval, assuming
+#'          a t-distribution of bootstrap estimate replicates. P-values
+#'          from \code{boot_p} are also based on t-statistics, assuming normal
+#'          distribution.
 #'
-#' @seealso \code{\link{bootstrap}} to genearte bootstrap samples.
+#' @seealso \code{\link{bootstrap}} to generate nonparametric bootstrap samples.
 #'
 #' @examples
 #' data(efc)
@@ -67,11 +70,41 @@
 #' boot_p(bs$gender)
 #' summary(fit)$coefficients[3, ]
 #'
+#'
+#' # 'spread_coef()' from the 'sjmisc'-package makes it easy to generate
+#' # bootstrapped statistics like confidence intervals or p-values
+#' library(dplyr)
+#' library(sjmisc)
+#' efc %>%
+#'   # generate bootstrap replicates
+#'   bootstrap(100) %>%
+#'   # apply lm to all bootstrapped data sets
+#'   mutate(models = lapply(.$strap, function(x) {
+#'     lm(neg_c_7 ~ e42dep + c161sex + c172code, data = x)
+#'   })) %>%
+#'   # spread model coefficient for all 100 models
+#'   spread_coef(models) %>%
+#'   # compute the CI for all bootstrapped model coefficients
+#'   boot_ci(e42dep, c161sex, c172code)
+#'
+#' # or...
+#' efc %>%
+#'   # generate bootstrap replicates
+#'   bootstrap(100) %>%
+#'   # apply lm to all bootstrapped data sets
+#'   mutate(models = lapply(strap, function(x) {
+#'     lm(neg_c_7 ~ e42dep + c161sex + c172code, data = x)
+#'   })) %>%
+#'   # spread model coefficient for all 100 models
+#'   spread_coef(models, append = FALSE) %>%
+#'   # compute the CI for all bootstrapped model coefficients
+#'   boot_ci()
+#'
 #' @importFrom stats qt
 #' @export
 boot_ci <- function(data, ...) {
   # evaluate arguments, generate data
-  .dat <- get_boot_data(data, ...)
+  .dat <- get_boot_data(data, match.call(expand.dots = FALSE)$`...`)
   # compute confidence intervalls for all values
   transform_boot_result(lapply(.dat, function(x) {
     # get bootstrap standard error
@@ -89,7 +122,7 @@ boot_ci <- function(data, ...) {
 #' @export
 boot_se <- function(data, ...) {
   # evaluate arguments, generate data
-  .dat <- get_boot_data(data, ...)
+  .dat <- get_boot_data(data, match.call(expand.dots = FALSE)$`...`)
   # compute confidence intervalls for all values
   transform_boot_result(lapply(.dat, function(x) {
     # get bootstrap standard error
@@ -105,7 +138,7 @@ boot_se <- function(data, ...) {
 #' @export
 boot_p <- function(data, ...) {
   # evaluate arguments, generate data
-  .dat <- get_boot_data(data, ...)
+  .dat <- get_boot_data(data, match.call(expand.dots = FALSE)$`...`)
   # compute confidence intervalls for all values
   transform_boot_result(lapply(.dat, function(x) {
     # compute t-statistic
@@ -126,17 +159,15 @@ transform_boot_result <- function(res) {
 }
 
 
-#' @importFrom lazyeval all_dots lazy_dots
-get_boot_data <- function(data, ...) {
-  # evaluate dots
-  dots <- lazyeval::all_dots(lazyeval::lazy_dots(...), all_named = T)
+get_boot_data <- function(data, dots) {
   # any dots?
   if (length(dots) > 0) {
     # get variable names
-    vars <- unname(unlist(lapply(dots, function(x) as.character(x[["expr"]]))))
+    vars <- dot_names(dots)
   } else {
     vars <- NULL
   }
+
   # check if data is a data frame
   if (is.data.frame(data)) {
     # do we have any variables specified?

@@ -33,13 +33,13 @@ Compute an approximated sample size for linear mixed models
 The sample size calculation is based on a power-calculation for the
          standard design. If \code{df.n} is not specified, a power-calculation
          for an unpaired two-sample t-test will be computed (using
-         \code{\link[pwr]{pwr.t.test}} of the \pkg{pwr}-package).
+         \code{\link[pwr]{pwr.t.test}} of the \CRANpkg{pwr}-package).
          If \code{df.n} is given, a power-calculation for general linear models
          will be computed (using \code{\link[pwr]{pwr.f2.test}} of the
          \pkg{pwr}-package). The sample size of the standard design
          is then adjusted for the design effect of two-level-designs (see
          \code{\link{deff}}). Thus, the sample size calculation is appropriate
-         in particular for two-level-designs (see Snijders 2005). Models that
+         in particular for two-level-designs (see \cite{Snijders 2005}). Models that
          additionally include repeated measures (three-level-designs) may work
          as well, however, the computed sample size may be less accurate.
 }
