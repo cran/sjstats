@@ -3,8 +3,8 @@ Type: Package
 Encoding: UTF-8
 Title: Collection of Convenient Functions for Common Statistical
         Computations
-Version: 0.5.0
-Date: 2016-09-26
+Version: 0.6.0
+Date: 2016-11-01
 Author: Daniel Lüdecke <d.luedecke@uke.de>
 Maintainer: Daniel Lüdecke <d.luedecke@uke.de>
 Description: Collection of convenient functions for common statistical computations,
@@ -32,6 +32,6 @@ URL: https://github.com/sjPlot/sjstats
 BugReports: https://github.com/sjPlot/sjstats/issues
 RoxygenNote: 5.0.1
 NeedsCompilation: no
-Packaged: 2016-09-26 10:12:04 UTC; Standardbenutzer
+Packaged: 2016-10-31 10:28:36 UTC; Standardbenutzer
 Repository: CRAN
-Date/Publication: 2016-09-26 14:24:01
+Date/Publication: 2016-10-31 16:54:08
