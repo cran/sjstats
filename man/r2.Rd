@@ -2,7 +2,7 @@
 % Please edit documentation in R/pseudo_r2.R
 \name{r2}
 \alias{r2}
-\title{Compute R-squared of (generalized) linear (mixed) models}
+\title{Compute r-squared of (generalized) linear (mixed) models}
 \usage{
 r2(x, n = NULL)
 }
@@ -34,7 +34,7 @@ For linear models, the r-squared and adjusted r-squared value is returned,
          \cr \cr
          For linear mixed models, an r-squared approximation by computing the
          correlation between the fitted and observed values, as suggested by
-         \cite{Byrnes (2008)}, is returned as well as a simpliefied version of
+         \cite{Byrnes (2008)}, is returned as well as a simplified version of
          the Omega-squared value (1 - (residual variance / response variance),
          \cite{Xu (2003)}, \cite{Nakagawa, Schielzeth 2013}), unless \code{n}
          is specified.
@@ -107,5 +107,8 @@ r2(fit, fit.null)
               \item Xu, R. 2003. Measuring explained variation in linear mixed effects models. Statist. Med. 22:3527-3541. \doi{10.1002/sim.1572}
               \item Tjur T. 2009. Coefficients of determination in logistic regression models - a new proposal: The coefficient of discrimination. The American Statistician, 63(4): 366-372
             }
+}
+\seealso{
+\code{\link{rmse}} for more methods to assess model quality.
 }
 

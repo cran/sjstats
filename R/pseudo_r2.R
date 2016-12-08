@@ -35,12 +35,12 @@
 #' @export
 cod <- function(x) {
   # check for valid object class
-  if (!any(class(x) == "glmerMod") && !any(class(x) == "glm")) {
+  if (!inherits(x, c("glmerMod", "glm"))) {
     stop("`x` must be an object of class `glm` or `glmerMod`.", call. = F)
   }
 
   # mixed models (lme4)
-  if (any(class(x) == "glmerMod")) {
+  if (inherits(x, "glmerMod")) {
     # check for package availability
     y <- lme4::getME(x, "y")
     pred <- stats::predict(x, type = "response", re.form = NULL)
@@ -63,7 +63,7 @@ cod <- function(x) {
 
 
 
-#' @title Compute R-squared of (generalized) linear (mixed) models
+#' @title Compute r-squared of (generalized) linear (mixed) models
 #' @name r2
 #'
 #' @description Compute R-squared values of linear (mixed) models, or
@@ -108,7 +108,7 @@ cod <- function(x) {
 #'          \cr \cr
 #'          For linear mixed models, an r-squared approximation by computing the
 #'          correlation between the fitted and observed values, as suggested by
-#'          \cite{Byrnes (2008)}, is returned as well as a simpliefied version of
+#'          \cite{Byrnes (2008)}, is returned as well as a simplified version of
 #'          the Omega-squared value (1 - (residual variance / response variance),
 #'          \cite{Xu (2003)}, \cite{Nakagawa, Schielzeth 2013}), unless \code{n}
 #'          is specified.
@@ -125,6 +125,8 @@ cod <- function(x) {
 #'          \cr \cr
 #'          For generalized linear mixed models, the coefficient of determination
 #'          as suggested by \cite{Tjur (2009)} (see also \code{\link{cod}}).
+#'
+#' @seealso \code{\link{rmse}} for more methods to assess model quality.
 #'
 #' @references \itemize{
 #'               \item \href{http://glmm.wikidot.com/faq}{DRAFT r-sig-mixed-models FAQ}
@@ -168,13 +170,13 @@ r2 <- function(x, n = NULL) {
   osq <- NULL
   adjr2 <- NULL
   # do we have a glm? if so, report pseudo_r2
-  if (any(class(x) == "glm")) {
+  if (inherits(x, "glm")) {
     return(pseudo_ralt(x))
     # do we have a glmer?
-  } else if (any(class(x) == "glmerMod")) {
+  } else if (inherits(x, "glmerMod")) {
     return(cod(x))
     # do we have a simple linear model?
-  } else if (identical(class(x), "lm")) {
+  } else if (inherits(x, "lm")) {
     rsq <- summary(x)$r.squared
     adjr2 <- summary(x)$adj.r.squared
     # name vectors
@@ -183,7 +185,7 @@ r2 <- function(x, n = NULL) {
     # return results
     return(structure(class = "sjstats_r2", list(r2 = rsq, adjr2 = adjr2)))
     # else do we have a mixed model?
-  } else if (any(class(x) == "plm")) {
+  } else if (inherits(x, "plm")) {
     rsq <- summary(x)$r.squared[1]
     adjr2 <- summary(x)$r.squared[2]
     # name vectors

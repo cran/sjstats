@@ -2,9 +2,12 @@
 % Please edit documentation in R/merMod_p.R
 \name{get_model_pval}
 \alias{get_model_pval}
+\alias{merMod_p}
 \title{Get p-values from regression model objects}
 \usage{
 get_model_pval(fit, p.kr = FALSE)
+
+merMod_p(fit, p.kr = TRUE)
 }
 \arguments{
 \item{fit}{A fitted model object of \code{lm}, \code{glm}, \code{merMod},
@@ -23,7 +26,20 @@ A \code{\link{tibble}} with the model coefficients' names (\code{term}),
 This function returns the p-values for fitted model objects.
 }
 \details{
-For linear mixed models (\code{lmerMod}-objects), see \code{\link{merMod_p}}.
+For linear mixed models (\code{lmerMod}-objects), the computation of
+        p-values (if \code{p.kr = TRUE}) is based on conditional F-tests
+        with Kenward-Roger approximation for the df, using the
+        \CRANpkg{pbkrtest}-package. If \pkg{pbkrtest} is not available or
+        \code{p.kr = FALSE}, or if \code{x} is a \code{glmerMod}-object,
+        computation of p-values is based on normal-distribution assumption,
+        treating the t-statistics as Wald z-statistics.
+        \cr \cr
+        If p-values already have been computed (e.g. for \code{merModLmerTest})-objects
+        from the \CRANpkg{lmerTest}-package), these will be returned.
+}
+\note{
+\code{merMod_p()} will become deprecated soon, please use
+      \code{get_model_pval()} instead.
 }
 \examples{
 data(efc)

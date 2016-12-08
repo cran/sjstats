@@ -1,10 +1,9 @@
-#' @title Standardized Beta coefficients and CI of lm and mixed models
+#' @title Standardized beta coefficients and CI of linear and mixed models
 #' @name std_beta
 #' @description Returns the standardized beta coefficients, std. error and confidence intervals
-#'                of a fitted linear (mixed) models, i.e. \code{fit} must either
-#'                be of class \code{lm} or \code{\link[lme4]{merMod}}.
+#'                of a fitted linear (mixed) models.
 #'
-#' @param fit Fitted linear (mixed) model of class \code{\link{lm}} or
+#' @param fit Fitted linear (mixed) model of class \code{lm} or
 #'          \code{\link[lme4]{merMod}} (\CRANpkg{lme4} package).
 #' @param type If \code{fit} is of class \code{lm}, normal standardized coefficients
 #'          are computed by default. Use \code{type = "std2"} to follow
@@ -33,10 +32,9 @@
 #'         In such cases, use \code{\link{to_dummy}} to create dummies from
 #'         factors.
 #'
-#' @references \itemize{
-#'              \item \href{http://en.wikipedia.org/wiki/Standardized_coefficient}{Wikipedia: Standardized coefficient}
-#'              \item Gelman A. 2008. Scaling regression inputs by dividing by two standard deviations. \emph{Statistics in Medicine 27: 2865–2873.} \url{http://www.stat.columbia.edu/~gelman/research/published/standardizing7.pdf}
-#'              }
+#' @references \href{http://en.wikipedia.org/wiki/Standardized_coefficient}{Wikipedia: Standardized coefficient}
+#'             \cr \cr
+#'             Gelman A. 2008. Scaling regression inputs by dividing by two standard deviations. \emph{Statistics in Medicine 27: 2865–2873.} \url{http://www.stat.columbia.edu/~gelman/research/published/standardizing7.pdf}
 #'
 #' @examples
 #' # fit linear model
@@ -55,12 +53,12 @@
 #'
 #' @importFrom stats model.matrix coef terms
 #' @importFrom nlme getResponse
-#' @importFrom tibble data_frame
+#' @importFrom tibble tibble
 #' @export
 std_beta <- function(fit, type = "std") {
   # if we have merMod object (lme4), we need
   # other function to compute std. beta
-  if (any(class(fit) == "lmerMod") || any(class(fit) == "merModLmerTest"))
+  if (inherits(fit, c("lmerMod", "merModLmerTest")))
     return(sjs.stdmm(fit))
 
   # has model intercept?
@@ -118,15 +116,15 @@ std_beta <- function(fit, type = "std") {
     beta.se <- se * sx / sy
   }
   # return result
-  tibble::data_frame(term = names(b), std.estimate = beta,
-                     std.error = beta.se, conf.low = beta - 1.96 * beta.se,
-                     conf.high = beta + 1.96 * beta.se)
+  tibble::tibble(term = names(b), std.estimate = beta,
+                 std.error = beta.se, conf.low = beta - 1.96 * beta.se,
+                 conf.high = beta + 1.96 * beta.se)
 }
 
 
 #' @importFrom stats sd coef
 #' @importFrom lme4 fixef getME
-#' @importFrom tibble data_frame
+#' @importFrom tibble tibble
 sjs.stdmm <- function(fit) {
   # code from Ben Bolker, see
   # http://stackoverflow.com/a/26206119/2094622
@@ -135,6 +133,6 @@ sjs.stdmm <- function(fit) {
   sc <- lme4::fixef(fit) * sdx / sdy
   se.fixef <- stats::coef(summary(fit))[, "Std. Error"]
   se <- se.fixef * sdx / sdy
-  tibble::data_frame(term = names(lme4::fixef(fit)), std.estimate = sc,
-                     std.error = se, conf.low = sc - 1.96 * se, conf.high = sc + 1.96 * se)
+  tibble::tibble(term = names(lme4::fixef(fit)), std.estimate = sc,
+                 std.error = se, conf.low = sc - 1.96 * se, conf.high = sc + 1.96 * se)
 }

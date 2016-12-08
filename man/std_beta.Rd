@@ -2,12 +2,12 @@
 % Please edit documentation in R/std_b.R
 \name{std_beta}
 \alias{std_beta}
-\title{Standardized Beta coefficients and CI of lm and mixed models}
+\title{Standardized beta coefficients and CI of linear and mixed models}
 \usage{
 std_beta(fit, type = "std")
 }
 \arguments{
-\item{fit}{Fitted linear (mixed) model of class \code{\link{lm}} or
+\item{fit}{Fitted linear (mixed) model of class \code{lm} or
 \code{\link[lme4]{merMod}} (\CRANpkg{lme4} package).}
 
 \item{type}{If \code{fit} is of class \code{lm}, normal standardized coefficients
@@ -23,8 +23,7 @@ A \code{tibble} with term names, standardized beta coefficients,
 }
 \description{
 Returns the standardized beta coefficients, std. error and confidence intervals
-               of a fitted linear (mixed) models, i.e. \code{fit} must either
-               be of class \code{lm} or \code{\link[lme4]{merMod}}.
+               of a fitted linear (mixed) models.
 }
 \details{
 \dQuote{Standardized coefficients refer to how many standard deviations a dependent variable will change,
@@ -63,9 +62,8 @@ std_beta(fit)
 
 }
 \references{
-\itemize{
-             \item \href{http://en.wikipedia.org/wiki/Standardized_coefficient}{Wikipedia: Standardized coefficient}
-             \item Gelman A. 2008. Scaling regression inputs by dividing by two standard deviations. \emph{Statistics in Medicine 27: 2865–2873.} \url{http://www.stat.columbia.edu/~gelman/research/published/standardizing7.pdf}
-             }
+\href{http://en.wikipedia.org/wiki/Standardized_coefficient}{Wikipedia: Standardized coefficient}
+            \cr \cr
+            Gelman A. 2008. Scaling regression inputs by dividing by two standard deviations. \emph{Statistics in Medicine 27: 2865–2873.} \url{http://www.stat.columbia.edu/~gelman/research/published/standardizing7.pdf}
 }
 

@@ -26,7 +26,7 @@
 #' @export
 table_values <- function(tab, digits = 2) {
   # convert to ftable object
-  if (all(class(tab) != "ftable")) tab <- ftable(tab)
+  if (!inherits(tab, "ftable")) tab <- ftable(tab)
   tab.cell <- round(100 * prop.table(tab), digits)
   tab.row <- round(100 * prop.table(tab, 1), digits)
   tab.col <- round(100 * prop.table(tab, 2), digits)
@@ -41,7 +41,7 @@ table_values <- function(tab, digits = 2) {
 }
 
 
-#' @title Plot Levene-Test for One-Way-Anova
+#' @title Levene-Test for One-Way-Anova
 #' @name levene_test
 #'
 #' @description Plot results of Levene's Test for Equality of Variances for One-Way-Anova.
@@ -84,7 +84,7 @@ lmer_var <- function(fit) {
   vars <- unlist(lapply(reva, function(x) x[[1]]))
   names(vars) <- names(reva)
   # residual variances
-  if (any(class(fit) == "glmerMod")) {
+  if (inherits(fit, "glmerMod")) {
     # for logistic models, we use pi / 3
     resid_var <- (pi^2) / 3
   } else {
@@ -99,7 +99,7 @@ lmer_var <- function(fit) {
 
 #' @importFrom stats pf
 lm_pval_fstat <- function(x) {
-  if (class(x) != "lm") stop("Not an object of class 'lm'.", call. = F)
+  if (!inherits(x, "lm")) stop("Not an object of class 'lm'.", call. = F)
   f <- summary(x)$fstatistic
   p <- stats::pf(f[1], f[2], f[3], lower.tail = F)
   return(as.vector(p))

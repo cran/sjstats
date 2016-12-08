@@ -1,49 +1,7 @@
 #' @title Weight a variable
-#' @name weight2
-#'
-#' @description This function weights the variable \code{x} by
-#'                a specific vector of \code{weights}. It's an
-#'                alternative weight calculation to \code{\link{weight}},
-#'                though \code{\link{weight}} usage is recommended.
-#'
-#' @seealso \code{\link{weight}}
-#'
-#' @inheritParams weight
-#'
-#' @return The weighted \code{x}.
-#'
-#' @details This function sums up all \code{weights} values of the associated
-#'            categories of \code{x}, whereas the \code{\link{weight}} function
-#'            uses a \code{\link{xtabs}} formula to weight cases. Thus, this function
-#'            may return a vector of different length than \code{x}.
-#'
-#' @note See 'Note' in \code{\link{weight}}
-#'
-#' @examples
-#' v <- sample(1:4, 20, TRUE)
-#' table(v)
-#' w <- abs(rnorm(20))
-#' table(weight2(v, w))
-#'
-#'
-#' @export
-weight2 <- function(x, weights) {
-  items <- unique(x)
-  newvar <- c()
-  for (i in seq_len(length(items))) {
-    newcount = round(sum(weights[which(x == items[i])]))
-    newvar <- c(newvar, rep(items[i], newcount))
-  }
-  return(newvar)
-}
-
-
-#' @title Weight a variable
 #' @name weight
-#' @description This function weights the variable \code{x} by
+#' @description These functions weight the variable \code{x} by
 #'                a specific vector of \code{weights}.
-#'
-#' @seealso \code{\link{weight2}}
 #'
 #' @param x (Unweighted) variable
 #' @param weights Vector with same length as \code{x}, which
@@ -54,6 +12,11 @@ weight2 <- function(x, weights) {
 #'          \code{0}, i.e. the returned values are integer values.
 #'
 #' @return The weighted \code{x}.
+#'
+#' @details \code{weight2()} sums up all \code{weights} values of the associated
+#'            categories of \code{x}, whereas \code{weight()} uses a
+#'            \code{\link{xtabs}} formula to weight cases. Thus, \code{weight()}
+#'            may return a vector of different length than \code{x}.
 #'
 #' @note The values of the returned vector are in sorted order, whereas the values'
 #'        order of the original \code{x} may be spread randomly. Hence, \code{x} can't be
@@ -66,6 +29,7 @@ weight2 <- function(x, weights) {
 #' table(v)
 #' w <- abs(rnorm(20))
 #' table(weight(v, w))
+#' table(weight2(v, w))
 #'
 #' set.seed(1)
 #' x <- sample(letters[1:5], size = 20, replace = TRUE)
@@ -75,8 +39,11 @@ weight2 <- function(x, weights) {
 #' table(weight(x, w))
 #'
 #' @importFrom stats na.pass xtabs
+#' @importFrom sjmisc to_value
 #' @export
 weight <- function(x, weights, digits = 0) {
+  # remember if x is numeric
+  x.is.num <- is.numeric(x)
   # init values
   weightedvar <- c()
   wtab <- round(stats::xtabs(weights ~ x,
@@ -100,19 +67,35 @@ weight <- function(x, weights, digits = 0) {
     # append variable value, repeating it "w_count" times.
     weightedvar <- c(weightedvar, rep(w_value, w_count))
   }
+  # if we have NA values, weighted var is coerced to character.
+  # coerce back to numeric then here
+  if (!is.numeric(weightedvar) && x.is.num) weightedvar <- sjmisc::to_value(weightedvar)
+  # return result
   return(weightedvar)
 }
 
+#' @rdname weight
+#' @export
+weight2 <- function(x, weights) {
+  items <- unique(x)
+  newvar <- c()
+  for (i in seq_len(length(items))) {
+    newcount = round(sum(weights[which(x == items[i])]))
+    newvar <- c(newvar, rep(items[i], newcount))
+  }
+  return(newvar)
+}
 
-#' @title Weighted standard deviation for variables
+
+#' @title Weighted statistics for variables
 #' @name wtd_sd
-#' @description Compute weighted standard deviation for a variable or for all variables
-#'                of a data frame.
+#' @description Compute weighted standard deviation or standard error for a
+#'                variable or for all variables of a data frame.
 #'
 #' @param x (Numeric) vector or a data frame.
 #' @param weights Numeric vector of weights.
-#' @return The weighted standard deviation of \code{x}, or for each variable
-#'           if \code{x} is a data frame.
+#' @return The weighted standard deviation or standard error of \code{x},
+#'           or for each variable if \code{x} is a data frame.
 #'
 #' @examples
 #' wtd_sd(rnorm(n = 100, mean = 3),
@@ -120,6 +103,7 @@ weight <- function(x, weights, digits = 0) {
 #'
 #' data(efc)
 #' wtd_sd(efc[, 1:3], runif(n = nrow(efc)))
+#' wtd_se(efc[, 1:3], runif(n = nrow(efc)))
 #'
 #' @export
 wtd_sd <- function(x, weights = NULL) {
@@ -150,23 +134,7 @@ wtd_sd <- function(x, weights = NULL) {
 }
 
 
-#' @title Weighted standard error for variables
-#' @name wtd_se
-#' @description Compute weighted standard error for a variable or for all variables
-#'                of a data frame.
-#'
-#' @param x (Numeric) vector or a data frame.
-#' @param weights Numeric vector of weights.
-#' @return The weighted standard error of \code{x}, or for each variable
-#'           if \code{x} is a data frame.
-#'
-#' @examples
-#' wtd_se(rnorm(n = 100, mean = 3),
-#'        runif(n = 100))
-#'
-#' data(efc)
-#' wtd_se(efc[, 1:3], runif(n = nrow(efc)))
-#'
+#' @rdname wtd_sd
 #' @export
 wtd_se <- function(x, weights = NULL) {
   # check if suggested packages are available

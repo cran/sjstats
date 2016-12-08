@@ -4,7 +4,7 @@
 \alias{boot_ci}
 \alias{boot_p}
 \alias{boot_se}
-\title{Standard Error and Confidence Intervals for bootstrapped estimates}
+\title{Standard error and confidence intervals for bootstrapped estimates}
 \usage{
 boot_ci(data, ...)
 
@@ -22,7 +22,7 @@ or if only selected variables from \code{data} should be used
 in the function.}
 }
 \value{
-A \code{\link[tibble]{data_frame}} with either bootstrap standard error,
+A \code{\link[tibble]{tibble}} with either bootstrap standard error,
         the lower and upper confidence intervals or the p-value for all
         bootstrapped estimates.
 }
@@ -32,13 +32,13 @@ Compute nonparametric bootstrap standard error, confidence
              estimates.
 }
 \details{
-This method requires one or more vectors of bootstrap replicate estimates
-         as input. The function then computes the nonparametric bootstrap
+The methods require one or more vectors of bootstrap replicate estimates
+         as input. \code{boot_se()} computes the nonparametric bootstrap
          standard error by calculating the standard deviation of the input
          vector. The mean value of the input vector and its standard error is
-         used to calculate the lower and upper confidence interval, assuming
+         used by \code{boot_ci()} to calculate the lower and upper confidence interval, assuming
          a t-distribution of bootstrap estimate replicates. P-values
-         from \code{boot_p} are also based on t-statistics, assuming normal
+         from \code{boot_p()} are also based on t-statistics, assuming normal
          distribution.
 }
 \examples{
@@ -114,6 +114,9 @@ efc \%>\%
   # compute the CI for all bootstrapped model coefficients
   boot_ci()
 
+}
+\references{
+Carpenter J, Bithell J. Bootstrap confdence intervals: when, which, what? A practical guide for medical statisticians. Statist. Med. 2000; 19:1141-1164
 }
 \seealso{
 \code{\link{bootstrap}} to generate nonparametric bootstrap samples.
