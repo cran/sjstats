@@ -7,7 +7,7 @@
 prop(data, ..., weight.by = NULL, na.rm = FALSE, digits = 4)
 }
 \arguments{
-\item{data}{A data frame.}
+\item{data}{A data frame. May also be a grouped data frame (see 'Examples').}
 
 \item{...}{One or more value pairs of comparisons (logical predicates). Put
 variable names the left-hand-side and values to match on the
@@ -28,7 +28,9 @@ percentage.}
 \value{
 For one condition, a numeric value with the proportion of the values
         inside a vector. For more than one condition, a tibble with one column
-        of conditions and one column with proportions.
+        of conditions and one column with proportions. For grouped data frames,
+        returns a tibble with one column per group with grouping categories,
+        followed by one column with proportions per condition.
 }
 \description{
 This function calculates the proportion of a value or category
@@ -40,13 +42,12 @@ data(efc)
 # proportion of value 1 in e42dep
 prop(efc, e42dep == 1)
 
-# expression may also be completely quotes
+# expression may also be completely quoted
 prop(efc, "e42dep == 1")
 
 # proportion of value 1 in e42dep, and all values greater
 # than 2 in e42dep, excluding missing values. will return a tibble
 prop(efc, e42dep == 1, e42dep > 2, na.rm = TRUE)
-
 
 # for factors or character vectors, use quoted or unquoted values
 library(sjmisc)
@@ -62,12 +63,16 @@ prop(efc, e16sex == "male")
 # also works with pipe-chains
 library(dplyr)
 efc \%>\% prop(e17age > 70)
-efc \%>\% summarise(age70 = prop(., e17age > 70))
+efc \%>\% prop(e17age > 70, e16sex == 1)
 
 # and with group_by
 efc \%>\%
   group_by(e16sex) \%>\%
-  summarise(hi.dependency = prop(., e42dep > 2))
+  prop(e42dep > 2)
+
+efc \%>\%
+  select(e42dep, c161sex, c172code, e16sex) \%>\%
+  group_by(c161sex, c172code) \%>\%
+  prop(e42dep > 2, e16sex == 1)
 
 }
-

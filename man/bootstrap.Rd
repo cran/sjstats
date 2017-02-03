@@ -18,7 +18,7 @@ a proportion of observations from \code{data} (see 'Examples').}
 \value{
 A \code{\link[tibble]{tibble}} with one column: a list-variable
           \code{strap}, which contains resample-objects of class \code{sj_resample}.
-          These resample-objects are lists with three elemenents:
+          These resample-objects are lists with three elements:
           \enumerate{
             \item the original data frame, \code{data}
             \item the rownmumbers \code{id}, i.e. rownumbers of \code{data}, indicating the resampled rows with replacement
@@ -78,4 +78,3 @@ se(efc$c12hour)
 \code{\link{boot_ci}} to calculate confidence intervals from
            bootstrap samples.
 }
-

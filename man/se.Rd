@@ -8,26 +8,25 @@ se(x, nsim = 100)
 }
 \arguments{
 \item{x}{(Numeric) vector, a data frame, a \code{merMod}-object
-as returned by the \code{\link[lme4]{lmer}}-method, an ICC object
-(as obtained by the \code{\link{icc}}-function) or a list with
-estimate and p-value. For the latter case, the list
-must contain elements named \code{estimate} and \code{p.value}
-(see 'Examples' and 'Details').}
+as returned by the functions from the \pkg{lme4}-package, a
+\code{glm}-object, an ICC object (as obtained by the
+\code{\link{icc}}-function) or a list with estimate and p-value.
+For the latter case, the list must contain elements named
+\code{estimate} and \code{p.value} (see 'Examples' and 'Details').}
 
 \item{nsim}{Numeric, the number of simulations for calculating the
 standard error for intraclass correlation coefficients, as
 obtained by the \code{\link{icc}}-function.}
 }
 \value{
-The standard error of \code{x}, or for each variable
-          if \code{x} is a data frame, or for the coefficients
-          of a mixed model (see \code{\link[lme4]{coef.merMod}}).
+The standard error of \code{x}.
 }
 \description{
 Compute standard error for a variable, for all variables
                of a data frame, for joint random and fixed effects
-               coefficients of mixed models, or for intraclass correlation
-               coefficients (ICC).
+               coefficients of (non-/linear) mixed models, the adjusted
+               standard errors for generalized linear (mixed) models, or
+               for intraclass correlation coefficients (ICC).
 }
 \details{
 Unlike \code{\link[arm]{se.coef}}, which returns the standard error
@@ -35,6 +34,10 @@ Unlike \code{\link[arm]{se.coef}}, which returns the standard error
            the standard errors for joint (sums of) random and fixed
            effects coefficients. Hence, \code{se()} returns the appropriate
            standard errors for \code{\link[lme4]{coef.merMod}}.
+           \cr \cr
+           For generalized linear models or generalized linear mixed models,
+           approximated standard errors, using the delta method for transformed
+           regression parameters are returned (Oehlert 1992).
            \cr \cr
            The standard error for the \code{\link{icc}} is based on bootstrapping,
            thus, the \code{nsim}-argument is required. See 'Examples'.
@@ -47,15 +50,39 @@ Unlike \code{\link[arm]{se.coef}}, which returns the standard error
 \note{
 Computation of standard errors for coefficients of mixed models
         is based \href{http://stackoverflow.com/questions/26198958/extracting-coefficients-and-their-standard-error-from-lme}{on this code}.
+        \cr \cr
+        Standard errors for generalized linear (mixed) models are
+        approximations based on the delta method (Oehlert 1992).
 }
 \examples{
+# compute standard error for vector
 se(rnorm(n = 100, mean = 3))
 
+# compute standard error for each variable in a data frame
 data(efc)
 se(efc[, 1:3])
 
+# compute standard error for merMod-coefficients
 library(lme4)
 fit <- lmer(Reaction ~ Days + (Days | Subject), sleepstudy)
+se(fit)
+
+# compute odds-ratio adjusted standard errors, based on delta method
+# with first-order Taylor approximation.
+data(efc)
+efc$services <- sjmisc::dicho(efc$tot_sc_e, dich.by = 0)
+fit <- glm(services ~ neg_c_7 + c161sex + e42dep,
+           data = efc, family = binomial(link = "logit"))
+se(fit)
+
+# compute odds-ratio adjusted standard errors for generalized
+# linear mixed model, also based on delta method
+library(lme4)
+library(sjmisc)
+# create binary response
+sleepstudy$Reaction.dicho <- dicho(sleepstudy$Reaction, dich.by = "median")
+fit <- glmer(Reaction.dicho ~ Days + (Days | Subject),
+             data = sleepstudy, family = binomial("logit"))
 se(fit)
 
 # compute standard error from regression coefficient and p-value
@@ -85,4 +112,6 @@ boot_p(dummy, icc)}
 
 
 }
-
+\references{
+Oehlert GW. 1992. A note on the delta method. American Statistician 46(1).
+}
