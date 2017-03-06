@@ -124,7 +124,14 @@ cod <- function(x) {
 #'          pseudo r-squared values are returned.
 #'          \cr \cr
 #'          For generalized linear mixed models, the coefficient of determination
-#'          as suggested by \cite{Tjur (2009)} (see also \code{\link{cod}}).
+#'          as suggested by \cite{Tjur (2009)} (see also \code{\link{cod}}). Note
+#'          that \emph{Tjur's D} is restricted to models with binary response.
+#'          \cr \cr
+#'          More ways to compute coefficients of determination are shown
+#'          in this great \href{https://github.com/bbolker/mixedmodels-misc/blob/master/glmmFAQ.rmd#model-summaries-goodness-of-fit-decomposition-of-variance-etc}{GLMM faq}.
+#'          Furthermore, see \code{\link[MuMIn]{r.squaredGLMM}} or
+#'          \code{\link[piecewiseSEM]{rsquared}} for conditional and marginal
+#'          r-squared values for GLMM's.
 #'
 #' @seealso \code{\link{rmse}} for more methods to assess model quality.
 #'

@@ -8,33 +8,48 @@ utils::globalVariables(c("strap", "models", "estimate"))
 #'                standard errors for generalized linear (mixed) models, or
 #'                for intraclass correlation coefficients (ICC).
 #'
-#' @param x (Numeric) vector, a data frame, a \code{merMod}-object
-#'          as returned by the functions from the \pkg{lme4}-package, a
-#'          \code{glm}-object, an ICC object (as obtained by the
+#' @param x (Numeric) vector, a data frame, an \code{lm} or \code{glm}-object,
+#'          a \code{merMod}-object as returned by the functions from the
+#'          \pkg{lme4}-package, an ICC object (as obtained by the
 #'          \code{\link{icc}}-function) or a list with estimate and p-value.
 #'          For the latter case, the list must contain elements named
 #'          \code{estimate} and \code{p.value} (see 'Examples' and 'Details').
 #' @param nsim Numeric, the number of simulations for calculating the
 #'          standard error for intraclass correlation coefficients, as
 #'          obtained by the \code{\link{icc}}-function.
+#' @param type Type of standard errors for generalized linear mixed models.
+#'          \code{type = "fe"} returns the standard errors for fixed effects,
+#'          based on the delta-method-approximation. \code{type = "se"} returns
+#'          the standard errors for joint random and fixed effects. See 'Details'.
 #'
 #' @return The standard error of \code{x}.
 #'
 #' @note Computation of standard errors for coefficients of mixed models
 #'         is based \href{http://stackoverflow.com/questions/26198958/extracting-coefficients-and-their-standard-error-from-lme}{on this code}.
+#'         Standard errors for generalized linear (mixed) models, if
+#'         \code{type = "re"}, are approximations based on the delta
+#'         method (Oehlert 1992).
 #'         \cr \cr
-#'         Standard errors for generalized linear (mixed) models are
-#'         approximations based on the delta method (Oehlert 1992).
+#'         A remark on standard errors:
+#'         \dQuote{Standard error represents variation in the point estimate, but
+#'         confidence interval has usual Bayesian interpretation only with flat prior.}
+#'         (Gelman 2017)
 #'
-#' @details Unlike \code{\link[arm]{se.coef}}, which returns the standard error
-#'            for fixed and random effects separately, this function computes
-#'            the standard errors for joint (sums of) random and fixed
-#'            effects coefficients. Hence, \code{se()} returns the appropriate
-#'            standard errors for \code{\link[lme4]{coef.merMod}}.
+#' @details For linear mixed models, and generalized linear mixed models with
+#'            \code{type = "re"}, this function computes the standard errors
+#'            for joint (sums of) random and fixed effects coefficients (unlike
+#'            \code{\link[arm]{se.coef}}, which returns the standard error
+#'            for fixed and random effects separately). Hence, \code{se()}
+#'            returns the appropriate standard errors for \code{\link[lme4]{coef.merMod}}.
 #'            \cr \cr
 #'            For generalized linear models or generalized linear mixed models,
 #'            approximated standard errors, using the delta method for transformed
-#'            regression parameters are returned (Oehlert 1992).
+#'            regression parameters are returned (Oehlert 1992). For generalized
+#'            linear mixed models, by default, the standard errors refer to the
+#'            fixed effects only. Use \code{type = "re"} to compute standard errors
+#'            for joint random and fixed effects coefficients. However, this
+#'            computation \emph{is not} based on the delta method, so standard
+#'            errors from \code{type = "re"} are on the logit-scale.
 #'            \cr \cr
 #'            The standard error for the \code{\link{icc}} is based on bootstrapping,
 #'            thus, the \code{nsim}-argument is required. See 'Examples'.
@@ -45,6 +60,8 @@ utils::globalVariables(c("strap", "models", "estimate"))
 #'            See 'Examples'.
 #'
 #' @references Oehlert GW. 1992. A note on the delta method. American Statistician 46(1).
+#'             \cr \cr
+#'             Gelman A 2017. How to interpret confidence intervals? \url{http://andrewgelman.com/2017/03/04/interpret-confidence-intervals/}
 #'
 #' @examples
 #' # compute standard error for vector
@@ -107,32 +124,44 @@ utils::globalVariables(c("strap", "models", "estimate"))
 #' @importFrom broom tidy
 #' @importFrom dplyr mutate select_
 #' @export
-se <- function(x, nsim = 100) {
-  if (inherits(x, c("lmerMod", "nlmerMod", "merModLmerTest"))) {
+se <- function(x, nsim = 100, type = c("fe", "re")) {
+  # match arguments
+  type <- match.arg(type)
 
+  if (inherits(x, c("lmerMod", "nlmerMod", "merModLmerTest"))) {
     # return standard error for (linear) mixed models
     return(std_merMod(x))
   } else if (inherits(x, "icc.lme4")) {
-
     # we have a ICC object, so do bootstrapping and compute SE for ICC
     return(std_e_icc(x, nsim))
   } else if (inherits(x, c("glm", "glmerMod"))) {
-
-    # for glm, we want to exponentiate coefficients to get odds ratios, however
-    # 'exponentiate'-argument currently not works for lme4-tidiers
-    # so we need to do this manually for glmer's
-    tm <- broom::tidy(x, effects = "fixed")
-    tm$estimate <- exp(tm$estimate)
-    return(
-      tm %>%
-        # vcov for merMod returns a dpoMatrix-object, so we need
-        # to coerce to regular matrix here.
-        dplyr::mutate(or.se = sqrt(estimate ^ 2 * diag(as.matrix(stats::vcov(x))))) %>%
-        dplyr::select_("term", "estimate", "or.se") %>%
-        sjmisc::var_rename(or.se = "std.error")
+    # check type of se
+    if (type == "fe") {
+      # for glm, we want to exponentiate coefficients to get odds ratios, however
+      # 'exponentiate'-argument currently not works for lme4-tidiers
+      # so we need to do this manually for glmer's
+      tm <- broom::tidy(x, effects = "fixed")
+      tm$estimate <- exp(tm$estimate)
+      return(
+        tm %>%
+          # vcov for merMod returns a dpoMatrix-object, so we need
+          # to coerce to regular matrix here.
+          dplyr::mutate(or.se = sqrt(estimate ^ 2 * diag(as.matrix(stats::vcov(x))))) %>%
+          dplyr::select_("term", "estimate", "or.se") %>%
+          sjmisc::var_rename(or.se = "std.error")
+      )
+    } else {
+      # return standard error for mixed models,
+      # joint random and fixed effects
+      return(std_merMod(x))
+    }
+  } else if (inherits(x, "lm")) {
+    # for convenience reasons, also return se for simple linear models
+    return(x %>%
+             broom::tidy(effects = "fixed") %>%
+             dplyr::select_("term", "estimate", "std.error")
     )
   } else if (is.matrix(x) || is.data.frame(x)) {
-
     # init return variables
     stde <- c()
     stde_names <- c()
@@ -152,11 +181,9 @@ se <- function(x, nsim = 100) {
     # return results
     return(stde)
   } else if (is.list(x)) {
-
     # compute standard error from regression coefficient and p-value
     return(x$estimate / abs(stats::qnorm(x$p.value / 2)))
   } else {
-
     # standard error for a variable
     return(std_e_helper(x))
   }
@@ -165,7 +192,7 @@ se <- function(x, nsim = 100) {
 std_e_helper <- function(x) sqrt(var(x, na.rm = TRUE) / length(stats::na.omit(x)))
 
 
-#' @importFrom stats coef setNames
+#' @importFrom stats coef setNames vcov
 #' @importFrom lme4 ranef
 std_merMod <- function(fit) {
   se.merMod <- list()
@@ -177,7 +204,7 @@ std_merMod <- function(fit) {
   inames <- names(cc)
 
   # variances of fixed effects
-  fixed.vars <- diag(as.matrix(lme4::vcov.merMod(fit)))
+  fixed.vars <- diag(as.matrix(stats::vcov(fit)))
 
   # extract variances of conditional modes
   r1 <- lme4::ranef(fit, condVar = TRUE)

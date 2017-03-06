@@ -1,3 +1,24 @@
+# sjstats 0.9.0
+
+## General
+
+* Functions `std()` and `center()` were removed and are now in the [sjmisc-package](https://cran.r-project.org/package=sjmisc).
+
+## New functions
+
+* `svyglm.nb()` to compute survey-weighted negative binomial regressions. 
+* `xtab_statistics()` to compute various measures of assiciation for contingency tables.
+* Added S3-`model.frame()`-function for `gee`-models.
+
+## Changes to functions
+
+* `se()` gets a `type`-argument, which applies to generalized linear mixed models. You can now choose to compute either standard errors with delta-method approximation for fixed effects only, or standard errors for joint random and fixed effects.
+
+
+## Bug fixes
+
+* `prop()` did not work for non-labelled data frames when used with grouped data frames.
+
 # sjstats 0.8.0
 
 ## New functions
