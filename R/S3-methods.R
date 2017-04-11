@@ -1,3 +1,5 @@
+utils::globalVariables(c("std.error"))
+
 #' @importFrom nlme getData getCovariateFormula
 #' @export
 model.matrix.gls <- function(object, ...) {
@@ -19,6 +21,82 @@ model.frame.gls <- function(formula, ...) {
     colnames(mf)[1] <- sjmisc::get_label(y, def.value = "Response")
     return(mf)
   }
+}
+
+
+#' @importFrom tibble tibble
+#' @importFrom stats coef vcov pnorm
+#' @export
+print.svyglm.nb <- function(x, ...) {
+  print(tidy_svyglm.nb(x)[-1, ], ...)
+}
+
+tidy_svyglm.nb <- function(x, digits = 4) {
+  if (!isNamespaceLoaded("survey"))
+    requireNamespace("survey", quietly = TRUE)
+  tibble::tibble(
+    term = substring(names(stats::coef(x)), 5),
+    estimate = round(stats::coef(x), digits),
+    irr = round(exp(estimate), digits),
+    std.error = round(sqrt(diag(stats::vcov(x, stderr = "robust"))), digits),
+    p.value = round(2 * stats::pnorm(abs(estimate / std.error), lower.tail = FALSE), digits)
+  )
+}
+
+
+#' @importFrom dplyr select one_of
+#' @importFrom tibble as_tibble
+#' @export
+model.frame.svyglm.nb <- function(formula, ...) {
+  pred <- attr(formula, "nb.terms", exact = T)
+  tibble::as_tibble(dplyr::select(formula$design$variables, dplyr::one_of(pred)))
+}
+
+
+#' @export
+family.svyglm.nb <- function(object, ...) {
+  attr(object, "family", exact = TRUE)
+}
+
+
+#' @export
+formula.svyglm.nb <- function(x, ...) {
+  attr(x, "nb.formula", exact = TRUE)
+}
+
+
+#' @importFrom MASS glm.nb
+#' @importFrom stats coef setNames predict.glm
+#' @export
+predict.svyglm.nb <- function(object, newdata = NULL,
+                              type = c("link", "response", "terms"),
+                              se.fit = FALSE, dispersion = NULL, terms = NULL,
+                              na.action = na.pass, ...) {
+
+  if (!isNamespaceLoaded("survey"))
+    requireNamespace("survey", quietly = TRUE)
+
+  fnb <- MASS::glm.nb(
+    attr(object, "nb.formula", exact = TRUE),
+    data = object$design$variables
+  )
+
+  cf <- stats::coef(fnb)
+  names.cf <- names(cf)
+  cf <- stats::coef(object)[-1]
+  cf <- stats::setNames(cf, names.cf)
+  fnb$coefficients <- cf
+
+  stats::predict.glm(
+    object = fnb,
+    newdata = newdata,
+    type = type,
+    se.fit = se.fit,
+    dispersion = dispersion,
+    terms = terms,
+    na.action = na.action,
+    ...
+  )
 }
 
 

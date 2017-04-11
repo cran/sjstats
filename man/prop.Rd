@@ -2,9 +2,12 @@
 % Please edit documentation in R/prop.R
 \name{prop}
 \alias{prop}
-\title{Proportion of values in a vector}
+\alias{props}
+\title{Proportions of values in a vector}
 \usage{
-prop(data, ..., weight.by = NULL, na.rm = FALSE, digits = 4)
+prop(data, ..., weight.by = NULL, na.rm = TRUE, digits = 4)
+
+props(data, ..., na.rm = TRUE, digits = 4)
 }
 \arguments{
 \item{data}{A data frame. May also be a grouped data frame (see 'Examples').}
@@ -33,8 +36,17 @@ For one condition, a numeric value with the proportion of the values
         followed by one column with proportions per condition.
 }
 \description{
-This function calculates the proportion of a value or category
-               in a variable.
+\code{prop()} calculates the proportion of a value or category
+               in a variable. \code{props()} does the same, but allows for
+               multiple logical conditions in one statement.
+}
+\details{
+\code{prop()} only allows one logical statement per comparison,
+         while \code{props()} allows multiple logical statements per comparison.
+         However, \code{prop()} supports weighting of variables before calculating
+         proportions, and comparisons may also be quoted. Hence, \code{prop()}
+         also processes comparisons, which are passed as character vector
+         (see 'Examples').
 }
 \examples{
 data(efc)
@@ -45,20 +57,30 @@ prop(efc, e42dep == 1)
 # expression may also be completely quoted
 prop(efc, "e42dep == 1")
 
+# use "props()" for multiple logical statements
+props(efc, e17age > 70 & e17age < 80)
+
 # proportion of value 1 in e42dep, and all values greater
-# than 2 in e42dep, excluding missing values. will return a tibble
-prop(efc, e42dep == 1, e42dep > 2, na.rm = TRUE)
+# than 2 in e42dep, including missing values. will return a tibble
+prop(efc, e42dep == 1, e42dep > 2, na.rm = FALSE)
 
 # for factors or character vectors, use quoted or unquoted values
 library(sjmisc)
 # convert numeric to factor, using labels as factor levels
 efc$e16sex <- to_label(efc$e16sex)
+efc$n4pstu <- to_label(efc$n4pstu)
 
 # get proportion of female older persons
 prop(efc, e16sex == female)
 
 # get proportion of male older persons
 prop(efc, e16sex == "male")
+
+# "props()" needs quotes around non-numeric factor levels
+props(efc,
+  e17age > 70 & e17age < 80,
+  n4pstu == 'Care Level 1' | n4pstu == 'Care Level 3'
+)
 
 # also works with pipe-chains
 library(dplyr)
@@ -74,5 +96,15 @@ efc \%>\%
   select(e42dep, c161sex, c172code, e16sex) \%>\%
   group_by(c161sex, c172code) \%>\%
   prop(e42dep > 2, e16sex == 1)
+
+# same for "props()"
+efc \%>\%
+  select(e42dep, c161sex, c172code, c12hour, n4pstu) \%>\%
+  group_by(c161sex, c172code) \%>\%
+  props(
+    e42dep > 2,
+    c12hour > 20 & c12hour < 40,
+    n4pstu == 'Care Level 1' | n4pstu == 'Care Level 3'
+  )
 
 }

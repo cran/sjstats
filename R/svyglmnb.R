@@ -16,10 +16,22 @@ utils::globalVariables("scaled.weights")
 #'          a specification of the survey design.
 #' @param ... Other arguments passed down to \code{\link[MASS]{glm.nb}}.
 #'
-#' @return A \code{\link[survey]{svymle}}-object.
+#' @return An object of class \code{\link[survey]{svymle}} and \code{svyglm.nb},
+#'           with some additional information about the model.
 #'
 #' @details For details on the computation method, see Lumley (2010), Appendix E
 #'          (especially 254ff.)
+#'          \cr \cr
+#'          \pkg{sjstats} implements following S3-methods for \code{svyglm.nb}-objects:
+#'          \code{family()}, \code{model.frame()}, \code{formula()}, \code{print()}
+#'          and \code{predict()}. However, these functions have some limitations:
+#'          \code{family()} simply returns the family-object from the underlying
+#'          \code{\link[MASS]{glm.nb}}-model. The \code{predict()}-methods simply
+#'          re-computes the model with \code{\link[MASS]{glm.nb}}, overwrites
+#'          the \code{$coefficients} from this model-object with the coefficients
+#'          from the returned \code{\link[survey]{svymle}}-object and finally calls
+#'          \code{\link[stats]{predict.glm}} to compute the predicted values.
+#'
 #'
 #' @references Lumley T (2010). Complex Surveys: a guide to analysis using R. Wiley
 #'
@@ -33,9 +45,9 @@ utils::globalVariables("scaled.weights")
 #'
 #' # create survey design
 #' des <- svydesign(
-#'   id = ~ SDMVPSU,
-#'   strat = ~ SDMVSTRA,
-#'   weights = ~ WTINT2YR,
+#'   id = ~SDMVPSU,
+#'   strat = ~SDMVSTRA,
+#'   weights = ~WTINT2YR,
 #'   nest = TRUE,
 #'   data = nhanes_sample
 #' )
@@ -44,10 +56,10 @@ utils::globalVariables("scaled.weights")
 #' fit <- svyglm.nb(total ~ factor(RIAGENDR) * (log(age) + factor(RIDRETH1)), des)
 #'
 #' # print coefficients and standard errors
-#' round(cbind(coef(fit), survey::SE(fit)), 2)
+#' fit
 #'
 #' @importFrom MASS glm.nb
-#' @importFrom stats weights update model.frame coef as.formula
+#' @importFrom stats weights update model.frame coef as.formula family
 #' @export
 svyglm.nb <- function(formula, design, ...) {
   # check if pkg survey is available
@@ -63,6 +75,7 @@ svyglm.nb <- function(formula, design, ...) {
 
   # fit negative binomial model, with scaled design weights
   mod <- MASS::glm.nb(formula, data = stats::model.frame(design), weights = scaled.weights, ...)
+  fam <- stats::family(mod)
 
   # fit survey model, using maximum likelihood estimation
   svyfit <-
@@ -74,6 +87,13 @@ svyglm.nb <- function(formula, design, ...) {
       start = c(mod$theta, stats::coef(mod)),
       na.action = "na.omit"
     )
+
+
+  # add additoinal information
+  class(svyfit) <- c("svyglm.nb", class(svyfit))
+  attr(svyfit, "nb.terms") <- all.vars(formula)
+  attr(svyfit, "nb.formula") <- formula
+  attr(svyfit, "family") <- fam
 
   svyfit
 }

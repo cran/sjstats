@@ -134,6 +134,11 @@ se <- function(x, nsim = 100, type = c("fe", "re")) {
   } else if (inherits(x, "icc.lme4")) {
     # we have a ICC object, so do bootstrapping and compute SE for ICC
     return(std_e_icc(x, nsim))
+  } else if (inherits(x, c("svyglm.nb", "svymle"))) {
+    return(
+      tidy_svyglm.nb(x) %>%
+        dplyr::select_("term", "estimate", "std.error")
+    )
   } else if (inherits(x, c("glm", "glmerMod"))) {
     # check type of se
     if (type == "fe") {
@@ -142,6 +147,24 @@ se <- function(x, nsim = 100, type = c("fe", "re")) {
       # so we need to do this manually for glmer's
       tm <- broom::tidy(x, effects = "fixed")
       tm$estimate <- exp(tm$estimate)
+
+      # # for poisson family, we need a different delta method approach
+      # if (get_glm_family(x)$is_pois) {
+      #   # standard errors scaled using square root of Pearson
+      #   # chi-squared dispersion
+      #   pr <- sum(stats::residuals(x, type = "pearson") ^ 2)
+      #   dispersion <- pr / x$df.residual
+      #   sse <- sqrt(diag(as.matrix(stats::vcov(x)))) * sqrt(dispersion)
+      #
+      #   return(
+      #     tm %>%
+      #       # vcov for merMod returns a dpoMatrix-object, so we need
+      #       # to coerce to regular matrix here.
+      #       dplyr::mutate(std.error = sse) %>%
+      #       dplyr::select_("term", "estimate", "std.error")
+      #   )
+      # }
+
       return(
         tm %>%
           # vcov for merMod returns a dpoMatrix-object, so we need
