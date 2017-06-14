@@ -55,7 +55,7 @@
 #' # (while rel. inequ. are still increasing)
 #' plot(inequ_trend(prev.data, lo, hi))
 #'
-#' @importFrom dplyr select_
+#' @importFrom dplyr select
 #' @export
 inequ_trend <- function(data, prev.low, prev.hi) {
   # prepare data for prevalence rates for low and hi status groups
@@ -68,6 +68,7 @@ inequ_trend <- function(data, prev.low, prev.hi) {
     dat <- dplyr::select_(data, low, high)
 
   }
+
   # ensure common column names
   colnames(dat) <- c("lo", "hi")
 
@@ -76,6 +77,7 @@ inequ_trend <- function(data, prev.low, prev.hi) {
   # compute relative inequality for first time point, needed
   # as reference to compute proportional change over time
   dat$rr <- dat$lo[1] / dat$hi[1]
+
   # compute proportional change of relative inequalities over time
   for (t in 2:nrow(dat)) {
     delta.low <- (dat$lo[t] - dat$lo[t - 1]) / dat$lo[t - 1]
@@ -88,6 +90,7 @@ inequ_trend <- function(data, prev.low, prev.hi) {
   # compute absolute inequality for first time point, needed
   # as reference to compute proportional change over time
   dat$rd <- dat$lo[1] - dat$hi[1]
+
   # compute proportional change of absolute inequalities over time
   for (t in 2:nrow(dat)) {
     delta.low <- (dat$lo[t] - dat$lo[t - 1]) / dat$lo[t - 1]

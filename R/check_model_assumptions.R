@@ -59,7 +59,7 @@
 #'          are preferable (see \code{\link[sjPlot]{sjp.lm}} with \code{type = "ma"}).
 #'          \cr \cr
 #'          \code{multicollin()} wraps \code{\link[car]{vif}} and returns
-#'          the logical result as tibble. If \code{TRUE}, multicollinearity
+#'          the logical result as tibble. \code{TRUE}, if multicollinearity
 #'          exists, else not. In case of multicollinearity, the names of independent
 #'          variables that vioalte contribute to multicollinearity are printed
 #'          to the console.
@@ -92,15 +92,17 @@
 #' check_assumptions(fit, as.logical = TRUE)
 #'
 #' # apply function to multiple models in list-variable
+#' library(purrr)
 #' library(dplyr)
 #' tmp <- efc %>%
 #'   bootstrap(50) %>%
-#'   mutate(models = lapply(.$strap, function(x) {
-#'     lm(neg_c_7 ~ e42dep + c12hour + c161sex, data = x)
-#'   }))
+#'   mutate(
+#'     models = map(strap, ~lm(neg_c_7 ~ e42dep + c12hour + c161sex, data = .x))
+#'   )
 #'
 #' # for list-variables, argument 'model.column' is the
 #' # quoted name of the list-variable with fitted models
+#' tmp %>% normality("models")
 #' tmp %>% heteroskedastic("models")
 #'
 #' # Durbin-Watson-Test from package 'car' takes a little bit longer due
@@ -132,6 +134,7 @@ check_assumptions <- function(x, model.column = NULL, as.logical = FALSE, ...) {
   )
 }
 
+
 #' @rdname check_assumptions
 #' @importFrom sjmisc is_empty
 #' @importFrom stats update
@@ -158,6 +161,7 @@ outliers <- function(x, iterations = 5) {
     while (isTRUE(loop)) {
       # get outliers of model
       vars <- as.numeric(names(which(car::outlierTest(model, cutoff = Inf, n.max = Inf)$bonf.p < 1)))
+
       # no outliers found? then stop...
       if (sjmisc::is_empty(vars)) {
         loop <- FALSE
@@ -168,6 +172,7 @@ outliers <- function(x, iterations = 5) {
         dummyaic <- dummymodel$aic
         # decrease maximum loops
         maxcnt <- maxcnt - 1
+
         # check whether AIC-value of updated model is larger
         # than previous AIC-value or if we have already all iterations done,
         if (dummyaic >= aic || maxcnt < 1) {
@@ -196,6 +201,7 @@ outliers <- function(x, iterations = 5) {
     while (isTRUE(loop)) {
       # get outliers of model
       vars <- as.numeric(names(which(car::outlierTest(model, cutoff = Inf, n.max = Inf)$bonf.p < 1)))
+
       # do we have any outliers?
       if (sjmisc::is_empty(vars)) {
         loop <- FALSE
@@ -207,6 +213,7 @@ outliers <- function(x, iterations = 5) {
         dummyrs <- summary(dummymodel)$r.squared
         # decrease maximum loops
         maxcnt <- maxcnt - 1
+
         # check whether r2 of updated model is lower
         # than previous r2 or if we have already all loop-steps done,
         # stop loop
@@ -270,15 +277,14 @@ heteroskedastic <- function(x, model.column = NULL) {
   # check if we have list-variable, e.g. from nested data frames
   if (!is.null(model.column) && inherits(x[[model.column]], "list")) {
 
-    p.val <-
+    p.val <- x[[model.column]] %>%
       # iterate all model columns in nested data frame
-      purrr::map(x[[model.column]], ~ .x) %>%
+      purrr::map(~ .x) %>%
       # call ncvTest for each model, and just get p-value
-      purrr::map_dbl(~ car::ncvTest(.x)$p)
+      purrr::map_dbl(~ nonconstvar(.x))
   } else {
     # compute non-constant error variance test
-    ts <- car::ncvTest(x)
-    p.val <- ts$p
+    p.val <- nonconstvar(x)
 
     # print message, but not for nested models. only if 'x' is a single model
     if (p.val < 0.05) {
@@ -366,7 +372,7 @@ multicollin <- function(x, model.column = NULL) {
     ts <-
       # iterate all model columns in nested data frame
       purrr::map(x[[model.column]], ~ .x) %>%
-      # call ncvTest for each model, and just get p-value
+      # call vif for each model, and just get p-value
       purrr::map_lgl(~ any(sqrt(car::vif(.x)) > 2))
   } else {
     # check for autocorrelation
@@ -383,4 +389,22 @@ multicollin <- function(x, model.column = NULL) {
   }
 
   tibble::tibble(multicollin = ts)
+}
+
+
+#' @importFrom stats residuals df.residual pchisq anova
+nonconstvar <- function(model) {
+  sumry <- summary(model)
+
+  residuals <- stats::residuals(model, type = "pearson")
+  S.sq <- stats::df.residual(model) * (sumry$sigma) ^ 2 / sum(!is.na(residuals))
+
+  .U <- (residuals ^ 2) / S.sq
+  mod <- lm(.U ~ fitted.values(model))
+
+  SS <- stats::anova(mod)$"Sum Sq"
+  RegSS <- sum(SS) - SS[length(SS)]
+  Chisq <- RegSS / 2
+
+  stats::pchisq(Chisq, df = 1, lower.tail = FALSE)
 }

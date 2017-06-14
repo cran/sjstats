@@ -19,8 +19,9 @@ utils::globalVariables(c("strap", "models", "estimate"))
 #'          obtained by the \code{\link{icc}}-function.
 #' @param type Type of standard errors for generalized linear mixed models.
 #'          \code{type = "fe"} returns the standard errors for fixed effects,
-#'          based on the delta-method-approximation. \code{type = "se"} returns
-#'          the standard errors for joint random and fixed effects. See 'Details'.
+#'          based on the delta-method-approximation. \code{type = "re"} returns
+#'          the standard errors for joint random and fixed effects, which are
+#'          on the scale of the link function. See 'Details'.
 #'
 #' @return The standard error of \code{x}.
 #'
@@ -35,8 +36,8 @@ utils::globalVariables(c("strap", "models", "estimate"))
 #'         confidence interval has usual Bayesian interpretation only with flat prior.}
 #'         (Gelman 2017)
 #'
-#' @details For linear mixed models, and generalized linear mixed models with
-#'            \code{type = "re"}, this function computes the standard errors
+#' @details For linear mixed models, and generalized linear mixed models \strong{with
+#'            \code{type = "re"}}, this function computes the standard errors
 #'            for joint (sums of) random and fixed effects coefficients (unlike
 #'            \code{\link[arm]{se.coef}}, which returns the standard error
 #'            for fixed and random effects separately). Hence, \code{se()}
@@ -47,9 +48,10 @@ utils::globalVariables(c("strap", "models", "estimate"))
 #'            regression parameters are returned (Oehlert 1992). For generalized
 #'            linear mixed models, by default, the standard errors refer to the
 #'            fixed effects only. Use \code{type = "re"} to compute standard errors
-#'            for joint random and fixed effects coefficients. However, this
-#'            computation \emph{is not} based on the delta method, so standard
-#'            errors from \code{type = "re"} are on the logit-scale.
+#'            for joint random and fixed effects coefficients. However,
+#'            computation for the latter \emph{is not} based on the delta method,
+#'            so standard errors from \code{type = "re"} are on the scale of the
+#'            link-function (and not back transformed).
 #'            \cr \cr
 #'            The standard error for the \code{\link{icc}} is based on bootstrapping,
 #'            thus, the \code{nsim}-argument is required. See 'Examples'.
@@ -104,16 +106,17 @@ utils::globalVariables(c("strap", "models", "estimate"))
 #'
 #' # the standard error for the ICC can be computed manually in this way,
 #' # taking the fitted model example from above
-#' library(dplyr)
+#' library(tidyverse)
 #' dummy <- sleepstudy %>%
 #'   # generate 100 bootstrap replicates of dataset
 #'   bootstrap(100) %>%
 #'   # run mixed effects regression on each bootstrap replicate
-#'   mutate(models = lapply(.$strap, function(x) {
-#'     lmer(Reaction ~ Days + (Days | Subject), data = x)
-#'   })) %>%
-#'   # compute ICC for each "bootstrapped" regression
-#'   mutate(icc = unlist(lapply(.$models, icc)))
+#'   # and compute ICC for each "bootstrapped" regression
+#'   mutate(
+#'     models = map(strap, ~lmer(Reaction ~ Days + (Days | Subject), data = .x)),
+#'     icc = map_dbl(models, ~icc(.x))
+#'   )
+#'
 #' # now compute SE and p-values for the bootstrapped ICC, values
 #' # may differ from above example due to random seed
 #' boot_se(dummy, icc)
@@ -122,7 +125,9 @@ utils::globalVariables(c("strap", "models", "estimate"))
 #'
 #' @importFrom stats qnorm vcov
 #' @importFrom broom tidy
-#' @importFrom dplyr mutate select_
+#' @importFrom dplyr mutate select
+#' @importFrom rlang .data
+#' @importFrom sjmisc var_rename
 #' @export
 se <- function(x, nsim = 100, type = c("fe", "re")) {
   # match arguments
@@ -137,7 +142,7 @@ se <- function(x, nsim = 100, type = c("fe", "re")) {
   } else if (inherits(x, c("svyglm.nb", "svymle"))) {
     return(
       tidy_svyglm.nb(x) %>%
-        dplyr::select_("term", "estimate", "std.error")
+        dplyr::select(.data$term, .data$estimate, .data$std.error)
     )
   } else if (inherits(x, c("glm", "glmerMod"))) {
     # check type of se
@@ -169,8 +174,8 @@ se <- function(x, nsim = 100, type = c("fe", "re")) {
         tm %>%
           # vcov for merMod returns a dpoMatrix-object, so we need
           # to coerce to regular matrix here.
-          dplyr::mutate(or.se = sqrt(estimate ^ 2 * diag(as.matrix(stats::vcov(x))))) %>%
-          dplyr::select_("term", "estimate", "or.se") %>%
+          dplyr::mutate(or.se = sqrt(.data$estimate ^ 2 * diag(as.matrix(stats::vcov(x))))) %>%
+          dplyr::select(.data$term, .data$estimate, .data$or.se) %>%
           sjmisc::var_rename(or.se = "std.error")
       )
     } else {
@@ -182,7 +187,7 @@ se <- function(x, nsim = 100, type = c("fe", "re")) {
     # for convenience reasons, also return se for simple linear models
     return(x %>%
              broom::tidy(effects = "fixed") %>%
-             dplyr::select_("term", "estimate", "std.error")
+             dplyr::select(.data$term, .data$estimate, .data$std.error)
     )
   } else if (is.matrix(x) || is.data.frame(x)) {
     # init return variables
@@ -275,8 +280,8 @@ std_e_icc <- function(x, nsim) {
   # now compute SE and p-values for the bootstrapped ICC
   res <- data.frame(model = obj.name,
                     icc = as.vector(x),
-                    std.err = boot_se(bstr, icc)[["std.err"]],
-                    p.value = boot_p(bstr, icc)[["p.value"]])
+                    std.err = boot_se(bstr)[["std.err"]],
+                    p.value = boot_p(bstr)[["p.value"]])
   structure(class = "se.icc.lme4", list(result = res, bootstrap_data = bstr))
 }
 
@@ -285,6 +290,8 @@ std_e_icc <- function(x, nsim) {
 #' @importFrom dplyr mutate
 #' @importFrom lme4 lmer glmer
 #' @importFrom utils txtProgressBar
+#' @importFrom purrr map map_dbl
+#' @importFrom rlang .data
 bootstr_icc_se <- function(dd, nsim, formula, model.family) {
   # create progress bar
   pb <- utils::txtProgressBar(min = 1, max = nsim, style = 3)
@@ -292,19 +299,27 @@ bootstr_icc_se <- function(dd, nsim, formula, model.family) {
   # generate bootstraps
   dummy <- dd %>%
     bootstrap(nsim) %>%
-    dplyr::mutate(models = lapply(strap, function(x) {
-      # update progress bar
-      utils::setTxtProgressBar(pb, x$resample.id)
-      # check model family, then compute mixed model
-      if (model.family == "gaussian")
-        lme4::lmer(formula, data = x)
-      else
-        lme4::glmer(formula, data = x, family = model.family)
-    })) %>%
-    # compute ICC for each "bootstrapped" regression
-    dplyr::mutate(icc = unlist(lapply(models, icc)))
+    dplyr::mutate(
+      models = purrr::map(.data$strap, function(x) {
+        # update progress bar
+        utils::setTxtProgressBar(pb, x$resample.id)
+        # check model family, then compute mixed model
+        if (model.family == "gaussian")
+          lme4::lmer(formula, data = x)
+        else
+          lme4::glmer(formula, data = x, family = model.family)
+      }),
+      # compute ICC(s) for each "bootstrapped" regression
+      icc = purrr::map(.data$models, icc)
+    )
+
+  # we may have more than one random term in the model, so we might have
+  # multiple ICC values. In this case, we need to split the multiple icc-values
+  # into multiple columns, i.e. one column per ICC value
+  icc_data <-
+    tibble::as_tibble(matrix(unlist(purrr::map(dummy$icc, ~ .x)), nrow = nrow(dummy)))
 
   # close progresss bar
   close(pb)
-  return(dummy)
+  return(icc_data)
 }

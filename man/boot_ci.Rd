@@ -4,6 +4,7 @@
 \alias{boot_ci}
 \alias{boot_se}
 \alias{boot_p}
+\alias{boot_est}
 \title{Standard error and confidence intervals for bootstrapped estimates}
 \usage{
 boot_ci(data, ...)
@@ -11,6 +12,8 @@ boot_ci(data, ...)
 boot_se(data, ...)
 
 boot_p(data, ...)
+
+boot_est(data, ...)
 }
 \arguments{
 \item{data}{A data frame that containts the vector with bootstrapped
@@ -22,35 +25,38 @@ or if only selected variables from \code{data} should be used
 in the function.}
 }
 \value{
-A \code{\link[tibble]{tibble}} with either bootstrap standard error,
-        the lower and upper confidence intervals or the p-value for all
-        bootstrapped estimates.
+A \code{\link[tibble]{tibble}} with either bootstrap estimate,
+        standard error, the lower and upper confidence intervals or the
+        p-value for all bootstrapped estimates.
 }
 \description{
-Compute nonparametric bootstrap standard error, confidence
-             intervals and p-value for a vector of bootstrap replicate
-             estimates.
+Compute nonparametric bootstrap estimate, standard error,
+             confidence intervals and p-value for a vector of bootstrap
+             replicate estimates.
 }
 \details{
 The methods require one or more vectors of bootstrap replicate estimates
-         as input. \code{boot_se()} computes the nonparametric bootstrap
-         standard error by calculating the standard deviation of the input
-         vector. The mean value of the input vector and its standard error is
-         used by \code{boot_ci()} to calculate the lower and upper confidence interval, assuming
+         as input. \code{boot_est()} returns the bootstrapped estimate, simply by
+         computing the mean value of all bootstrap estimates. \code{boot_se()}
+         computes the nonparametric bootstrap standard error by calculating
+         the standard deviation of the input vector. The mean value of the
+         input vector and its standard error is used by \code{boot_ci()}
+         to calculate the lower and upper confidence interval, assuming
          a t-distribution of bootstrap estimate replicates. P-values
          from \code{boot_p()} are also based on t-statistics, assuming normal
          distribution.
 }
 \examples{
+library(tidyverse)
 data(efc)
 bs <- bootstrap(efc, 100)
 
 # now run models for each bootstrapped sample
-bs$models <- lapply(bs$strap, function(x) lm(neg_c_7 ~ e42dep + c161sex, data = x))
+bs$models <- map(bs$strap, ~lm(neg_c_7 ~ e42dep + c161sex, data = .x))
 
 # extract coefficient "dependency" and "gender" from each model
-bs$dependency <- unlist(lapply(bs$models, function(x) coef(x)[2]))
-bs$gender <- unlist(lapply(bs$models, function(x) coef(x)[3]))
+bs$dependency <- map_dbl(bs$models, ~coef(.x)[2])
+bs$gender <- map_dbl(bs$models, ~coef(.x)[3])
 
 # get bootstrapped confidence intervals
 boot_ci(bs$dependency)
@@ -67,18 +73,18 @@ boot_ci(bs, dependency, gender)
 
 # compare coefficients
 mean(bs$dependency)
+boot_est(bs$dependency)
 coef(fit)[2]
 
+
 # bootstrap() and boot_ci() work fine within pipe-chains
-library(dplyr)
 efc \%>\%
   bootstrap(100) \%>\%
-  mutate(models = lapply(.$strap, function(x) {
-    lm(neg_c_7 ~ e42dep + c161sex, data = x)
-  })) \%>\%
-  mutate(dependency = unlist(lapply(.$models, function(x) coef(x)[2]))) \%>\%
+  mutate(
+    models = map(strap, ~lm(neg_c_7 ~ e42dep + c161sex, data = .x)),
+    dependency = map_dbl(models, ~coef(.x)[2])
+  ) \%>\%
   boot_ci(dependency)
-
 
 # check p-value
 boot_p(bs$gender)
@@ -93,9 +99,9 @@ efc \%>\%
   # generate bootstrap replicates
   bootstrap(100) \%>\%
   # apply lm to all bootstrapped data sets
-  mutate(models = lapply(.$strap, function(x) {
-    lm(neg_c_7 ~ e42dep + c161sex + c172code, data = x)
-  })) \%>\%
+  mutate(
+    models = map(strap, ~lm(neg_c_7 ~ e42dep + c161sex + c172code, data = .x))
+  ) \%>\%
   # spread model coefficient for all 100 models
   spread_coef(models) \%>\%
   # compute the CI for all bootstrapped model coefficients
@@ -106,9 +112,9 @@ efc \%>\%
   # generate bootstrap replicates
   bootstrap(100) \%>\%
   # apply lm to all bootstrapped data sets
-  mutate(models = lapply(strap, function(x) {
-    lm(neg_c_7 ~ e42dep + c161sex + c172code, data = x)
-  })) \%>\%
+  mutate(
+    models = map(strap, ~lm(neg_c_7 ~ e42dep + c161sex + c172code, data = .x))
+  ) \%>\%
   # spread model coefficient for all 100 models
   spread_coef(models, append = FALSE) \%>\%
   # compute the CI for all bootstrapped model coefficients

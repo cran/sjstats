@@ -60,6 +60,15 @@
 #' bs$c12hour <- unlist(lapply(bs$strap, function(x) {
 #'   mean(as.data.frame(x)$c12hour, na.rm = TRUE)
 #' }))
+#'
+#' # or as tidyverse-approach
+#' library(tidyverse)
+#' bs <- efc %>%
+#'   bootstrap(100) %>%
+#'   mutate(
+#'     c12hour = map_dbl(strap, ~mean(as.data.frame(.x)$c12hour, na.rm = TRUE))
+#'   )
+#'
 #' # bootstrapped standard error
 #' boot_se(bs, c12hour)
 #' # standard error of original variable
@@ -72,8 +81,10 @@ bootstrap <- function(data, n, size) {
     # check for valid range
     if (size < 0 || size > nrow(data))
       stop("`size` must be greater than 0, but not greater than number of rows of `data`.", call. = F)
+
     # check if we want proportions
     if (size < 1) size <- as.integer(nrow(data) * size)
+
     # generate bootstraps w/o replacement
     repl <- F
   } else {
@@ -82,10 +93,13 @@ bootstrap <- function(data, n, size) {
     # generate bootstraps with replacement
     repl <- T
   }
+
   # generate bootstrap resamples
   strap <- replicate(n, resample(data, size, repl), simplify = F)
+
   # add resample ID, may be used for other functions (like 'se()' for 'icc()')
   for (i in seq_len(length(strap))) strap[[i]]$resample.id <- i
+
   # return tibble
   tibble::tibble(strap)
 }

@@ -82,7 +82,7 @@
 #'             Piedmont RL. 2014. Inter-item Correlations. In: Michalos AC (eds) Encyclopedia of Quality of Life and Well-Being Research. Dordrecht: Springer, 3303-3304. \doi{10.1007/978-94-007-0753-5_1493}
 #'
 #' @examples
-#' library(sjmisc)
+#' library(sjlabelled)
 #' # Data from the EUROFAMCARE sample dataset
 #' data(efc)
 #'
@@ -185,7 +185,8 @@ reliab_test <- function(x, scale.items = FALSE, digits = 3) {
     warning("Data frame needs at least three columns for reliability-test.", call. = F)
     ret.df <- NULL
   }
-  return(ret.df)
+
+  ret.df
 }
 
 
@@ -259,5 +260,6 @@ mic <- function(x, cor.method = c("pearson", "spearman", "kendall")) {
       }
     }
   }
-  return(mean(meanic))
+
+  mean(meanic)
 }

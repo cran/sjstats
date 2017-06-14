@@ -1,3 +1,18 @@
+Version 0.10.1
+------------------------------------------------------------------------------
+General:
+
+* Revised imports: Labelled data functions from package *sjmisc* have been moved to package *sjlabelled*.
+
+New functions:
+* `boot_est()` to return the estimate from bootstrap replicates.
+
+Changes to functions:
+* The `print()`-method for `svyglm.nb()`-objects now also prints confidence intervals.
+
+Bug fixes:
+* `se()` did not work for `icc()`-objects, when the mixed model had more than one random effect term.
+
 Version 0.10.0
 ------------------------------------------------------------------------------
 New functions:
