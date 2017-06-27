@@ -54,7 +54,7 @@
 #' @importFrom stats df.residual residuals pchisq
 #' @export
 overdisp <- function(x, trafo = NULL) {
-  if (sjmisc::str_contains(class(x), "merMod", ignore.case = TRUE))
+  if (inherits(x, c("merMod", "glmerMod", "glmmTBB")))
     return(overdisp.lme4(x))
   else
     return(overdisp.default(x, trafo))
@@ -80,30 +80,19 @@ overdisp.default <- function(x, trafo) {
 
 
 overdisp.lme4 <- function(x) {
-  # check object class
-  if (inherits(x, "glmerMod")) {
-    rdf <- stats::df.residual(x)
-    rp <- stats::residuals(x, type = "pearson")
-    Pearson.chisq <- sum(rp ^ 2)
-    prat <- Pearson.chisq / rdf
-    pval <- stats::pchisq(Pearson.chisq, df = rdf, lower.tail = FALSE)
-    cat(sprintf("\n        Overdispersion test\n\ndispersion ratio = %.4f, p-value = %.4f\n\n",
-                prat, pval))
+  rdf <- stats::df.residual(x)
+  rp <- stats::residuals(x, type = "pearson")
+  Pearson.chisq <- sum(rp ^ 2)
+  prat <- Pearson.chisq / rdf
+  pval <- stats::pchisq(Pearson.chisq, df = rdf, lower.tail = FALSE)
 
-    if (pval > 0.05)
-      message("No overdispersion detected.")
-    else
-      message("Overdispersion detected.")
-
-    return(invisible(list(
-      chisq = Pearson.chisq,
-      ratio = prat,
-      rdf = rdf,
-      p = pval
-    )))
-  } else {
-    warning("This method currently only supports `glmer` fitted models.", call. = F)
-  }
+  structure(class = "sjstats_ovderdisp",
+            list(
+              chisq = Pearson.chisq,
+              ratio = prat,
+              rdf = rdf,
+              p = pval
+            ))
 }
 
 

@@ -1,5 +1,3 @@
-utils::globalVariables(c("strap", "models", "estimate"))
-
 #' @title Standard Error for variables or coefficients
 #' @name se
 #' @description Compute standard error for a variable, for all variables
@@ -127,7 +125,7 @@ utils::globalVariables(c("strap", "models", "estimate"))
 #' @importFrom broom tidy
 #' @importFrom dplyr mutate select
 #' @importFrom rlang .data
-#' @importFrom sjmisc var_rename
+#' @importFrom purrr map_dbl
 #' @export
 se <- function(x, nsim = 100, type = c("fe", "re")) {
   # match arguments
@@ -135,15 +133,14 @@ se <- function(x, nsim = 100, type = c("fe", "re")) {
 
   if (inherits(x, c("lmerMod", "nlmerMod", "merModLmerTest"))) {
     # return standard error for (linear) mixed models
-    return(std_merMod(x))
+    se_result <- std_merMod(x)
   } else if (inherits(x, "icc.lme4")) {
     # we have a ICC object, so do bootstrapping and compute SE for ICC
-    return(std_e_icc(x, nsim))
+    se_result <- std_e_icc(x, nsim)
   } else if (inherits(x, c("svyglm.nb", "svymle"))) {
-    return(
-      tidy_svyglm.nb(x) %>%
-        dplyr::select(.data$term, .data$estimate, .data$std.error)
-    )
+    se_result <- x %>%
+      tidy_svyglm.nb() %>%
+      dplyr::select(.data$term, .data$estimate, .data$std.error)
   } else if (inherits(x, c("glm", "glmerMod"))) {
     # check type of se
     if (type == "fe") {
@@ -170,51 +167,36 @@ se <- function(x, nsim = 100, type = c("fe", "re")) {
       #   )
       # }
 
-      return(
+      se_result <-
         tm %>%
           # vcov for merMod returns a dpoMatrix-object, so we need
           # to coerce to regular matrix here.
-          dplyr::mutate(or.se = sqrt(.data$estimate ^ 2 * diag(as.matrix(stats::vcov(x))))) %>%
-          dplyr::select(.data$term, .data$estimate, .data$or.se) %>%
-          sjmisc::var_rename(or.se = "std.error")
-      )
+          dplyr::mutate(std.error = sqrt(.data$estimate ^ 2 * diag(as.matrix(stats::vcov(x))))) %>%
+          dplyr::select(.data$term, .data$estimate, .data$std.error)
     } else {
       # return standard error for mixed models,
       # joint random and fixed effects
-      return(std_merMod(x))
+      se_result <- std_merMod(x)
     }
   } else if (inherits(x, "lm")) {
     # for convenience reasons, also return se for simple linear models
-    return(x %>%
-             broom::tidy(effects = "fixed") %>%
-             dplyr::select(.data$term, .data$estimate, .data$std.error)
-    )
+    se_result <- x %>%
+      broom::tidy(effects = "fixed") %>%
+      dplyr::select(.data$term, .data$estimate, .data$std.error)
   } else if (is.matrix(x) || is.data.frame(x)) {
-    # init return variables
-    stde <- c()
-    stde_names <- c()
-
-    # iterate all columns
-    for (i in seq_len(ncol(x))) {
-      # get and save standard error for each variable
-      # of the data frame
-      stde <- c(stde, std_e_helper(x[[i]]))
-      # save column name as variable name
-      stde_names <- c(stde_names, colnames(x)[i])
-    }
-
+    # se for each column
+    se_result <- purrr::map_dbl(x, ~ std_e_helper(.x))
     # set names to return vector
-    names(stde) <- stde_names
-
-    # return results
-    return(stde)
+    names(se_result) <- colnames(x)
   } else if (is.list(x)) {
     # compute standard error from regression coefficient and p-value
-    return(x$estimate / abs(stats::qnorm(x$p.value / 2)))
+    se_result <- x$estimate / abs(stats::qnorm(x$p.value / 2))
   } else {
     # standard error for a variable
-    return(std_e_helper(x))
+    se_result <- std_e_helper(x)
   }
+
+  se_result
 }
 
 std_e_helper <- function(x) sqrt(var(x, na.rm = TRUE) / length(stats::na.omit(x)))
@@ -243,13 +225,14 @@ std_merMod <- function(fit) {
     seVals <- sqrt(sweep(cmode.vars, 2, fixed.vars, "+"))
 
     # add results to return list
-    se.merMod[[length(se.merMod) + 1]] <- stats::setNames(as.vector(seVals[1, ]),
-                                                          c("intercept_se", "slope_se"))
+    se.merMod[[length(se.merMod) + 1]] <-
+      stats::setNames(as.vector(seVals[1, ]), c("intercept_se", "slope_se"))
   }
 
   # set names of list
   names(se.merMod) <- inames
-  return(se.merMod)
+
+  se.merMod
 }
 
 
@@ -265,6 +248,7 @@ std_e_icc <- function(x, nsim) {
   # get object, see whether formulas match
   fitted.model <- globalenv()[[obj.name]]
   model.formula <- attr(x, "formula", exact = T)
+
   if (!identical(model.formula, formula(fitted.model)))
     stop(sprintf("merMod-object `%s` was fitted with a different formula than ICC-model", obj.name), call. = F)
 
@@ -275,13 +259,20 @@ std_e_icc <- function(x, nsim) {
   if (missing(nsim) || is.null(nsim)) nsim <- 100
 
   # get ICC, and compute bootstrapped SE, than return both
-  bstr <- bootstr_icc_se(stats::model.frame(fitted.model), nsim, model.formula, model.family)
+  bstr <-
+    bootstr_icc_se(stats::model.frame(fitted.model),
+                   nsim,
+                   model.formula,
+                   model.family)
 
   # now compute SE and p-values for the bootstrapped ICC
-  res <- data.frame(model = obj.name,
-                    icc = as.vector(x),
-                    std.err = boot_se(bstr)[["std.err"]],
-                    p.value = boot_p(bstr)[["p.value"]])
+  res <- data.frame(
+    model = obj.name,
+    icc = as.vector(x),
+    std.err = boot_se(bstr)[["std.err"]],
+    p.value = boot_p(bstr)[["p.value"]]
+  )
+
   structure(class = "se.icc.lme4", list(result = res, bootstrap_data = bstr))
 }
 
@@ -321,5 +312,6 @@ bootstr_icc_se <- function(dd, nsim, formula, model.family) {
 
   # close progresss bar
   close(pb)
-  return(icc_data)
+
+  icc_data
 }

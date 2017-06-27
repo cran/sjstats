@@ -1,5 +1,3 @@
-utils::globalVariables(c("std.error"))
-
 #' @importFrom nlme getData getCovariateFormula
 #' @export
 model.matrix.gls <- function(object, ...) {
@@ -398,6 +396,18 @@ print.sjstats_zcf <- function(x, ...) {
              "Model is overfitting zero-counts.\n"))
 }
 
+
+#' @export
+print.sjstats_ovderdisp <- function(x, ...) {
+  cat(sprintf("\n        Overdispersion test\n\ndispersion ratio = %.4f, p-value = %.4f\n\n", x$ratio, x$p))
+
+  if (x$p > 0.05)
+    message("No overdispersion detected.")
+  else
+    message("Overdispersion detected.")
+}
+
+
 #' @export
 print.sjstats_outliers <- function(x, ...) {
   print(x$result, ...)
@@ -429,4 +439,16 @@ print.sj_xtab_stat <- function(x, ...) {
     cat(sprintf("  %*s: <0.001\n", l, "p-value", x$p.value))
   else
     cat(sprintf("  %*s: %.4f\n", l, "p-value", x$p.value))
+}
+
+
+#' @export
+print.sjstats_pred_accuracy <- function(x, ...) {
+  # headline
+  cat("Accuracy of Model Predictions\n\n")
+
+  # statistics
+  cat(sprintf("Accuracy: %.2f%%\n", 100 * x$accuracy))
+  cat(sprintf("      SE: %.2f%%-points\n", 100 * x$std.error))
+  cat(sprintf("  Method: %s", x$stat))
 }
