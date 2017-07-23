@@ -2,39 +2,51 @@
 % Please edit documentation in R/eta_sq.R
 \name{eta_sq}
 \alias{eta_sq}
-\title{Eta-squared of fitted anova}
+\alias{omega_sq}
+\alias{cohens_f}
+\alias{anova_stats}
+\title{Effect size statistics for anova}
 \usage{
-eta_sq(...)
+eta_sq(model, partial = FALSE)
+
+omega_sq(model)
+
+cohens_f(model)
+
+anova_stats(model, digits = 3)
 }
 \arguments{
-\item{...}{Fitted one-way-anova model or a dependent and grouping variable (see 'Examples').}
+\item{model}{A fitted anova-model of class \code{aov} or \code{anova}. Other
+models are coerced to \code{\link[stats]{anova}}.}
+
+\item{partial}{Logical, if \code{TRUE}, the partial eta-squared is returned.}
+
+\item{digits}{Number of decimal points in the returned data frame.}
 }
 \value{
-The eta-squared value.
+A numeric vector with the effect size statistics; for \code{anova_stats()},
+        a tidy data frame with all these statistics.
 }
 \description{
-Returns the eta-squared value for one-way-anovas.
-}
-\note{
-Interpret eta-squared like r-squared or R-squared; a rule of thumb (Cohen):
-        \itemize{
-         \item .02 ~ small
-         \item .13 ~ medium
-         \item .26 ~ large
-        }
+Returns the (partial) eta-squared, omega-squared statistic
+             or Cohen's F for all terms in an anovas. \code{anova_stats()} returns
+             a tidy summary, including all these statistics and power for each term.
 }
 \examples{
 # load sample data
 data(efc)
 
 # fit linear model
-fit <- aov(c12hour ~ as.factor(e42dep), data = efc)
+fit <- aov(
+  c12hour ~ as.factor(e42dep) + as.factor(c172code) + c160age,
+  data = efc
+)
 
-# print eta sqaured
 eta_sq(fit)
+omega_sq(fit)
+eta_sq(fit, partial = TRUE)
 
-# grouping variable will be converted to factor autoamtically
-eta_sq(efc$c12hour, efc$e42dep)
+anova_stats(car::Anova(fit, type = 2))
 
 }
 \references{

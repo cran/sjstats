@@ -1,3 +1,25 @@
+# sjstats 0.10.3
+
+## New functions
+
+* `typical_value()`, to return the typical value of a variable.
+* `eta_sq()`, `cohens_f()` and `omega_sq()` to compute (partial) eta-squared or omega-squared statistics, or Cohen's F for anova tables.
+* `anova_stats()` to compute a complete model summary, including (partial) eta-squared, omega-squared and Cohen's F statistics for anova tables, returned as tidy data frame.
+* `svy_md()` as convenient shortcut to compute the median for variables from survey designs.
+* `is_singular()` to check a model fit for singularity in case of post-fitting convergence warnings.
+
+## Changes to functions
+
+* Computation of `r2()` for `glm`-objects is now based on log-Likelihood methods and also accounts for count models.
+* Better `print()`-method for `overdisp()`.
+* `print()`-method for `svyglm.nb()` now also prints the dispersion parameter Theta.
+* `overdisp()` now supports `glmmTMB`-objects.
+* `boot_ci()` also displays CI based on sample quantiles.
+
+## Bug fixes
+
+* `std_beta()` did not work for models with only one predictor.
+
 # sjstats 0.10.2
 
 ## Changes to functions

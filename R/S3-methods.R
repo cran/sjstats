@@ -6,6 +6,8 @@ model.matrix.gls <- function(object, ...) {
   return(mm)
 }
 
+
+
 #' @importFrom nlme getResponse getData getCovariateFormula
 #' @importFrom sjlabelled get_label
 #' @export
@@ -20,6 +22,7 @@ model.frame.gls <- function(formula, ...) {
     return(mf)
   }
 }
+
 
 
 #' @importFrom tibble tibble
@@ -40,8 +43,14 @@ print.svyglm.nb <- function(x, se = c("robust", "model"), digits = 4, ...) {
 
   sm$p.value <- pan
   print(sm, ...)
-  message(sprintf("Showing %s standard errors on link-scale (untransformed).", se))
+
+  # add dispersion parameter
+  cat(sprintf("\nDispersion parameter Theta: %.*f", digits, attr(x, "nb.theta", exact = TRUE)))
+  cat(sprintf("\n   Standard Error of Theta: %.*f", digits, attr(x, "nb.theta.se", exact = TRUE)))
+
+  message(sprintf("\nShowing %s standard errors on link-scale (untransformed).", se))
 }
+
 
 
 #' @importFrom stats qnorm coef pnorm vcov
@@ -67,6 +76,7 @@ tidy_svyglm.nb <- function(x, digits = 4, v_se = c("robust", "model")) {
 }
 
 
+
 #' @importFrom dplyr select one_of
 #' @importFrom tibble as_tibble
 #' @export
@@ -76,16 +86,19 @@ model.frame.svyglm.nb <- function(formula, ...) {
 }
 
 
+
 #' @export
 family.svyglm.nb <- function(object, ...) {
   attr(object, "family", exact = TRUE)
 }
 
 
+
 #' @export
 formula.svyglm.nb <- function(x, ...) {
   attr(x, "nb.formula", exact = TRUE)
 }
+
 
 
 #' @importFrom MASS glm.nb
@@ -123,6 +136,7 @@ predict.svyglm.nb <- function(object, newdata = NULL,
 }
 
 
+
 #' @export
 model.frame.gee <- function(formula, ...) {
   # get function call
@@ -131,6 +145,7 @@ model.frame.gee <- function(formula, ...) {
   all.data <- get(deparse(tmp$data))
   all.data[, model.vars]
 }
+
 
 
 #' @export
@@ -171,6 +186,7 @@ print.sjstats_r2 <- function(x, ...) {
     cat(sprintf("%s: %.4f\n", s1, x[[1]]))
   }
 }
+
 
 
 #' @export
@@ -244,15 +260,20 @@ print.icc.lme4 <- function(x, comp, ...) {
 }
 
 
+
 #' @export
 as.integer.sj_resample <- function(x, ...) {
   x$id
 }
 
+
+
 #' @export
 as.data.frame.sj_resample <- function(x, ...) {
   x$data[x$id, , drop = FALSE]
 }
+
+
 
 #' @export
 print.sj_resample <- function(x, ...) {
@@ -268,6 +289,7 @@ print.sj_resample <- function(x, ...) {
 }
 
 
+
 #' @export
 print.se.icc.lme4 <- function(x, ...) {
   cat("Standard Error of ICC\n")
@@ -281,6 +303,7 @@ print.se.icc.lme4 <- function(x, ...) {
     if (i < nrow(x$result)) cat("\n")
   }
 }
+
 
 
 #' @importFrom tidyr gather_
@@ -326,6 +349,7 @@ plot.sj_inequ_trend <- function(x, ...) {
   suppressMessages(graphics::plot(gp1))
   suppressMessages(graphics::plot(gp2))
 }
+
 
 
 #' @export
@@ -380,11 +404,15 @@ print.sj_mwu <- function(x, ...) {
   }
 }
 
+
+
 #' @export
 print.sj_splithalf <- function(x, ...) {
   cat(sprintf("   Split-Half Reliability: %.3f\n", x$splithalf))
   cat(sprintf("Spearman-Brown Adjustment: %.3f\n", x$spearmanbrown))
 }
+
+
 
 #' @export
 print.sjstats_zcf <- function(x, ...) {
@@ -392,14 +420,18 @@ print.sjstats_zcf <- function(x, ...) {
   cat(sprintf("  Predicted zero-counts: %i\n", x$predicted.zeros))
   cat(sprintf("                  Ratio: %.2f\n", x$ratio))
   cat(ifelse(x$ratio < 1,
-             "Model is underfitting zero-counts.\n",
+             "Model is underfitting zero-counts (probable zero-inflation).\n",
              "Model is overfitting zero-counts.\n"))
 }
 
 
+
 #' @export
 print.sjstats_ovderdisp <- function(x, ...) {
-  cat(sprintf("\n        Overdispersion test\n\ndispersion ratio = %.4f, p-value = %.4f\n\n", x$ratio, x$p))
+  cat("Overdispersion test\n\n")
+  cat(sprintf("       dispersion ratio = %.4f\n", x$ratio))
+  cat(sprintf("  Pearson's Chi-Squared = %.4f\n", x$chisq))
+  cat(sprintf("                p-value = %.4f\n", x$p))
 
   if (x$p > 0.05)
     message("No overdispersion detected.")
@@ -408,10 +440,12 @@ print.sjstats_ovderdisp <- function(x, ...) {
 }
 
 
+
 #' @export
 print.sjstats_outliers <- function(x, ...) {
   print(x$result, ...)
 }
+
 
 #' @export
 print.sj_xtab_stat <- function(x, ...) {
@@ -440,6 +474,7 @@ print.sj_xtab_stat <- function(x, ...) {
   else
     cat(sprintf("  %*s: %.4f\n", l, "p-value", x$p.value))
 }
+
 
 
 #' @export

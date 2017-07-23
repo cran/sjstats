@@ -11,7 +11,9 @@ Most functions of this package are designed as _summary functions_, i.e. they do
 The comprised tools include:
 
 * For regression and mixed models: Coefficient of Variation, Root Mean Squared Error, Residual Standard Error, Coefficient of Discrimination, R-squared and pseudo-R-squared values, standardized beta values
-* Especially for mixed models: Design effect, ICC, sample size calculation, convergence and overdispersion tests
+* Especially for mixed models: Design effect, ICC, sample size calculation and convergence tests
+* Fit and accuracy measures for regression models: Overdispersion tests, accuracy of predictions, test/training-error comparisons
+* For anova-tables: Eta-squared, Partial Eta-squared and Omega-squared statistics
 
 Other statistics:
 
@@ -28,6 +30,10 @@ To install the latest development snapshot (see latest changes below), type foll
 library(devtools)
 devtools::install_github("strengejacke/sjstats")
 ```
+
+Please note the package dependencies when installing from GitHub. The GitHub version of this package may depend on latest GitHub versions of my other packages, so you may need to install those first, if you encounter any problems. Here's the order for installing packages from GitHub:
+
+[sjlabelled](https://github.com/strengejacke/sjlabelled) &rarr; [sjmisc](https://github.com/strengejacke/sjmisc) &rarr; [sjstats](https://github.com/strengejacke/sjstats) &rarr; [ggeffects](https://github.com/strengejacke/ggeffects) &rarr; [sjPlot](https://github.com/strengejacke/sjPlot)
 
 ### Officiale, stable release
 

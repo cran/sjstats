@@ -129,7 +129,7 @@ cod <- function(x) {
 #'          that \emph{Tjur's D} is restricted to models with binary response.
 #'          \cr \cr
 #'          More ways to compute coefficients of determination are shown
-#'          in this great \href{https://github.com/bbolker/mixedmodels-misc/blob/master/glmmFAQ.rmd#model-summaries-goodness-of-fit-decomposition-of-variance-etc}{GLMM faq}.
+#'          in this great \href{http://bbolker.github.io/mixedmodels-misc/glmmFAQ.html#model-summaries-goodness-of-fit-decomposition-of-variance-etc.}{GLMM faq}.
 #'          Furthermore, see \code{\link[MuMIn]{r.squaredGLMM}} or
 #'          \code{\link[piecewiseSEM]{rsquared}} for conditional and marginal
 #'          r-squared values for GLMM's.
@@ -138,6 +138,7 @@ cod <- function(x) {
 #'
 #' @references \itemize{
 #'               \item \href{http://glmm.wikidot.com/faq}{DRAFT r-sig-mixed-models FAQ}
+#'               \item Bolker B et al. (2017): \href{http://bbolker.github.io/mixedmodels-misc/glmmFAQ.html}{GLMM FAQ.}
 #'               \item Byrnes, J. 2008. Re: Coefficient of determination (R^2) when using lme() (\url{https://stat.ethz.ch/pipermail/r-sig-mixed-models/2008q2/000713.html})
 #'               \item Kwok OM, Underhill AT, Berry JW, Luo W, Elliott TR, Yoon M. 2008. Analyzing Longitudinal Data with Multilevel Models: An Example with Individuals Living with Lower Extremity Intra-Articular Fractures. Rehabilitation Psychology 53(3): 370–86. \doi{10.1037/a0012765}
 #'               \item Nakagawa S, Schielzeth H. 2013. A general and simple method for obtaining R2 from generalized linear mixed-effects models. Methods in Ecology and Evolution, 4(2):133–142. \doi{10.1111/j.2041-210x.2012.00261.x}
@@ -259,38 +260,18 @@ r2 <- function(x, n = NULL) {
   }
 }
 
-#' @importFrom stats nobs deviance predict formula
+
+#' @importFrom stats logLik update nobs
 pseudo_ralt <- function(x) {
-  # fam <- get_glm_family(x)
-  #
-  # if (fam$is_pois) {
-  #   yi <- resp_val(x)
-  #   mui <- stats::predict(x, type = "response")
-  #   yh <- mean(yi)
-  #   k <- length(all.vars(stats::formula(x))) - 1
-  #
-  #   # deviance r2
-  #   r1 <- sum((yi * log(yi) - yi) - (yi * log(mui) - mui), na.rm = T) + (k / 2)
-  #   r2 <- sum((yi * log(yi) - yi) - (yi * log(yh) - yh), na.rm = T)
-  #
-  #   r2dev <- 1 - (r1 / r2)
-  #
-  #   # sums-of-squares r2
-  #   r2ss <- 1 - (sum((yi - mui) ^ 2) / sum((yi - yh) ^ 2))
-  #
-  #   names(r2dev) <- "Deviance-r-squared"
-  #   names(r2ss) <- "Sums-of-Squares-r-squared"
-  #   return(structure(class = "sjstats_r2", list(R2dev = r2dev, R2ss = r2ss)))
-  # } else {
-  # get nr of observations
+  ll <- stats::logLik(x)
+  ll0 <- stats::logLik(stats::update(x, ~1))
   n <- stats::nobs(x)
 
-  CoxSnell <- 1 - exp((stats::deviance(x) - x$null.deviance) / n)
-  Nagelkerke <- CoxSnell / (1 - exp(-x$null.deviance / n))
+  CoxSnell <- 1 - exp(2 * (ll0 - ll) / n)
+  Nagelkerke <- CoxSnell / (1 - exp(ll0 * 2 / n))
 
   names(CoxSnell) <- "CoxSnell"
   names(Nagelkerke) <- "Nagelkerke"
 
   structure(class = "sjstats_r2", list(CoxSnell = CoxSnell, Nagelkerke = Nagelkerke))
-  # }
 }

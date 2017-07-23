@@ -94,6 +94,8 @@ svyglm.nb <- function(formula, design, ...) {
   attr(svyfit, "nb.terms") <- all.vars(formula)
   attr(svyfit, "nb.formula") <- formula
   attr(svyfit, "family") <- fam
+  attr(svyfit, "nb.theta") <- mod[["theta"]]
+  attr(svyfit, "nb.theta.se") <- mod[["SE.theta"]]
 
   svyfit
 }
