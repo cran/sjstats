@@ -306,7 +306,8 @@ print.se.icc.lme4 <- function(x, ...) {
 
 
 
-#' @importFrom tidyr gather_
+#' @importFrom tidyr gather
+#' @importFrom rlang .data
 #' @export
 plot.sj_inequ_trend <- function(x, ...) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
@@ -320,11 +321,14 @@ plot.sj_inequ_trend <- function(x, ...) {
   gather.cols1 <- colnames(x$data)[!colnames(x$data) %in% c("zeit", "lo", "hi")]
   gather.cols2 <- colnames(x$data)[!colnames(x$data) %in% c("zeit", "rr", "rd")]
 
+  key_col <- "grp"
+  value_col <- "y"
+
   # gather data to plot rr and rd
-  dat1 <- tidyr::gather_(x$data, key_col = "grp", value_col = "y", gather_cols = gather.cols1)
+  dat1 <- tidyr::gather(x$data, !! key_col, !! value_col, !! gather.cols1)
 
   # gather data for raw prevalences
-  dat2 <- tidyr::gather_(x$data, key_col = "grp", value_col = "y", gather_cols = gather.cols2)
+  dat2 <- tidyr::gather(x$data, !! key_col, !! value_col, !! gather.cols2)
 
   # Proper value names, for facet labels
   dat1$grp[dat1$grp == "rr"] <- "Rate Ratios"
@@ -486,4 +490,50 @@ print.sjstats_pred_accuracy <- function(x, ...) {
   cat(sprintf("Accuracy: %.2f%%\n", 100 * x$accuracy))
   cat(sprintf("      SE: %.2f%%-points\n", 100 * x$std.error))
   cat(sprintf("  Method: %s", x$stat))
+}
+
+
+
+#' @export
+print.sj_grpmean <- function(x, ...) {
+  print_grpmean(x, ...)
+}
+
+
+print_grpmean <- function(x, ...) {
+  # headline
+  cat(sprintf(
+    "Grouped Means for %s by %s\n\n",
+    attr(x, "dv.label", exact = TRUE),
+    attr(x, "grp.label", exact = TRUE)
+  ))
+
+  # means
+  print(as.data.frame(x))
+
+  # statistics
+  cat(sprintf(
+    "\nAnova: R2=%.3f; adj.R2=%.3f; F=%.3f",
+    attr(x, "r2", exact = TRUE),
+    attr(x, "adj.r2", exact = TRUE),
+    attr(x, "fstat", exact = TRUE)
+  ))
+}
+
+
+#' @importFrom purrr walk
+#' @export
+print.sj_grpmeans <- function(x, ...) {
+  purrr::walk(x, function(dat) {
+    # get grouping title label
+    grp <- attr(dat, "group", exact = T)
+
+    # print title for grouping
+    cat(sprintf("## Grouped by:\n%s\n\n", grp))
+
+    # print grpmean-table
+    print_grpmean(dat, ...)
+
+    cat("\n\n\n")
+  })
 }
