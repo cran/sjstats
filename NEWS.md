@@ -1,3 +1,18 @@
+# sjstats 0.11.2
+
+## General
+
+* Fixed examples, to resolve issues with CRAN package checks.
+
+## New functions
+
+* `tidy_stan()` to return a tidy summary of stanreg-objects.
+
+## Changes to functions
+
+* `hdi()` and `rope()` now also work for `brmsfit`-models, from package *brms*.
+* `hdi()` and `rope()` now have a `type`-argument, to return fixed, random or all effects for mixed effects models.
+
 # sjstats 0.11.1
 
 ## Changes to functions

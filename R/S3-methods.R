@@ -523,7 +523,7 @@ print_grpmean <- function(x, ...) {
 
   # statistics
   cat(sprintf(
-    "\nAnova: R2=%.3f; adj.R2=%.3f; F=%.3f",
+    "\nAnova: R2=%.3f; adj.R2=%.3f; F=%.3f\n",
     attr(x, "r2", exact = TRUE),
     attr(x, "adj.r2", exact = TRUE),
     attr(x, "fstat", exact = TRUE)
@@ -544,7 +544,7 @@ print.sj_grpmeans <- function(x, ...) {
     # print grpmean-table
     print_grpmean(dat, ...)
 
-    cat("\n\n\n")
+    cat("\n\n")
   })
 }
 

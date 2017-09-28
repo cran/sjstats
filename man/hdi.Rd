@@ -5,14 +5,14 @@
 \alias{rope}
 \title{Compute high density intervals (HDI) for MCMC samples}
 \usage{
-hdi(x, prob = 0.9, trans = NULL)
+hdi(x, prob = 0.9, trans = NULL, type = c("fixed", "random", "all"))
 
-rope(x, rope, trans = NULL)
+rope(x, rope, trans = NULL, type = c("fixed", "random", "all"))
 }
 \arguments{
 \item{x}{A vector of values from a probability distribution (e.g., posterior
-probabilities from MCMC sampling), or a \code{stanreg}- or
-\code{stanfit}-object.}
+probabilities from MCMC sampling), or a \code{stanreg},
+\code{stanfit}, or \code{brmsfit} object.}
 
 \item{prob}{Scalar between 0 and 1, indicating the mass within the credible
 interval that is to be estimated.}
@@ -23,6 +23,11 @@ to apply transformations on the returned HDI-values resp.
 calculating the rope based on the boundaries given in \code{rope}. Note
 that the values in \code{rope} are not transformed.}
 
+\item{type}{For mixed effects models, specify the type of effects that should
+be returned. \code{type = "fixed"} returns fixed effects only,
+\code{type = "random"} the random effects and \code{type = "all"} returns
+both fixed and random effects.}
+
 \item{rope}{Vector of length two, indicating the lower and upper limit of a
 range around zero, which indicates the region of practical equivalence.
 Values of the posterior distribution within this range are considered as
@@ -31,9 +36,10 @@ being "practically equivalent to zero".}
 \value{
 For \code{hdi()}, if \code{x} is a vector, returns a vector of length two
         with the lower and upper limit of the HDI; if \code{x} is a
-        \code{stanreg}-object, returns a tibble with lower and upper HDI-limits
-        for each predictor. For \code{rope()}, returns the proportion of values
-        from \code{x} that are within the boundaries of \code{rope}.
+        \code{stanreg}, \code{stanfit} or \code{brmsfit} object, returns a
+        tibble with lower and upper HDI-limits for each predictor.
+        For \code{rope()}, returns the proportion of values from \code{x}
+        that are within the boundaries of \code{rope}.
 }
 \description{
 \code{hdi()} computes the high density interval for values from
@@ -44,28 +50,29 @@ For \code{hdi()}, if \code{x} is a vector, returns a vector of length two
 Computation for HDI is based on the code from Kruschke 2015, pp. 727f.
 }
 \examples{
-library(rstanarm)
-fit <- stan_glm(mpg ~ wt + am, data = mtcars, chains = 1)
-hdi(fit)
+if (require("rstanarm")) {
+  fit <- stan_glm(mpg ~ wt + am, data = mtcars, chains = 1)
+  hdi(fit)
 
-# fit logistic regression model
-fit <- stan_glm(
-  vs ~ wt + am,
-  data = mtcars,
-  family = binomial("logit"),
-  chains = 1
-)
-# compute hdi, transform on "odds ratio scale"
-hdi(fit, trans = exp)
+  # fit logistic regression model
+  fit <- stan_glm(
+    vs ~ wt + am,
+    data = mtcars,
+    family = binomial("logit"),
+    chains = 1
+  )
+  # compute hdi, transform on "odds ratio scale"
+  hdi(fit, trans = exp)
 
-# compute rope, on scale of linear predictor. finds proportion
-# of posterior distribution values between -1 and 1.
-rope(fit, rope = c(-1, 1))
+  # compute rope, on scale of linear predictor. finds proportion
+  # of posterior distribution values between -1 and 1.
+  rope(fit, rope = c(-1, 1))
 
-# compute rope, boundaries as "odds ratios". finds proportion of
-# posterior distribution values, which - after being exponentiated -
-# are between .8 and 1.25 (about -.22 and .22 on linear scale)
-rope(fit, rope = c(.8, 1.25), trans = exp)
+  # compute rope, boundaries as "odds ratios". finds proportion of
+  # posterior distribution values, which - after being exponentiated -
+  # are between .8 and 1.25 (about -.22 and .22 on linear scale)
+  rope(fit, rope = c(.8, 1.25), trans = exp)
+}
 
 }
 \references{
