@@ -1,12 +1,31 @@
-# sjstats 0.11.2
+# sjstats 0.12.0
 
 ## General
 
 * Fixed examples, to resolve issues with CRAN package checks.
+* More model objects supported in `p_value()`.
 
 ## New functions
 
-* `tidy_stan()` to return a tidy summary of stanreg-objects.
+* `model_frame()` to get the model frame from model objects, also of those models that don't have a S3-generic model.frame-function.
+* `var_names()` to get cleaned variable names from model objects.
+* `link_inverse()` to get the inverse link function from model objects.
+
+## Changes to functions
+
+* The `fun`-argument in `typical_value()` can now also be a named vector, to apply different functions for numeric and categorical variables.
+
+## Bug fixes
+
+* Fixed issue with specific model formulas in `pred_vars()`.
+* Fixed issue with specific model objects in `resp_val()`.
+* Fixed issue with nested models in `re_var()`.
+
+# sjstats 0.11.2
+
+## New functions
+
+* `tidy_stan()` to return a tidy summary of Stan-models.
 
 ## Changes to functions
 

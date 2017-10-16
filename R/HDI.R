@@ -37,6 +37,7 @@
 #' @references Kruschke JK. Doing Bayesian Data Analysis: A Tutorial with R, JAGS, and Stan. 2nd edition. Academic Press, 2015
 #'
 #' @examples
+#' \dontrun{
 #' if (require("rstanarm")) {
 #'   fit <- stan_glm(mpg ~ wt + am, data = mtcars, chains = 1)
 #'   hdi(fit)
@@ -59,7 +60,7 @@
 #'   # posterior distribution values, which - after being exponentiated -
 #'   # are between .8 and 1.25 (about -.22 and .22 on linear scale)
 #'   rope(fit, rope = c(.8, 1.25), trans = exp)
-#' }
+#' }}
 #'
 #' @importFrom tibble as_tibble rownames_to_column
 #' @importFrom purrr map_dbl map_df
@@ -92,7 +93,7 @@ hdi.stanreg <- function(x, prob = .9, trans = NULL, type = c("fixed", "random", 
   colnames(dat) <- c("term", "hdi.low", "hdi.high")
 
   # check if we need to remove random or fixed effects
-  remove_effects_from_stan(dat, type)
+  remove_effects_from_stan(dat, type, is.brms = FALSE)
 }
 
 
@@ -115,7 +116,7 @@ hdi.brmsfit <- function(x, prob = .9, trans = NULL, type = c("fixed", "random", 
   colnames(dat) <- c("term", "hdi.low", "hdi.high")
 
   # check if we need to remove random or fixed effects
-  remove_effects_from_stan(dat, type)
+  remove_effects_from_stan(dat, type, is.brms = TRUE)
 }
 
 
@@ -134,7 +135,7 @@ hdi.stanfit <- function(x, prob = .9, trans = NULL, type = c("fixed", "random", 
   colnames(dat) <- c("term", "hdi.low", "hdi.high")
 
   # check if we need to remove random or fixed effects
-  remove_effects_from_stan(dat, type)
+  remove_effects_from_stan(dat, type, is.brms = FALSE)
 }
 
 
@@ -185,7 +186,7 @@ rope.stanreg <- function(x, rope, trans = NULL, type = c("fixed", "random", "all
   colnames(dat) <- c("term", "rope")
 
   # check if we need to remove random or fixed effects
-  remove_effects_from_stan(dat, type)
+  remove_effects_from_stan(dat, type, is.brms = FALSE)
 }
 
 
@@ -208,7 +209,7 @@ rope.brmsfit <- function(x, rope, trans = NULL, type = c("fixed", "random", "all
   colnames(dat) <- c("term", "rope")
 
   # check if we need to remove random or fixed effects
-  remove_effects_from_stan(dat, type)
+  remove_effects_from_stan(dat, type, is.brms = TRUE)
 }
 
 
@@ -227,7 +228,7 @@ rope.stanfit <- function(x, rope, trans = NULL, type = c("fixed", "random", "all
   colnames(dat) <- c("term", "rope")
 
   # check if we need to remove random or fixed effects
-  remove_effects_from_stan(dat, type)
+  remove_effects_from_stan(dat, type, is.brms = FALSE)
 }
 
 

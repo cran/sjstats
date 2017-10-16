@@ -1,28 +1,12 @@
-#' @importFrom nlme getData getCovariateFormula
+#' @importFrom nlme getData
+#' @importFrom stats formula
 #' @export
 model.matrix.gls <- function(object, ...) {
-  mm <- cbind(`(Intercept)` = 1,
-              nlme::getData(object)[, all.vars(nlme::getCovariateFormula(object))])
-  return(mm)
+  cbind(
+    `(Intercept)` = 1,
+    nlme::getData(object)[, all.vars(stats::formula(object))]
+  )
 }
-
-
-
-#' @importFrom nlme getResponse getData getCovariateFormula
-#' @importFrom sjlabelled get_label
-#' @export
-model.frame.gls <- function(formula, ...) {
-  if (!inherits(formula, "gls")) {
-    stop("`formula` needs to be an object of class `gls`.", call. = F)
-    return(NULL)
-  } else {
-    y <- nlme::getResponse(formula)
-    mf <- cbind(y, nlme::getData(formula)[, all.vars(nlme::getCovariateFormula(formula))])
-    colnames(mf)[1] <- sjlabelled::get_label(y, def.value = "Response")
-    return(mf)
-  }
-}
-
 
 
 #' @importFrom tibble tibble
@@ -134,18 +118,6 @@ predict.svyglm.nb <- function(object, newdata = NULL,
     ...
   )
 }
-
-
-
-#' @export
-model.frame.gee <- function(formula, ...) {
-  # get function call
-  tmp <- as.list(formula$call)
-  model.vars <- all.vars(tmp$formula)
-  all.data <- get(deparse(tmp$data))
-  all.data[, model.vars]
-}
-
 
 
 #' @export
