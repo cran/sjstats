@@ -1,3 +1,32 @@
+# sjstats 0.13.0
+
+## General
+
+* Remove deprecated `get_model_pval()`.
+* Revised documentation for `overdisp()`.
+
+## New functions
+
+* `scale_weights()` to rescale design weights for multilevel models.
+* `pca()` and `pca_rotate()` to create tidy summaries of principal component analyses or rotated loadings matrices from PCA.
+* `gmd()` to compute Gini's mean difference.
+* `is_prime()` to check whether a number is a prime number or not.
+
+## Changes to functions
+
+* `link_inverse()` now supports `brmsfit`, `multinom` and `clm`-models.
+* `p_value()` now supports `polr` and `multinom`-models.
+* `zero_count()` gets a `tolerance`-argument, to accept models with a ratio within a certain range of 1.
+* `var_names()` now also cleans variable names from variables modelled with the `offset()`, `lag()` or `diff()` function.
+* `icc()`, `re_var()` and `get_re_var()` now support `brmsfit`-objects (models fitted with the *brms*-package).
+* For `fun = "weighted.mean"`, `typical_value()` now checks if vector of weights is of same length as `x`.
+* The print-method for `grpmean()` now also prints the overall p-value from the model.
+
+## Bug fixes
+
+* `resp_val()`, `cv_error()` and `pred_accuracy()` did not work for formulas with transforming function for response terms, e.g. `log(response)`.
+
+
 # sjstats 0.12.0
 
 ## General

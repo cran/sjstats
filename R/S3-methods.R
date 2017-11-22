@@ -61,12 +61,13 @@ tidy_svyglm.nb <- function(x, digits = 4, v_se = c("robust", "model")) {
 
 
 
-#' @importFrom dplyr select one_of
+#' @importFrom dplyr select
 #' @importFrom tibble as_tibble
+#' @importFrom tidyselect one_of
 #' @export
 model.frame.svyglm.nb <- function(formula, ...) {
   pred <- attr(formula, "nb.terms", exact = T)
-  tibble::as_tibble(dplyr::select(formula$design$variables, dplyr::one_of(pred)))
+  tibble::as_tibble(dplyr::select(formula$design$variables, tidyselect::one_of(pred)))
 }
 
 
@@ -336,6 +337,7 @@ plot.sj_inequ_trend <- function(x, ...) {
 
 
 
+#' @importFrom stats kruskal.test na.omit
 #' @export
 print.sj_mwu <- function(x, ...) {
   cat("Mann-Whitney-U-Test\n")
@@ -404,10 +406,15 @@ print.sjstats_zcf <- function(x, ...) {
   cat(sprintf("  Predicted zero-counts: %i\n", x$predicted.zeros))
   cat(sprintf("                  Ratio: %.2f\n\n", x$ratio))
 
-  if (x$ratio < 1)
+  lower <- 1 - x$tolerance
+  upper <- 1 + x$tolerance
+
+  if (x$ratio < lower)
     message("Model is underfitting zero-counts (probable zero-inflation).")
-  else
+  else if (x$ratio > upper)
     message("Model is overfitting zero-counts.")
+  else
+    message("Model seems ok, ratio of observed and predicted zeros is within the tolerance range.")
 }
 
 
@@ -495,10 +502,11 @@ print_grpmean <- function(x, ...) {
 
   # statistics
   cat(sprintf(
-    "\nAnova: R2=%.3f; adj.R2=%.3f; F=%.3f\n",
+    "\nAnova: R2=%.3f; adj.R2=%.3f; F=%.3f; p=%.3f\n",
     attr(x, "r2", exact = TRUE),
     attr(x, "adj.r2", exact = TRUE),
-    attr(x, "fstat", exact = TRUE)
+    attr(x, "fstat", exact = TRUE),
+    attr(x, "p.value", exact = TRUE)
   ))
 }
 
@@ -586,4 +594,49 @@ print.sj_revar <- function(x, ...) {
       ))
     }
   }
+}
+
+
+#' @importFrom rlang .data
+#' @importFrom sjmisc rotate_df
+#' @importFrom dplyr case_when
+#' @importFrom purrr map_df
+#' @importFrom tibble add_column
+#' @export
+print.sjstats.pca_rotate <- function(x, cutoff = .1, ...) {
+
+  xs <- attr(x, "variance", exact = TRUE)
+
+  rn <- rownames(x)
+
+  x <- x %>%
+    round(4) %>%
+    purrr::map_df(~ dplyr::case_when(
+      abs(.x) < cutoff ~ "",
+      TRUE ~ as.character(.x)
+    )) %>%
+    as.data.frame() %>%
+    tibble::add_column(variable = rn, .before = 1)
+
+  xs <- xs %>%
+    round(3) %>%
+    as.data.frame() %>%
+    sjmisc::rotate_df()
+
+  colnames(xs) <- sprintf("PC%i", 1:ncol(xs))
+  rownames(xs) <- c("Proportion variance", "Cumulative variance", "Proportion explained", "Cumulative explained")
+
+  print(x, quote = FALSE, ...)
+  cat("\n")
+  print(xs, ...)
+}
+
+
+#' @export
+print.sjstats.pca <- function(x, ...) {
+
+  x <- as.data.frame(round(x, 4))
+  rownames(x) <- c("Standard deviation", "Eigenvalue", "Proportion variance", "Cumulative variance")
+
+  print(x, ...)
 }

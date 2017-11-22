@@ -4,7 +4,8 @@
 #' @description Several functions to retrieve information from model objects,
 #'    like variable names, link-inverse function, model frame etc.
 #'
-#' @param x A fitted model.
+#' @param x A fitted model; for \code{var_names()}, \code{x} may also be a
+#'    character vector.
 #' @param fe.only Logical, if \code{TRUE} (default) and \code{x} is a mixed effects
 #'    model, returns the model frame for fixed effects only.
 #'
@@ -40,6 +41,10 @@
 #' # same as
 #' exp(.3)
 #'
+#' outcome <- as.numeric(outcome)
+#' m <- glm(counts ~ log(outcome) + as.factor(treatment), family = poisson())
+#' var_names(m)
+#'
 #' @importFrom stats formula terms
 #' @export
 pred_vars <- function(x) {
@@ -71,7 +76,7 @@ resp_val <- function(x) {
   if (inherits(x, c("lme", "gls")))
     as.vector(nlme::getResponse(x))
   else
-    as.vector(model_frame(x)[[resp_var(x)]])
+    as.vector(model_frame(x)[[var_names(resp_var(x))]])
 }
 
 
@@ -90,8 +95,17 @@ link_inverse <- function(x) {
       return(match.fun("exp"))
   }
 
+
+  # for gam-components from gamm4, add class attributes, so family
+  # function works correctly
+
+  if (inherits(x, "gam") && !inherits(x, c("glm", "lm")))
+    class(x) <- c(class(x), "glm", "lm")
+
+
   # do we have glm? if so, get link family. make exceptions
   # for specific models that don't have family function
+
   if (inherits(x, c("truncreg", "coxph"))) {
     il <- NULL
   } else if (inherits(x, c("hurdle", "zeroinfl"))) {
@@ -102,7 +116,11 @@ link_inverse <- function(x) {
     il <- x$link$mean$linkinv
   } else if (inherits(x, "vgam")) {
     il <- x@family@linkinv
-  } else if (inherits(x, c("lrm", "polr"))) {
+  } else if (inherits(x, "brmsfit")) {
+    fam <- stats::family(x)
+    ff <- get(fam$family, asNamespace("stats"))
+    il <- ff(fam$link)$linkinv
+  } else if (inherits(x, c("lrm", "polr", "clm", "logistf", "multinom"))) {
     # "lrm"-object from pkg "rms" have no family method
     # so we construct a logistic-regression-family-object
     il <- stats::binomial(link = "logit")$linkinv
@@ -118,8 +136,10 @@ link_inverse <- function(x) {
 #' @rdname pred_vars
 #' @importFrom stats model.frame formula getCall
 #' @importFrom prediction find_data
-#' @importFrom purrr map_lgl
-#' @importFrom dplyr select bind_cols one_of
+#' @importFrom purrr map_lgl map
+#' @importFrom dplyr select bind_cols
+#' @importFrom tibble as_tibble
+#' @importFrom tidyselect one_of
 #' @export
 model_frame <- function(x, fe.only = TRUE) {
   if (inherits(x, c("merMod", "lmerMod", "glmerMod", "nlmerMod", "merModLmerTest")))
@@ -138,12 +158,15 @@ model_frame <- function(x, fe.only = TRUE) {
   # model frame and convert them to regular data frames, give
   # proper column names and bind them back to the original model frame
   if (any(mc)) {
-    fitfram <- dplyr::select(fitfram, -which(mc))
+    fitfram_matrix <- dplyr::select(fitfram, -which(mc))
     spline.term <- var_names(names(which(mc)))
     # try to get model data from environment
     md <- eval(stats::getCall(x)$data, environment(stats::formula(x)))
-    # bind spline terms to model frame
-    fitfram <- dplyr::bind_cols(fitfram, dplyr::select(md, dplyr::one_of(spline.term)))
+    # if data not found in environment, reduce matrix variables into regular vectors
+    if (is.null(md))
+      fitfram <- dplyr::bind_cols(purrr::map(fitfram, ~ tibble::as_tibble(.x)))
+    else
+      fitfram <- dplyr::bind_cols(fitfram_matrix, dplyr::select(md, tidyselect::one_of(spline.term)))
   }
 
   # clean variable names
@@ -164,10 +187,16 @@ var_names <- function(x) {
 }
 
 
+#' @importFrom sjmisc is_empty
+#' @importFrom purrr map_chr
 get_vn_helper <- function(x) {
+
+  # return if x is empty
+  if (sjmisc::is_empty(x)) return("")
+
   # for gam-smoothers/loess, remove s()- and lo()-function in column name
-  # for survival, remove strata()
-  pattern <- c("log", "s", "lo", "bs", "poly", "strata")
+  # for survival, remove strata(), and so on...
+  pattern <- c("as.factor", "log", "lag", "diff", "lo", "bs", "ns", "pspline", "poly", "strata", "offset", "s")
 
   # do we have a "log()" pattern here? if yes, get capture region
   # which matches the "cleaned" variable name
