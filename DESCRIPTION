@@ -3,8 +3,8 @@ Type: Package
 Encoding: UTF-8
 Title: Collection of Convenient Functions for Common Statistical
         Computations
-Version: 0.13.0
-Date: 2017-11-22
+Version: 0.14.0
+Date: 2018-01-14
 Author: Daniel Lüdecke <d.luedecke@uke.de>
 Maintainer: Daniel Lüdecke <d.luedecke@uke.de>
 Description: Collection of convenient functions for common statistical computations,
@@ -24,19 +24,20 @@ Description: Collection of convenient functions for common statistical computati
              Cramer's V, Phi etc.
 License: GPL-3
 Depends: R (>= 3.2), stats, utils
-Imports: bayesplot, broom, coin, dplyr (>= 0.7.1), lme4 (>= 1.1-12),
-        lmtest (>= 0.9-34), glmmTMB, magrittr, MASS, Matrix, modelr,
-        nlme, prediction, purrr (>= 0.2.2), pwr, rlang, sandwich (>=
-        2.3-4), sjlabelled (>= 1.0.5), sjmisc (>= 2.6.2), tidyr (>=
-        0.7.0), tidyselect, tibble (>= 1.3.3)
+Imports: bayesplot, broom, cli, coin, crayon, dplyr (>= 0.7.1),
+        emmeans, lme4 (>= 1.1-12), lmtest (>= 0.9-34), glmmTMB, knitr,
+        magrittr, MASS, Matrix, modelr, nlme, prediction, purrr (>=
+        0.2.2), pwr, rlang, sandwich (>= 2.3-4), sjlabelled (>= 1.0.6),
+        sjmisc (>= 2.6.3), tidyr (>= 0.7.0), tidyselect, tibble (>=
+        1.3.3)
 Suggests: AER, arm, brms, car, ggplot2, graphics, Hmisc, lmerTest,
-        pbkrtest (>= 0.4-7), pROC, psych, survey, rstanarm, tidyverse,
-        knitr
+        pbkrtest (>= 0.4-7), pROC, psych, survey, rstan, rstanarm,
+        tidyverse, Zelig
 URL: https://github.com/strengejacke/sjstats
 BugReports: https://github.com/strengejacke/sjstats/issues
 RoxygenNote: 6.0.1
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2017-11-22 14:29:46 UTC; Daniel
+Packaged: 2018-01-14 09:20:34 UTC; danielludecke
 Repository: CRAN
-Date/Publication: 2017-11-23 00:41:22 UTC
+Date/Publication: 2018-01-14 15:39:36 UTC

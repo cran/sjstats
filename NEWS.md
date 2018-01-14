@@ -1,3 +1,27 @@
+# sjstats 0.14.0
+
+## General
+
+* Beautiful colored output for `grpmean()` and `mwu()`.
+
+## New functions
+
+* `mcse()` to compute the Monte Carlo standard error for `stanreg`- and `brmsfit`-models.
+* `n_eff()` to compute the effective sample size for `stanreg`- and `brmsfit`-models.
+
+## Changes to functions
+
+* `grpmean()` now uses `contrasts()` from package *emmeans* to compute p-values, which correclty indicate whether the sub-group mean is significantly different from the total mean.
+* `grpmean()` gets an `out`-argument, to print output to console, or as HTML table in the viewer or web browser.
+* `tidy_stan()` now includes information on the Monte Carlo standard error.
+* `model_frame()`, `p_value()` and `link_inverse()` now support Zelig-relogit-models.
+* `typical_value()` gets an explicit `weight.by`-argument.
+
+## Bug fixes
+
+* `model_frame()` did not work properly for variables that were standardized with `scale()`.
+* In certain cases, `weight.by`-argument did not work in `grpmean()`.
+
 # sjstats 0.13.0
 
 ## General

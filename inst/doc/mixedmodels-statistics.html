@@ -12,7 +12,7 @@
 
 <meta name="author" content="Daniel Lüdecke" />
 
-<meta name="date" content="2017-11-22" />
+<meta name="date" content="2018-01-14" />
 
 <title>Statistics for Mixed Effects Models</title>
 
@@ -70,7 +70,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 <h1 class="title toc-ignore">Statistics for Mixed Effects Models</h1>
 <h4 class="author"><em>Daniel Lüdecke</em></h4>
-<h4 class="date"><em>2017-11-22</em></h4>
+<h4 class="date"><em>2018-01-14</em></h4>
 
 
 
@@ -140,7 +140,7 @@ m &lt;-<span class="st"> </span><span class="kw">lmer</span>(Reaction <span clas
 <p>Sometimes, when fitting mixed models, covergence warnings or warnings about singularity may come up (see details on these issues <a href="http://bbolker.github.io/mixedmodels-misc/glmmFAQ.html#troubleshooting">in this FAQ</a>). These warnings may arise due to the strict tresholds and / or may be safely ignored. <code>converge_ok()</code> and <code>is_singular()</code> may help to check whether such a warning is problematic or not.</p>
 <p><code>converge_ok()</code> provides an alternative convergence test for merMod-objects (with a less strict treshold, as suggested by one of the <em>lme4</em>-package authors), while <code>is_singular()</code> can be used in case of post-fitting convergence warnings, such as warnings about negative eigenvalues of the Hessian. In both cases, if the function returns <code>TRUE</code>, these warnings can most likely be ignored.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">converge_ok</span>(m)
-<span class="co">#&gt; 1.79669205387819e-07 </span>
+<span class="co">#&gt; 1.75888967447092e-07 </span>
 <span class="co">#&gt;                 TRUE</span>
 
 <span class="kw">is_singular</span>(m)
@@ -178,7 +178,7 @@ m &lt;-<span class="st"> </span><span class="kw">lmer</span>(Reaction <span clas
 <span class="co">#&gt; # A tibble: 2 x 3</span>
 <span class="co">#&gt;          term       p.value std.error</span>
 <span class="co">#&gt;         &lt;chr&gt;         &lt;dbl&gt;     &lt;dbl&gt;</span>
-<span class="co">#&gt; 1 (Intercept) 4.500305e-297  6.824556</span>
+<span class="co">#&gt; 1 (Intercept) 4.500321e-297  6.824556</span>
 <span class="co">#&gt; 2        Days  1.274675e-11  1.545789</span>
 
 <span class="co"># p-values based on conditional F-tests with </span>
@@ -219,6 +219,7 @@ m &lt;-<span class="st"> </span><span class="kw">lmer</span>(Reaction <span clas
 <p>Usually, the ICC is calculated for the null model (“unconditional model”). However, according to Raudenbush and Bryk (2002) or Rabe-Hesketh and Skrondal (2012) it is also feasible to compute the ICC for full models with covariates (“conditional models”) and compare how much a level-2 variable explains the portion of variation in the grouping structure (random intercept).</p>
 <p>The ICC for mixed models can be computed with <code>icc()</code>:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">icc</span>(m)
+<span class="co">#&gt; </span>
 <span class="co">#&gt; Linear mixed model</span>
 <span class="co">#&gt;  Family: gaussian (identity)</span>
 <span class="co">#&gt; Formula: Reaction ~ Days + (Days | Subject)</span>
@@ -232,6 +233,7 @@ m2 &lt;-<span class="st"> </span><span class="kw">lmer</span>(Reaction <span cla
 <span class="co"># calculate ICC for both models</span>
 <span class="kw">icc</span>(m, m2)
 <span class="co">#&gt; [[1]]</span>
+<span class="co">#&gt; </span>
 <span class="co">#&gt; Linear mixed model</span>
 <span class="co">#&gt;  Family: gaussian (identity)</span>
 <span class="co">#&gt; Formula: Reaction ~ Days + (Days | Subject)</span>
@@ -239,12 +241,13 @@ m2 &lt;-<span class="st"> </span><span class="kw">lmer</span>(Reaction <span cla
 <span class="co">#&gt;   ICC (Subject): 0.483090</span>
 <span class="co">#&gt; </span>
 <span class="co">#&gt; [[2]]</span>
+<span class="co">#&gt; </span>
 <span class="co">#&gt; Linear mixed model</span>
 <span class="co">#&gt;  Family: gaussian (identity)</span>
 <span class="co">#&gt; Formula: Reaction ~ Days + (1 | mygrp) + (Days | Subject)</span>
 <span class="co">#&gt; </span>
-<span class="co">#&gt;     ICC (mygrp): 0.104800</span>
-<span class="co">#&gt;   ICC (Subject): 0.474462</span></code></pre></div>
+<span class="co">#&gt;     ICC (mygrp): 0.000000</span>
+<span class="co">#&gt;   ICC (Subject): 0.483090</span></code></pre></div>
 </div>
 </div>
 <div id="references" class="section level1">

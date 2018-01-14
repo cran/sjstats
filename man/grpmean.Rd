@@ -4,7 +4,8 @@
 \alias{grpmean}
 \title{Summary of mean values by group}
 \usage{
-grpmean(x, dv, grp, weight.by = NULL, digits = 2)
+grpmean(x, dv, grp, weight.by = NULL, digits = 2, out = c("txt", "viewer",
+  "browser"))
 }
 \arguments{
 \item{x}{A (grouped) data frame.}
@@ -21,6 +22,10 @@ Must be a vector of same length as the input vector. Default is
 \code{NULL}, so no weights are used.}
 
 \item{digits}{Numeric, amount of digits after decimal point when rounding estimates and values.}
+
+\item{out}{Character vector, indicating whether the results should be printed
+to console (\code{out = "txt"}) or as HTML-table in the viewer-pane
+(\code{out = "viewer"}) or browser (\code{out = "browser"}).}
 }
 \value{
 For non-grouped data frames, \code{grpmean()} returns a data frame with
@@ -35,10 +40,9 @@ Computes mean, sd and se for each sub-group (indicated by \code{grp})
 \details{
 This function performs a One-Way-Anova with \code{dv} as dependent
            and \code{grp} as independent variable, by calling
-           \code{lm(count ~ as.factor(grp))}, to get p-values for each
-           sub-group and the complete "model". P-values indicate whether
-           each group-mean is significantly different from the reference
-           group (reference level of \code{grp}).
+           \code{lm(count ~ as.factor(grp))}. Then \code{\link[emmeans]{contrast}}
+           is called to get p-values for each sub-group. P-values indicate whether
+           each group-mean is significantly different from the total mean.
 }
 \examples{
 data(efc)

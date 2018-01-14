@@ -120,7 +120,7 @@ link_inverse <- function(x) {
     fam <- stats::family(x)
     ff <- get(fam$family, asNamespace("stats"))
     il <- ff(fam$link)$linkinv
-  } else if (inherits(x, c("lrm", "polr", "clm", "logistf", "multinom"))) {
+  } else if (inherits(x, c("lrm", "polr", "clm", "logistf", "multinom", "Zelig-relogit"))) {
     # "lrm"-object from pkg "rms" have no family method
     # so we construct a logistic-regression-family-object
     il <- stats::binomial(link = "logit")$linkinv
@@ -148,8 +148,18 @@ model_frame <- function(x, fe.only = TRUE) {
     fitfram <- x$data
   else if (inherits(x, c("vgam", "gee", "gls")))
     fitfram <- prediction::find_data(x)
+  else if (inherits(x, "Zelig-relogit"))
+    fitfram <- get_zelig_relogit_frame(x)
   else
     fitfram <- stats::model.frame(x)
+
+  # clean 1-dimensional matrices
+  fitfram <- purrr::modify_if(fitfram, is.matrix, function(x) {
+    if (dim(x)[2] == 1)
+      as.vector(x)
+    else
+      x
+  })
 
   # check if we have any matrix columns, e.g. from splines
   mc <- purrr::map_lgl(fitfram, is.matrix)
@@ -175,6 +185,11 @@ model_frame <- function(x, fe.only = TRUE) {
   fitfram
 }
 
+#' @importFrom dplyr select
+get_zelig_relogit_frame <- function(x) {
+  vars <- c(resp_var(x), pred_vars(x))
+  dplyr::select(x$data, !! vars)
+}
 
 #' @rdname pred_vars
 #' @importFrom purrr map_chr
