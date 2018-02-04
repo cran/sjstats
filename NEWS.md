@@ -1,3 +1,22 @@
+# sjstats 0.14.1
+
+## General
+
+* Remove unused imports.
+* Cross refences from `dplyr::select_helpers` were updated to `tidyselect::select_helpers`.
+
+## Changes to functions
+
+* `var_names()` now also cleans variable names from variables modeled with the `mi()` function (multiple imputation on the fly in *brms*).
+* `reliab_test()` gets an `out`-argument, to print output to console, or as HTML table in the viewer or web browser.
+
+## Bug fixes
+
+* Fix issues with `mcse()`, `n_eff()` and `tidy_stan()` with more complex _brmsfit_-models.
+* Fix issue in `typical_value()` to prevent error for R-oldrel-Windows.
+* `model_frame()` now returns response values from models, which are in matrix form (bound with `cbind()`), as is.
+* Fixed issues in `grpmean()`, where values instead of value labels were printed if some categories were not present in the data.
+
 # sjstats 0.14.0
 
 ## General

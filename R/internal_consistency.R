@@ -14,6 +14,8 @@
 #'          \code{"spearman"} (default), \code{"pearson"} or \code{"kendall"}.
 #'          You may use initial letter only.
 #'
+#' @inheritParams grpmean
+#'
 #' @return \describe{
 #'            \item{\code{reliab_test()}}{
 #'              A data frame with the corrected item-total correlations (item discrimination,
@@ -134,12 +136,20 @@
 #' @importFrom tibble tibble
 #' @importFrom sjmisc std
 #' @export
-reliab_test <- function(x, scale.items = FALSE, digits = 3) {
+reliab_test <- function(x, scale.items = FALSE, digits = 3, out = c("txt", "viewer", "browser")) {
   # check param
   if (!is.matrix(x) && !is.data.frame(x)) {
     warning("`x` needs to be a data frame or matrix.", call. = F)
     return(NULL)
   }
+
+  out <- match.arg(out)
+
+  if (out != "txt" && !requireNamespace("sjPlot", quietly = TRUE)) {
+    message("Package `sjPlot` needs to be loaded to print HTML tables.")
+    out <- "txt"
+  }
+
 
   # remove missings, so correlation works
   x <- stats::na.omit(x)
@@ -156,7 +166,7 @@ reliab_test <- function(x, scale.items = FALSE, digits = 3) {
   if (ncol(x) > 2) {
     # Check whether items should be scaled. Needed,
     # when items have different measures / scales
-    if (scale.items) x <- sjmisc::std(x)
+    if (scale.items) x <- sjmisc::std(x, append = FALSE)
 
     # init vars
     totalCorr <- c()
@@ -187,6 +197,12 @@ reliab_test <- function(x, scale.items = FALSE, digits = 3) {
     warning("Data frame needs at least three columns for reliability-test.", call. = F)
     ret.df <- NULL
   }
+
+  # save how to print output
+  attr(ret.df, "print") <- out
+
+  if (out %in% c("viewer", "browser"))
+    class(ret.df) <- c("sjt_reliab", class(ret.df))
 
   ret.df
 }

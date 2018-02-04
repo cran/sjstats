@@ -53,6 +53,12 @@ grpmean <- function(x, dv, grp, weight.by = NULL, digits = 2, out = c("txt", "vi
 
   out <- match.arg(out)
 
+  if (out != "txt" && !requireNamespace("sjPlot", quietly = TRUE)) {
+    message("Package `sjPlot` needs to be loaded to print HTML tables.")
+    out <- "txt"
+  }
+
+
   # create quosures
   grp.name <- rlang::quo_name(rlang::enquo(grp))
   dv.name <- rlang::quo_name(rlang::enquo(dv))
@@ -78,7 +84,7 @@ grpmean <- function(x, dv, grp, weight.by = NULL, digits = 2, out = c("txt", "vi
 
   # now get valid value labels
   value.labels <- sjlabelled::get_labels(
-    x[[grp.name]], attr.only = F, include.values = NULL, include.non.labelled = TRUE
+    x[[grp.name]], attr.only = F, include.values = "n", include.non.labelled = TRUE
   )
 
   # return values
@@ -132,9 +138,9 @@ grpmean <- function(x, dv, grp, weight.by = NULL, digits = 2, out = c("txt", "vi
 
     # add class-attr for print-method()
     if (out == "txt")
-      class(dataframes) <- c("sj_grpmean", "list")
+      class(dataframes) <- c("sj_grpmean", class(dataframes))
     else
-      class(dataframes) <- c("sjt_grpmean", "list")
+      class(dataframes) <- c("sjt_grpmean", class(dataframes))
   }
 
   # save how to print output
@@ -190,9 +196,25 @@ grpmean_helper <- function(x, dv, grp, weight.by, digits, value.labels, varCount
     }
   })
 
+
+  ## TODO
+  # efc %>%
+  #   group_by(c172code, c161sex) %>%
+  #   grpmean(c12hour, e42dep)
+
+
   # check if value labels length matches group count
-  if (dplyr::n_distinct(mydf$grp) != length(value.labels))
-    value.labels <- unique(mydf$grp)
+  if (dplyr::n_distinct(mydf$grp) != length(value.labels)) {
+    # get unique factor levels and check if these are numeric.
+    # if so, we match the values from value labels and the remaining
+    # factor levels, so we get the correct value labels for printing
+    nl <- unique(mydf$grp)
+    if (sjmisc::is_num_fac(nl))
+      value.labels <- value.labels[names(value.labels) %in% levels(nl)]
+    else
+      value.labels <- nl
+  }
+
 
   # create summary
   dat <- mydf %>%
@@ -219,7 +241,7 @@ grpmean_helper <- function(x, dv, grp, weight.by, digits, value.labels, varCount
   # add row labels
   dat <- tibble::add_column(
     dat,
-    term = c(value.labels, "Total"),
+    term = c(unname(value.labels), "Total"),
     .before = 1
   )
 
