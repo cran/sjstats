@@ -1,4 +1,4 @@
-10e7cb6744f7ebb1666c02a89ff818e6 *DESCRIPTION
+f88b3990bbab8fafee7b23de2df42b7a *DESCRIPTION
 7421fa7d1199c33d7d4d0a138a69de7f *NAMESPACE
 565d5abf789b4f1b99c1403f75878446 *NEWS.md
 8da429f0b8d6583984926550601be191 *R/HDI.R
@@ -10,7 +10,7 @@ cede6b23f6bd02fe77b99ebbf9b6b304 *R/bootstrap.R
 72d85f9764951723bdeb585d518fd09f *R/cv.R
 a9c0c75730d24a5041cd8cc9bdf12770 *R/cv_error.R
 4d34ef77e80675948d7af12370af97d9 *R/efc.R
-4c63442e5d67903d14a5351957054651 *R/eta_sq.R
+503cfac0fb738f8884b22c9367362853 *R/eta_sq.R
 74a855e15eeed261809bfd4c201da1ff *R/find_beta.R
 af7aceb2ef3859e12d41bd122ea2abec *R/gmd.R
 afe1f8a2bb7d4d385ac58003b4e6e382 *R/gof.R
@@ -50,17 +50,17 @@ d549884ec18b554f9c6580b889139352 *R/var_pop.R
 aa13b329d29c29b4337f41a74ae24c70 *R/weight.R
 c503e51d50217f5346ffe3fb52a54a90 *R/xtab_statistics.R
 0e3c8216a21f33330ecd7775335d5047 *README.md
-71d9dd3d5d32b0ac89d82d78b666ccc9 *build/partial.rdb
+703a226401171546ce0625a21ab3da4b *build/partial.rdb
 0900204653d6c990d815523f3fa579fc *build/vignette.rds
 3172b22b3d87d0f86d78326bc26891fc *data/efc.RData
 ad3f18b79c24699a3c122d8b377b5028 *data/nhanes_sample.RData
 3d4a46fa47950b5f7239f4970b36f73c *inst/CITATION
-8e27b98a82ffe6ed8af379814ee6493f *inst/doc/anova-statistics.R
-7ee2fc4da73da9cbf7aae121eb9d214e *inst/doc/anova-statistics.Rmd
-11deaa56875982f510ffdd65bca97527 *inst/doc/anova-statistics.html
+12e9a5a096304e5b0417fdd665c804f0 *inst/doc/anova-statistics.R
+6b035b464e35b8fc589a4be0f96b0fbe *inst/doc/anova-statistics.Rmd
+2d48294e75fcfb3d385fc208ea81d5d8 *inst/doc/anova-statistics.html
 bdaf151ee848b97ccf17484efc43e7ab *inst/doc/mixedmodels-statistics.R
 514bfd637e5b13ffdba06e1406cf3f75 *inst/doc/mixedmodels-statistics.Rmd
-aff5c9d287588a1937103f6aecdafd56 *inst/doc/mixedmodels-statistics.html
+e5872c5cfa8eae6a86d622616eb3870a *inst/doc/mixedmodels-statistics.html
 91c1a839f326402e79698a307029cd26 *man/boot_ci.Rd
 c3f65cb1f6a92f62615454385b637733 *man/bootstrap.Rd
 8c302d69324573ad8645ddf9567e5487 *man/check_assumptions.Rd
@@ -71,7 +71,7 @@ c5119b08f771c8922c2e44dc54ce2c99 *man/cod.Rd
 a45922d4c361fc29e9fe0a7fae3ff873 *man/cv_error.Rd
 de109b287371b6cd09bc33ac588ef538 *man/deff.Rd
 c3eb7a80f8bf89f86e32aedb8ac36305 *man/efc.Rd
-cc703397f5d08a1cd86d52dee5ce5d4b *man/eta_sq.Rd
+14270ba689bd050d2ad11d83a66238a3 *man/eta_sq.Rd
 00a3f8db1d678464d37705968d42286f *man/figures/logo.png
 fc9771bb05b48a56c48371d2373fe0e7 *man/find_beta.Rd
 3079e11dd82215467a345ae446d7e5fd *man/gmd.Rd
@@ -112,5 +112,5 @@ ab02f102f637171ba878aff8303109ae *man/tidy_stan.Rd
 378e5e8778593315f1d923384b319644 *man/weight.Rd
 82d2a7839cc793b8f7db843599ae425c *man/wtd_sd.Rd
 c1a55c3a02c5d5fea14b3314713317b8 *man/xtab_statistics.Rd
-7ee2fc4da73da9cbf7aae121eb9d214e *vignettes/anova-statistics.Rmd
+6b035b464e35b8fc589a4be0f96b0fbe *vignettes/anova-statistics.Rmd
 514bfd637e5b13ffdba06e1406cf3f75 *vignettes/mixedmodels-statistics.Rmd

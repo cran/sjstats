@@ -3,7 +3,7 @@ Type: Package
 Encoding: UTF-8
 Title: Collection of Convenient Functions for Common Statistical
         Computations
-Version: 0.14.2-2
+Version: 0.14.2
 Date: 2018-03-26
 Author: Daniel Lüdecke <d.luedecke@uke.de>
 Maintainer: Daniel Lüdecke <d.luedecke@uke.de>
@@ -38,6 +38,6 @@ BugReports: https://github.com/strengejacke/sjstats/issues
 RoxygenNote: 6.0.1
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2018-03-25 19:30:36 UTC; Daniel
+Packaged: 2018-03-25 14:38:54 UTC; Daniel
 Repository: CRAN
-Date/Publication: 2018-03-25 23:07:45 UTC
+Date/Publication: 2018-03-25 15:02:07 UTC
