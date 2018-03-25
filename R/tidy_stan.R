@@ -4,8 +4,6 @@
 #' @description Returns a tidy summary output for stan models.
 #'
 #' @param x A \code{stanreg}, \code{stanfit} or \code{brmsfit} object.
-#' @param probs Vector of scalars between 0 and 1, indicating the mass within
-#'        the credible interval that is to be estimated. See \code{\link{hdi}}.
 #' @param typical The typical value that will represent the Bayesian point estimate.
 #'        By default, the posterior median is returned. See \code{\link{typical_value}}
 #'        for possible values for this argument.
@@ -18,7 +16,7 @@
 #'
 #' @return A tidy data frame, summarizing \code{x}, with consistent column names.
 #'         To distinguish multiple HDI values, column names for the HDI get a suffix
-#'         when \code{probs} has more than one element.
+#'         when \code{prob} has more than one element.
 #'
 #' @details The returned data frame gives information on the Bayesian point
 #'          estimate (column \emph{estimate}, which is by default the posterior
@@ -53,7 +51,7 @@
 #' if (require("rstanarm")) {
 #'   fit <- stan_glm(mpg ~ wt + am, data = mtcars, chains = 1)
 #'   tidy_stan(fit)
-#'   tidy_stan(fit, probs = c(.89, .5))
+#'   tidy_stan(fit, prob = c(.89, .5))
 #' }}
 #'
 #' @importFrom purrr map flatten_dbl map_dbl modify_if
@@ -63,63 +61,41 @@
 #' @importFrom stats mad
 #' @importFrom bayesplot rhat neff_ratio
 #' @export
-tidy_stan <- function(x, probs = .89, typical = "median", trans = NULL, type = c("fixed", "random", "all"), digits = 3) {
+tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c("fixed", "random", "all"), digits = 3) {
 
-  # only works for rstanarm-models
-
+  # only works for rstanarm- or brms-models
   if (!inherits(x, c("stanreg", "stanfit", "brmsfit")))
     stop("`x` needs to be a stanreg- or brmsfit-object.", call. = F)
-
 
   # check arguments
   type <- match.arg(type)
 
-
   # get data frame
-
   mod.dat <- as.data.frame(x)
-  brmsfit.removers <- NULL
 
   # for brmsfit models, we need to remove some columns here to
   # match data rows later
-
   if (inherits(x, "brmsfit")) mod.dat <- brms_clean(mod.dat)
 
-
   # compute HDI
+  out <- hdi(x, prob = prob, trans = trans, type = "all")
 
-  out <- purrr::map(probs, ~ hdi(x, prob = .x, trans = trans, type = "all")) %>%
-    dplyr::bind_cols() %>%
-    dplyr::select(1, tidyselect::starts_with("hdi."))
+  # we need names of elements, for correct removal
+  nr <- bayesplot::neff_ratio(x)
 
-
-  # for multiple HDIs, fix column names
-
-  if (length(probs) > 1) {
-    suffix <- probs %>%
-      purrr::map(~ rep(.x, length(probs))) %>%
-      purrr::flatten_dbl()
-
-    colnames(out)[2:ncol(out)] <-
-      sprintf(
-        "%s_%s",
-        rep(c("hdi.low", "hdi.high"), length(probs)),
-        as.character(suffix)
-      )
+  if (inherits(x, "brmsfit")) {
+    cnames <- make.names(names(nr))
+    keep <- cnames %in% out$term
+  } else {
+    keep <- 1:nrow(out)
   }
 
 
   # compute additional statistics, like point estimate, standard errors etc.
 
-  if (sjmisc::is_empty(brmsfit.removers)) {
-    nr <- bayesplot::neff_ratio(x)[1:nrow(out)]
-    rh <- bayesplot::rhat(x)[1:nrow(out)]
-    se <- dplyr::pull(mcse(x, type = "all"), "mcse")[1:nrow(out)]
-  } else {
-    nr <- bayesplot::neff_ratio(x)[-brmsfit.removers]
-    rh <- bayesplot::rhat(x)[-brmsfit.removers]
-    se <- dplyr::pull(mcse(x, type = "all"), "mcse")[1:nrow(out)]
-  }
+  nr <- nr[keep]
+  rh <- bayesplot::rhat(x)[keep]
+  se <- dplyr::pull(mcse(x, type = "all"), "mcse")[keep]
 
 
   out <- out %>%
@@ -144,12 +120,9 @@ tidy_stan <- function(x, probs = .89, typical = "median", trans = NULL, type = c
 
 
   # check if we need to remove random or fixed effects
-
   out <- remove_effects_from_stan(out, type, is.brms = inherits(x, "brmsfit"))
 
-
   # round values
-
   purrr::modify_if(out, is.numeric, ~ round(.x, digits = digits))
 }
 

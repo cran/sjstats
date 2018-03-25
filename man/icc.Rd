@@ -4,7 +4,7 @@
 \alias{icc}
 \title{Intraclass-Correlation Coefficient}
 \usage{
-icc(x, ...)
+icc(x, ..., posterior = FALSE)
 }
 \arguments{
 \item{x}{Fitted mixed effects model (of class \code{merMod}, \code{glmmTMB},
@@ -12,32 +12,55 @@ icc(x, ...)
 
 \item{...}{More fitted model objects, to compute multiple intraclass-correlation
 coefficients at once.}
+
+\item{posterior}{Logical, if \code{TRUE} and \code{x} is a \code{brmsfit}
+object, ICC values are computed for each sample of the posterior
+distribution. In this case, a data frame is returned with the same
+number of rows as samples in \code{x}, with one column per random
+effect ICC.}
 }
 \value{
-A numeric vector with all random intercept intraclass-correlation-coefficients,
-          or a list of numeric vectors, when more than one model were used
-          as arguments. Furthermore, between- and within-group variances as well
-          as random-slope variance are returned as attributes.
+If \code{posterior = FALSE} (the default), a numeric vector with all
+   random intercept intraclass-correlation-coefficients, or a list of
+   numeric vectors, when more than one model were used as arguments.
+   Furthermore, between- and within-group variances as well as random-slope
+   variance are returned as attributes.
+   \cr \cr
+   If \code{posterior = TRUE}, \code{icc()} returns a data frame with ICC
+   and variance components for each sample of the posterior distribution.
 }
 \description{
 This function calculates the intraclass-correlation
-               (icc) - sometimes also called \emph{variance partition coefficient}
-               (vpc) - for random intercepts of mixed effects models.
-               Currently, \code{\link[lme4]{merMod}}, \code{\link[glmmTMB]{glmmTMB}}
-               \code{stanreg} and \code{\link[brms]{brmsfit}}
-               objects are supported.
+   (icc) - sometimes also called \emph{variance partition coefficient}
+   (vpc) - for random intercepts of mixed effects models. Currently,
+   \code{\link[lme4]{merMod}}, \code{\link[glmmTMB]{glmmTMB}},
+   \code{stanreg} and \code{\link[brms]{brmsfit}} objects are supported.
 }
 \details{
 The ICC is calculated by dividing the between-group-variance (random
          intercept variance) by the total variance (i.e. sum of between-group-variance
          and within-group (residual) variance). \cr \cr
       The calculation of the ICC for generalized linear mixed models with binary outcome is based on
-      \cite{Wu et al. (2012)}. For Poisson multilevel models, please refere to \cite{Stryhn et al. (2006)}.
+      \cite{Wu et al. (2012)}. For Poisson multilevel models, please refer to \cite{Stryhn et al. (2006)}.
       \cite{Aly et al. (2014)} describe computation of ICC for negative binomial models.
       \cr \cr
-      There is a \code{print}-method that prints the variance parameters using
-      the \code{comp}-argument set to \code{"var"}: \code{print(x, comp = "var")}
-      (see 'Examples'). The \code{\link{re_var}}-function is a convenient wrapper.
+      \strong{Caution:} For models with random slopes and random intercepts,
+      the ICC would differ at each unit of the predictors. Hence, the ICC for these
+      kind of models cannot be understood simply as proportion of variance
+      (see \cite{Goldstein et al. 2010}). For convenience reasons, as the
+      \code{icc()} function also extracts the different random effects
+      variances, the ICC for random-slope-intercept-models is reported
+      nonetheless, but it is usually no meaningful summary of the
+      proportion of variances.
+      \cr \cr
+      If \code{posterior = FALSE}, there is a \code{print()}-method that prints
+      the variance parameters using the \code{comp}-argument set to \code{"var"}:
+      \code{print(x, comp = "var")} (see 'Examples'). The
+      \code{\link{re_var}}-function is a convenient wrapper. If
+      \code{posterior = TRUE}, the \code{print()}-method accepts the arguments
+      \code{prob} and \code{digits}, which indicate the probability of the
+      uncertainty interval for the ICC and variance components, and the digits
+      in the output (see also 'Examples').
       \cr \cr
       The random effect variances indicate the between- and within-group
         variances as well as random-slope variance and random-slope-intercept
@@ -87,11 +110,13 @@ library(lme4)
 fit0 <- lmer(Reaction ~ 1 + (1 | Subject), sleepstudy)
 icc(fit0)
 
+# note: ICC for random-slope-intercept model usually not
+# meaningful - see 'Note'.
 fit1 <- lmer(Reaction ~ Days + (Days | Subject), sleepstudy)
 icc(fit1)
 
 sleepstudy$mygrp <- sample(1:45, size = 180, replace = TRUE)
-fit2 <- lmer(Reaction ~ Days + (1 | mygrp) + (Days | Subject), sleepstudy)
+fit2 <- lmer(Reaction ~ Days + (1 | mygrp) + (1 | Subject), sleepstudy)
 icc(fit2)
 
 # return icc for all models at once
@@ -103,12 +128,37 @@ icc2 <- icc(fit2)
 print(icc1, comp = "var")
 print(icc2, comp = "var")
 
+\dontrun{
+# compute ICC for Bayesian mixed model, with an ICC for each
+# sample of the posterior. The print()-method then shows
+# the median ICC as well as 89\% HDI for the ICC.
+# Change interval with print-method:
+# print(icc(m, posterior = TRUE), prob = .5)
+
+if (requireNamespace("brms", quietly = TRUE)) {
+  library(dplyr)
+  sleepstudy$mygrp <- sample(1:5, size = 180, replace = TRUE)
+  sleepstudy <- sleepstudy \%>\%
+    group_by(mygrp) \%>\%
+    mutate(mysubgrp = sample(1:30, size = n(), replace = TRUE))
+  m <- brm(
+    Reaction ~ Days + (1 | mygrp / mysubgrp) + (1 | Subject),
+    data = sleepstudy
+  )
+
+  # by default, 89\% interval
+  icc(m, posterior = TRUE)
+
+  # show 50\% interval
+  print(icc(m, posterior = TRUE), prob = .5, digits = 2)
+}}
 
 }
 \references{
 \itemize{
               \item Aguinis H, Gottfredson RK, Culpepper SA. 2013. Best-Practice Recommendations for Estimating Cross-Level Interaction Effects Using Multilevel Modeling. Journal of Management 39(6): 1490–1528 (\doi{10.1177/0149206313478188})
               \item Aly SS, Zhao J, Li B, Jiang J. 2014. Reliability of environmental sampling culture results using the negative binomial intraclass correlation coefficient. Springerplus 14(3) (\doi{10.1186/2193-1801-3-40})
+              \item Goldstein H, Browne W, Rasbash J. 2010. Partitioning Variation in Multilevel Models. Understanding Statistics, 1:4, 223-231 (\doi{10.1207/S15328031US0104_02})
               \item Grace-Martion K. The Intraclass Correlation Coefficient in Mixed Models, \href{http://www.theanalysisfactor.com/the-intraclass-correlation-coefficient-in-mixed-models/}{web}
               \item Hox J. 2002. Multilevel analysis: techniques and applications. Mahwah, NJ: Erlbaum
               \item Rabe-Hesketh S, Skrondal A. 2012. Multilevel and longitudinal modeling using Stata. 3rd ed. College Station, Tex: Stata Press Publication

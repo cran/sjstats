@@ -1,3 +1,32 @@
+# sjstats 0.14.2
+
+## New functions
+
+* `residuals.svyglm.nb()` as S3-generic `residuals()` method for objects fitted with `svyglm.nb()`.
+
+## Changes to functions
+
+* `icc()` gets a `posterior`-argument, to compute ICC-values from `brmsfit`-objects, for the whole posterior distribution.
+* `icc()` now gives a warning when computed for random-slope-intercept models, to warn user about probably inappropriate inference.
+* `r2()` now computes Bayesian version of R-squared for `stanreg` and `brmsfit` objects.
+* Argument `prob` in `hdi()` now accepts a vector of scalars to compute HDIs for multiple probability tresholds at once.
+* Argument `probs` in `tidy_stan()` was renamed into `prob`, to be consistent with `hdi()`.
+* `mwu()` gets an `out`-argument, to print output to console, or as HTML table in the viewer or web browser.
+* `scale_weights()` now also works if weights have missing values.
+* `hdi()` and `rope()` get `data.frame`-methods.
+* `omega_sq()` and `eta_sq()` get a `ci.lvl`-argument to compute confidence intervals for the effect size statistics.
+* `omega_sq()`, `eta_sq()` and `cohens_f()` now always return a data frame with at least two columns: term name and effect size. Confidence intervals are added as additional columns, if the `ci.lvl`-argument is `TRUE`.
+* `omega_sq()` gets a `partial`-argument to compute partial omega-squared.
+* `omega_sq()`, `eta_sq()`, `cohens_f()` and `anova_stats()` now support `anova.rms`-objects from the *rms*-package.
+
+## Bug fixes
+
+* Fix unnecessary warning for tibbles in `mic()`.
+* Make sure that `model_frame()` does not return duplicated column names.
+* Fix issue in `tidy_stan()` with incorrect *n_eff* statistics for _sigma_ parameter in mixed models.
+* Fix issue in `tidy_stan()`, which did not work when `probs` was of length greater than 2.
+* Fix issue in `icc()` with _brmsfit_-models, which was broken probably due to internal changes in _brms_.
+
 # sjstats 0.14.1
 
 ## General

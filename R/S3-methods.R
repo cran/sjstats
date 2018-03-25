@@ -99,7 +99,8 @@ predict.svyglm.nb <- function(object, newdata = NULL,
 
   fnb <- MASS::glm.nb(
     attr(object, "nb.formula", exact = TRUE),
-    data = object$design$variables
+    data = object$design$variables,
+    weights = scaled.weights
   )
 
   cf <- stats::coef(fnb)
@@ -118,6 +119,62 @@ predict.svyglm.nb <- function(object, newdata = NULL,
     na.action = na.action,
     ...
   )
+}
+
+
+#' @importFrom MASS glm.nb
+#' @importFrom stats coef setNames predict.glm
+#' @export
+residuals.svyglm.nb <- function(object, ...) {
+
+  if (!isNamespaceLoaded("survey"))
+    requireNamespace("survey", quietly = TRUE)
+
+  fnb <- MASS::glm.nb(
+    attr(object, "nb.formula", exact = TRUE),
+    data = object$design$variables,
+    weights = scaled.weights
+  )
+
+  y <- resp_val(fnb)
+  mu <- stats::predict.glm(fnb, type = "response")
+  wts <- fnb$prior.weights
+
+  (y - mu) * sqrt(wts) / sqrt(fnb$family$variance(mu))
+}
+
+
+#' @importFrom stats terms formula
+#' @export
+terms.svyglm.nb <- function(x, ...) {
+
+  if (!isNamespaceLoaded("survey"))
+    requireNamespace("survey", quietly = TRUE)
+
+  stats::terms(stats::formula(x), ...)
+}
+
+
+#' @importFrom purrr map flatten_df
+#' @export
+AIC.svyglm.nb <- function(object, ...) {
+  ## FIXME this one just returns the AIC of the underlying glm.nb() model
+  list(object, ...) %>%
+    purrr::map(~ getaic(.x)) %>%
+    purrr::flatten_df() %>%
+    as.data.frame()
+}
+
+
+getaic <- function(x) {
+  c(df = x$df, AIC = x$aic)
+}
+
+
+#' @export
+deviance.svyglm.nb <- function(object, ...) {
+  ## FIXME this one just returns the deviance of the underlying glm.nb() model
+  object$deviance
 }
 
 
@@ -153,6 +210,8 @@ print.sjstats_r2 <- function(x, ...) {
   } else {
     if (identical(names(x[[1]]), "D")) {
       s1 <- "Tjur's D"
+    } else if (identical(names(x[[1]]), "Bayes R2")) {
+      s1 <- "Bayes R2"
     } else {
       return(NULL)
     }
@@ -240,6 +299,113 @@ print.icc.lme4 <- function(x, comp, ...) {
   }
 }
 
+
+#' @importFrom tidyselect starts_with
+#' @importFrom sjmisc remove_empty_cols
+#' @importFrom cli cat_line
+#' @importFrom crayon cyan blue red magenta green silver italic
+#' @importFrom dplyr case_when
+#' @export
+print.icc.posterior <- function(x, ..., prob = .89, digits = 3) {
+  # print model information
+  cli::cat_line(crayon::italic("\n# Random Effect Variances and ICC\n"))
+  cat(sprintf("Family: %s (%s)\nFormula: %s\n\n",
+              attr(x, "family", exact = T),
+              attr(x, "link", exact = T),
+              as.character(attr(x, "formula"))[1]))
+
+  x <- sjmisc::remove_empty_cols(x)
+
+  get_re_col <- function(i, st) {
+    dplyr::case_when(
+      i == 1 ~ crayon::blue(st),
+      i == 2 ~ crayon::cyan(st),
+      i == 3 ~ crayon::magenta(st),
+      i == 4 ~ crayon::green(st),
+      i == 5 ~ crayon::red(st),
+      TRUE ~ crayon::silver(st)
+    )
+  }
+
+  cn <- colnames(x)
+  cn.icc <- cn[tidyselect::starts_with("icc_", vars = cn)]
+  cn.tau00 <- cn[tidyselect::starts_with("tau.00_", vars = cn)]
+
+  # print icc
+
+  for (i in seq_len(length(cn.icc))) {
+    re.name <- substr(cn[i], 5, nchar(cn.icc[i]))
+
+    cli::cat_line(get_re_col(i, sprintf("## %s", re.name)))
+
+    # ICC
+    ci <- hdi(x[[cn.icc[i]]], prob = prob)
+    cli::cat_line(sprintf(
+      "          ICC: %.*f (HDI %i%%: %.*f-%.*f)",
+      digits,
+      median(x[[cn.icc[i]]]),
+      as.integer(round(prob * 100)),
+      digits,
+      ci[1],
+      digits,
+      ci[2]
+    ))
+
+    # ICC
+    ci <- hdi(x[[cn.tau00[i]]], prob = prob)
+    cli::cat_line(sprintf(
+      "Between-group: %.*f (HDI %i%%: %.*f-%.*f)\n",
+      digits,
+      median(x[[cn.tau00[i]]]),
+      as.integer(round(prob * 100)),
+      digits,
+      ci[1],
+      digits,
+      ci[2]
+    ))
+  }
+
+  # print sigma squared
+
+  ci <- hdi(x[["resid_var"]], prob = prob)
+  infs <- crayon::red("## Residuals")
+  cli::cat_line(sprintf(
+    "%s\nWithin-group: %.*f (HDI %i%%: %.*f-%.*f)\n",
+    infs,
+    digits,
+    median(x[["resid_var"]]),
+    as.integer(round(prob * 100)),
+    digits,
+    ci[1],
+    digits,
+    ci[2]
+  ))
+
+
+  cn <- colnames(x)
+  cn <- cn[tidyselect::starts_with("tau.11_", vars = cn)]
+
+  if (!sjmisc::is_empty(cn)) cat(crayon::red("## Random-slope-variance\n"))
+
+  # print Random-slope-variance
+
+  for (i in seq_len(length(cn))) {
+    tau.name <- substr(cn[i], 8, nchar(cn[i]))
+    infs <- sprintf("%s", tau.name)
+    ci <- hdi(x[[cn[i]]], prob = prob)
+    cli::cat_line(sprintf(
+      "%s: %.*f (HDI %i%%: %.*f-%.*f)",
+      infs,
+      digits,
+      median(x[[cn[i]]]),
+      as.integer(round(prob * 100)),
+      digits,
+      ci[1],
+      digits,
+      ci[2]
+    ))
+  }
+}
 
 
 #' @export

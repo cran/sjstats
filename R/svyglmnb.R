@@ -20,17 +20,24 @@ utils::globalVariables("scaled.weights")
 #'           with some additional information about the model.
 #'
 #' @details For details on the computation method, see Lumley (2010), Appendix E
-#'          (especially 254ff.)
-#'          \cr \cr
-#'          \pkg{sjstats} implements following S3-methods for \code{svyglm.nb}-objects:
-#'          \code{family()}, \code{model.frame()}, \code{formula()}, \code{print()}
-#'          and \code{predict()}. However, these functions have some limitations:
-#'          \code{family()} simply returns the family-object from the underlying
-#'          \code{\link[MASS]{glm.nb}}-model. The \code{predict()}-methods simply
-#'          re-computes the model with \code{\link[MASS]{glm.nb}}, overwrites
-#'          the \code{$coefficients} from this model-object with the coefficients
-#'          from the returned \code{\link[survey]{svymle}}-object and finally calls
-#'          \code{\link[stats]{predict.glm}} to compute the predicted values.
+#'   (especially 254ff.)
+#'   \cr \cr
+#'   \pkg{sjstats} implements following S3-methods for \code{svyglm.nb}-objects:
+#'   \code{family()}, \code{model.frame()}, \code{formula()}, \code{print()},
+#'   \code{predict()} and \code{residuals()}. However, these functions have some
+#'   limitations:
+#'   \itemize{
+#'     \item{\code{family()} simply returns the family-object from the
+#'     underlying \code{\link[MASS]{glm.nb}}-model.}
+#'     \item{The \code{predict()}-method just re-fits the \code{svyglm.nb}-model
+#'     with \code{\link[MASS]{glm.nb}}, overwrites the \code{$coefficients}
+#'     from this model-object with the coefficients from the returned
+#'     \code{\link[survey]{svymle}}-object and finally calls
+#'     \code{\link[stats]{predict.glm}} to compute the predicted values.}
+#'     \item{\code{residuals()} re-fits the \code{svyglm.nb}-model with
+#'     \code{\link[MASS]{glm.nb}} and then computes the Pearson-residuals
+#'     from the \code{glm.nb}-object.}
+#'   }
 #'
 #'
 #' @references Lumley T (2010). Complex Surveys: a guide to analysis using R. Wiley
@@ -96,6 +103,11 @@ svyglm.nb <- function(formula, design, ...) {
   attr(svyfit, "family") <- fam
   attr(svyfit, "nb.theta") <- mod[["theta"]]
   attr(svyfit, "nb.theta.se") <- mod[["SE.theta"]]
+
+  svyfit$deviance <- mod$deviance
+  svyfit$df.residuals <- mod$df.residuals
+  svyfit$df <- length(stats::coef(mod)) + 1
+  svyfit$aic <- mod$aic
 
   svyfit
 }
