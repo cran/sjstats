@@ -63,8 +63,13 @@ fit <- aov(
 
 eta_sq(fit)
 omega_sq(fit)
-omega_sq(fit, ci.lvl = .95)
 eta_sq(fit, partial = TRUE)
+
+# CI for eta-squared requires apaTables packages
+\dontrun{
+if (requireNamespace("apaTables", quietly = TRUE)) {
+  eta_sq(fit, partial = TRUE, ci.lvl = .8)
+}}
 
 anova_stats(car::Anova(fit, type = 2))
 
