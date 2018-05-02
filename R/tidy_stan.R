@@ -18,23 +18,40 @@
 #'         To distinguish multiple HDI values, column names for the HDI get a suffix
 #'         when \code{prob} has more than one element.
 #'
-#' @details The returned data frame gives information on the Bayesian point
-#'          estimate (column \emph{estimate}, which is by default the posterior
-#'          median; other statistics are also possible, see \code{typical}), the
-#'          standard error (which are actually \emph{median absolute deviations}),
-#'          the HDI, the ratio of effective numbers of samples, \emph{n_eff},
-#'          (i.e. effective number of samples divided by total number of samples)
-#'          and Rhat statistics.
-#'          \cr \cr
-#'          The ratio of effective number of samples ranges from 0 to 1,
-#'          and should be close to 1. The closer this ratio comes to zero means
-#'          that the chains may be inefficient, but possibly still okay.
-#'          \cr \cr
-#'          When Rhat is above 1, it usually indicates that the chain has not
-#'          yet converged, indicating that the drawn samples might not be
-#'          trustworthy. Drawing more iteration may solve this issue.
-#'          \cr \cr
-#'          Computation for HDI is based on the code from Kruschke 2015, pp. 727f.
+#' @details The returned data frame has an additonal class-attribute,
+#'    \code{tidy_stan}, to pass the result to its own \code{print()}-method.
+#'    The \code{print()}-method create a cleaner output, especially for multilevel,
+#'    zero-inflated or multivariate response models, where - for instance -
+#'    the conditional part of a model is printed separately from the zero-inflated
+#'    part, or random and fixed effects are printed separately.
+#'    \cr \cr
+#'    The returned data frame gives information on:
+#'    \itemize{
+#'      \item{The Bayesian point estimate (column \emph{estimate}, which is by
+#'            default the posterior median; other statistics are also possible,
+#'            see argument \code{typical}).}
+#'      \item{
+#'        The standard error (which are actually \emph{median absolute
+#'        deviations}).
+#'      }
+#'      \item{
+#'        The HDI (see \code{\link{hdi}}). Computation for HDI is based on the
+#'        code from Kruschke 2015, pp. 727f.
+#'      }
+#'      \item{
+#'        The ratio of effective numbers of samples, \emph{n_eff}, (i.e.
+#'        effective number of samples divided by total number of samples).
+#'        This ratio ranges from 0 to 1, and should be close to 1. The closer
+#'        this ratio comes to zero means that the chains may be inefficient,
+#'        but possibly still okay.
+#'      }
+#'      \item{
+#'        The Rhat statistics. When Rhat is above 1, it usually indicates that
+#'        the chain has not yet converged, indicating that the drawn samples
+#'        might not be trustworthy. Drawing more iteration may solve this issue.
+#'      }
+#'      \item{The Monte Carlo standard error (see \code{\link{mcse}}).}
+#'    }
 #'
 #' @seealso \code{\link{hdi}}
 #'
@@ -55,13 +72,14 @@
 #' }}
 #'
 #' @importFrom purrr map flatten_dbl map_dbl modify_if
-#' @importFrom dplyr bind_cols select mutate
-#' @importFrom tidyselect starts_with
-#' @importFrom tibble add_column
-#' @importFrom stats mad
+#' @importFrom dplyr bind_cols select mutate slice inner_join n_distinct
+#' @importFrom tidyselect starts_with contains
+#' @importFrom tibble add_column tibble has_name
+#' @importFrom stats mad formula
 #' @importFrom bayesplot rhat neff_ratio
+#' @importFrom sjmisc is_empty trim
 #' @export
-tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c("fixed", "random", "all"), digits = 3) {
+tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c("fixed", "random", "all"), digits = 2) {
 
   # only works for rstanarm- or brms-models
   if (!inherits(x, c("stanreg", "stanfit", "brmsfit")))
@@ -78,7 +96,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
   if (inherits(x, "brmsfit")) mod.dat <- brms_clean(mod.dat)
 
   # compute HDI
-  out <- hdi(x, prob = prob, trans = trans, type = "all")
+  out <- hdi(x, prob = prob, trans = trans, type = type)
 
   # we need names of elements, for correct removal
   nr <- bayesplot::neff_ratio(x)
@@ -95,14 +113,19 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
 
   nr <- nr[keep]
   rh <- bayesplot::rhat(x)[keep]
-  se <- dplyr::pull(mcse(x, type = "all"), "mcse")[keep]
+  se <- mcse(x, type = type)
+  se <- se$mcse[se$term %in% out$term]
 
+  est <- purrr::map_dbl(mod.dat, ~ sjstats::typical_value(.x, fun = typical))
 
-  out <- out %>%
-    tibble::add_column(
-      estimate = purrr::map_dbl(mod.dat, ~ typical_value(.x, fun = typical)),
-      std.error = purrr::map_dbl(mod.dat, stats::mad),
-      .after = 1
+  out <- tibble::tibble(
+    term = names(est),
+    estimate = est,
+    std.error = purrr::map_dbl(mod.dat, stats::mad)
+  ) %>%
+    dplyr::inner_join(
+      out,
+      by = "term"
     ) %>%
     dplyr::mutate(
       n_eff = nr,
@@ -121,6 +144,170 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
 
   # check if we need to remove random or fixed effects
   out <- remove_effects_from_stan(out, type, is.brms = inherits(x, "brmsfit"))
+
+
+  # create variable to index random effects
+
+  if (type == "random" || type == "all") {
+
+    out <- tibble::add_column(out, random.effect = "", .before = 1)
+
+    # find random intercepts
+
+    ri <- grep("b\\[\\(Intercept\\) (.*)\\]", out$term)
+
+    if (!sjmisc::is_empty(ri)) {
+      out$random.effect[ri] <- "(Intercept)"
+      out$term[ri] <- gsub("b\\[\\(Intercept\\) (.*)\\]", "\\1", out$term[ri])
+
+      # check if we have multiple intercepts or nested groups
+      # if yes, append group name to intercept label
+
+      multi.grps <- gsub(pattern = ":([^:]+)", "\\2", out$term[ri])
+
+      if (dplyr::n_distinct(multi.grps) > 1) {
+        out$random.effect[ri] <- sprintf("(Intercept: %s)", multi.grps)
+      }
+    }
+
+
+    # find random intercepts
+
+    ri1 <- grep("r_(.*)\\.(.*)\\.", out$term)
+    ri2 <- which(gsub("r_(.*)\\.(.*)\\.", "\\2", out$term) == "Intercept")
+
+    if (!sjmisc::is_empty(ri1)) {
+      ri <- intersect(ri1, ri2)
+      out$random.effect[ri] <- "(Intercept)"
+      out$term[ri] <- gsub("r_(.*)\\.(.*)\\.", "\\1", out$term[ri])
+
+      # check if we have multiple intercepts or nested groups
+      # if yes, append group name to intercept label
+
+      multi.grps <- gsub(pattern = "\\.([^\\.]+)$", "\\2", out$term[ri])
+
+      if (dplyr::n_distinct(multi.grps) > 1) {
+        out$random.effect[ri] <- sprintf("(Intercept: %s)", multi.grps)
+      }
+    }
+
+
+    # find residual variance for random intercept
+
+    rsig1 <- which(gsub("(Sigma)\\[(.*)\\,(.*)\\]", "\\1", out$term) == "Sigma")
+    rsig2 <- which(gsub("(Sigma)\\[(.*)\\,(.*)\\]", "\\3", out$term) == "(Intercept)")
+
+    if (!sjmisc::is_empty(rsig1) && !sjmisc::is_empty(rsig2)) {
+      rs <- intersect(rsig1, rsig2)
+      out$random.effect[rs] <- "(Intercept)"
+
+      out$term[rs] <- gsub(
+        pattern = ":(Intercept)",
+        replacement = "",
+        sprintf("sigma (%s)", gsub("(Sigma)\\[(.*)\\,(.*)\\]", "\\2", out$term)[rs]),
+        fixed = TRUE
+      )
+
+      rs <- setdiff(rsig1, rsig2)
+
+      if (!sjmisc::is_empty(rs)) {
+        out$random.effect[rs] <- gsub("(Sigma)\\[(.*)\\,(.*)\\]", "\\3", out$term)[rs]
+        out$term[rs] <- "sigma"
+      }
+    }
+
+
+    # find random slopes
+
+    rs1 <- grep("b\\[(.*) (.*)\\]", out$term)
+    rs2 <- which(gsub("b\\[(.*) (.*)\\]", "\\1", out$term) != "(Intercept)")
+
+    if (!sjmisc::is_empty(rs1)) {
+      rs <- intersect(rs1, rs2)
+      rs.string <- gsub("b\\[(.*) (.*)\\]", "\\1", out$term[rs])
+      out$random.effect[rs] <- rs.string
+      out$term[rs] <- gsub("b\\[(.*) (.*)\\]", "\\2", out$term[rs])
+    }
+
+
+    # find random slopes
+
+    rs1 <- grep("r_(.*)\\.(.*)\\.", out$term)
+    rs2 <- which(gsub("r_(.*)\\.(.*)\\.", "\\2", out$term) != "Intercept")
+
+    if (!sjmisc::is_empty(rs1)) {
+      rs <- intersect(rs1, rs2)
+      rs.string <- gsub("r_(.*)\\.(.*)\\.", "\\2", out$term[rs])
+      out$random.effect[rs] <- rs.string
+      out$term[rs] <- gsub("r_(.*)\\.(.*)\\.", "\\1", out$term[rs])
+    }
+
+    # did we really had random effects?
+
+    if (tibble::has_name(out, "random.effect") &&
+        all(sjmisc::is_empty(out$random.effect, first.only = FALSE)))
+      out <- dplyr::select(out, -.data$random.effect)
+  }
+
+
+  # multivariate-response model?
+
+  if (inherits(x, "brmsfit") && !is.null(stats::formula(x)$responses)) {
+
+    # get response variables
+
+    responses <- stats::formula(x)$responses
+
+    # also clean prepared data frame
+    resp.sigma1 <- tidyselect::starts_with("sigma_", vars = out$term)
+    resp.sigma2 <- tidyselect::starts_with("b_sigma_", vars = out$term)
+
+    resp.sigma <- c(resp.sigma1, resp.sigma2)
+
+    if (!sjmisc::is_empty(resp.sigma))
+      out <- dplyr::slice(out, !! -resp.sigma)
+
+
+    # create "response-level" variable
+
+    out <- tibble::add_column(out, response = "", .before = 1)
+
+    # check if multivariate response model also has random effects
+    # we need to clean names for the random effects as well here
+
+    if (tibble::has_name(out, "random.effect")) {
+      re <- which(!sjmisc::is_empty(sjmisc::trim(out$random.effect), first.only = FALSE))
+    } else {
+      re <- NULL
+    }
+
+    # copy name of response into new character variable
+    # and remove response name from term name
+
+    for (i in responses) {
+      m <- tidyselect::contains(i, vars = out$term)
+      out$response[intersect(which(out$response == ""), m)] <- i
+      out$term <- gsub(sprintf("b_%s_", i), "", out$term, fixed = TRUE)
+      out$term <- gsub(sprintf("s_%s_", i), "", out$term, fixed = TRUE)
+
+      if (!sjmisc::is_empty(re)) {
+        out$random.effect[re] <- gsub(sprintf("__%s", i), "", out$random.effect[re], fixed = TRUE)
+        out$term[re] <- gsub(sprintf("__%s", i), "", out$term[re], fixed = TRUE)
+      }
+    }
+
+  }
+
+
+  class(out) <- c("tidy_stan", class(out))
+
+  attr(out, "digits") <- digits
+  attr(out, "model_name") <- deparse(substitute(x))
+
+  if (inherits(x, "brmsfit"))
+    attr(out, "formula") <- as.character(stats::formula(x))[1]
+  else
+    attr(out, "formula") <- deparse(stats::formula(x))
 
   # round values
   purrr::modify_if(out, is.numeric, ~ round(.x, digits = digits))
@@ -188,9 +375,11 @@ brms_clean <- function(out) {
   if (tibble::has_name(out, "term")) {
     re.sd <- tidyselect::starts_with("sd_", vars = out$term)
     re.cor <- tidyselect::starts_with("cor_", vars = out$term)
+    re.s <- tidyselect::starts_with("Sigma[", vars = out$term)
     lp <- tidyselect::starts_with("lp__", vars = out$term)
+    priors <- tidyselect::starts_with("prior_", vars = out$term)
 
-    removers <- unique(c(re.sd, re.cor, lp))
+    removers <- unique(c(re.sd, re.cor, re.s, lp, priors))
 
     if (!sjmisc::is_empty(removers))
       out <- dplyr::slice(out, !! -removers)
@@ -202,9 +391,11 @@ brms_clean <- function(out) {
 
   re.sd <- tidyselect::starts_with("sd_", vars = colnames(out))
   re.cor <- tidyselect::starts_with("cor_", vars = colnames(out))
+  re.s <- tidyselect::starts_with("Sigma[", vars = colnames(out))
   lp <- tidyselect::starts_with("lp__", vars = colnames(out))
+  priors <- tidyselect::starts_with("prior_", vars = colnames(out))
 
-  removers <- unique(c(re.sd, re.cor, lp))
+  removers <- unique(c(re.sd, re.cor, re.s, lp, priors))
 
   if (!sjmisc::is_empty(removers))
     out <- dplyr::select(out, !! -removers)

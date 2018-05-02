@@ -104,7 +104,8 @@
 #'
 #' # the standard error for the ICC can be computed manually in this way,
 #' # taking the fitted model example from above
-#' library(tidyverse)
+#' library(dplyr)
+#' library(purrr)
 #' dummy <- sleepstudy %>%
 #'   # generate 100 bootstrap replicates of dataset
 #'   bootstrap(100) %>%
@@ -203,7 +204,9 @@ se <- function(x, nsim = 100, type = c("fe", "re")) {
   se_result
 }
 
-std_e_helper <- function(x) sqrt(var(x, na.rm = TRUE) / length(stats::na.omit(x)))
+
+#' @importFrom stats var na.omit
+std_e_helper <- function(x) sqrt(stats::var(x, na.rm = TRUE) / length(stats::na.omit(x)))
 
 
 #' @importFrom stats coef setNames vcov

@@ -1,6 +1,38 @@
+# sjstats 0.14.3
+
+## General
+
+* Remove _tidyverse_ from suggested packages, as requested by maintainers.
+
+## Breaking Changes
+
+* `mwu()` now requires a data frame as first argument, followed by the names of the two variables to perform the Mann-Whitney-U-Test on.
+
+## Changes to functions
+
+* `tidy_stan()` was improved especially for more complex multilevel models.
+* Make `tidy_stan()` for large `brmsfit`-objects (esp. with random effects) more efficient.
+* Better `print()`-method for `tidy_stan()`, `hdi()`, `rope()`, `icc()` and some other functions.
+* `link_inverse()` now also should return the link-inverse function for most (or some or all?) custom families of _brms_-models.
+* The `weight.by`-arguments in `grpmean()` and `mwu()` now should be a variable name from a variable in `x`, and no longer a separate vector.
+
+## New functions
+
+* `model_family()` to get model-information about family and link-functions. This function is intended to be "generic" and work with many different model objects, because not all packages provide a `family()` function.
+
+## Bug fixes
+
+* Fix issue with `omega_sq()`, `eta_sq()` etc. when confidence intervals were computed with bootstrapping and the model-formula contained function calls like `scale()` or `as.factor()`.
+* Fix issue with `p_value()` for unconditional mixed models.
+* Fix typo in `xtab_statistics()`.
+* Fix issue with wrong calculation of Nagelkerke's r-squared value in `r2()`.
+* Fix issue for factors with character leves in `typical_value()`, when argument `fun` for factors was set to `mode`.
+* Don't show prior-samples in `hdi()`, `tidy_stan()` etc. for _brmsfit_-objects.
+* Fixed issues in `model_frame()`with spline-terms when missing values were removed due to casewise deletion.
+
 # sjstats 0.14.2
 
-# General
+## General
 
 * Revise examples, vignettes and package description to make sure all used packages are available for CRAN checks on operating systems.
 

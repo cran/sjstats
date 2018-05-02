@@ -6,6 +6,7 @@
 \alias{resp_val}
 \alias{link_inverse}
 \alias{model_frame}
+\alias{model_family}
 \alias{var_names}
 \title{Access information from model objects}
 \usage{
@@ -18,6 +19,8 @@ resp_val(x)
 link_inverse(x)
 
 model_frame(x, fe.only = TRUE)
+
+model_family(x)
 
 var_names(x)
 }
@@ -38,11 +41,34 @@ For \code{pred_vars()} and \code{resp_var()}, the name(s) of the
    but should also work for model objects that don't have a S3-generic for
    \code{model.frame()}. \code{var_names()} returns the "cleaned" variable
    names, i.e. things like \code{s()} for splines or \code{log()} are
-   removed.
+   removed. \code{model_family()} returns a list with information about the
+   model family (see 'Details').
 }
 \description{
 Several functions to retrieve information from model objects,
-   like variable names, link-inverse function, model frame etc.
+   like variable names, link-inverse function, model frame,
+   model_family etc., in a tidy and consistent way.
+}
+\details{
+\code{model_family()} returns a list with information about the
+   model family for many different model objects. Following information
+   is returned, where all values starting with \code{is_} are logicals.
+   \itemize{
+     \item \code{is_bin}: family is binomial (but not negative binomial)
+     \item \code{is_pois}: family is either poisson or negative binomial
+     \item \code{is_negbin}: family is negative binomial
+     \item \code{is_logit}: model has logit link
+     \item \code{is_linear}: family is gaussian
+     \item \code{is_linear}: family is gaussian
+     \item \code{link.fun}: the link-function
+     \item \code{family}: the family-object
+   }
+   \code{model_frame()} slighty differs from \code{model.frame()}, especially
+   for spline terms. Where \code{model.frame()} returns a matrix for splines,
+   \code{model_frame()} returns the data of the original variable and uses
+   the same column name as in the \code{data}-argument from the model-function.
+   This makes it easier, for instance, to get data that should be used as new
+   data in \code{predict()}. See 'Examples'.
 }
 \examples{
 data(efc)
@@ -67,5 +93,11 @@ exp(.3)
 outcome <- as.numeric(outcome)
 m <- glm(counts ~ log(outcome) + as.factor(treatment), family = poisson())
 var_names(m)
+
+# model.frame and model_frame behave slightly different
+library(splines)
+m <- lm(neg_c_7 ~ e42dep + ns(c160age), data = efc)
+head(model.frame(m))
+head(model_frame(m))
 
 }

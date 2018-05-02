@@ -149,7 +149,7 @@
 #'   sleepstudy <- sleepstudy %>%
 #'     group_by(mygrp) %>%
 #'     mutate(mysubgrp = sample(1:30, size = n(), replace = TRUE))
-#'   m <- brm(
+#'   m <- brms::brm(
 #'     Reaction ~ Days + (1 | mygrp / mysubgrp) + (1 | Subject),
 #'     data = sleepstudy
 #'   )
@@ -158,7 +158,7 @@
 #'   icc(m, posterior = TRUE)
 #'
 #'   # show 50% interval
-#'   print(icc(m, posterior = TRUE), prob = .5, digits = 2)
+#'   print(icc(m, posterior = TRUE), prob = .5, digits = 3)
 #' }}
 #'
 #' @importFrom purrr map2
@@ -228,25 +228,7 @@ icc.lme4 <- function(fit, obj.name) {
       stop("Please install and load package `brms` first.", call. = F)
 
     # get family
-    fitfam <- stats::family(fit)$family
-
-
-    # is neg. binomial?
-
-    is_negbin <-
-      sjmisc::str_contains(
-        fitfam,
-        c("Negative Binomial", "nbinom", "negbinomial"),
-        ignore.case = TRUE,
-        logic = "OR"
-      )
-
-
-    # is logistic?
-
-    is_logistic <-
-      inherits(fit, c("glmerMod", "glmmTMB", "brmsfit")) &&
-      fitfam %in% c("bernoulli", "binomial")
+    fitfam <- model_family(fit)
 
 
     # random effects variances
@@ -302,7 +284,7 @@ icc.lme4 <- function(fit, obj.name) {
     # set default, if no residual variance is available
 
     if (is.null(sig)) {
-      if (is_logistic)
+      if (fitfam$is_bin)
         sig <- sqrt((pi ^ 2) / 3)
       else
         sig <- 1
@@ -312,10 +294,10 @@ icc.lme4 <- function(fit, obj.name) {
     # residual variances, i.e.
     # within-cluster-variance (sigma^2)
 
-    if (is_logistic) {
+    if (fitfam$is_bin) {
       # for logistic models, we use pi / 3
       resid_var <- (pi ^ 2) / 3
-    } else if (inherits(fit, "glmerMod") && is_negbin) {
+    } else if (inherits(fit, "glmerMod") && fitfam$is_negbin) {
       # for negative binomial models, we use 1
       resid_var <- 1
     } else {
@@ -330,7 +312,7 @@ icc.lme4 <- function(fit, obj.name) {
 
     # check whether we have negative binomial
 
-    if (is_negbin) {
+    if (fitfam$is_negbin) {
       if (is_merMod(fit)) {
         # for negative binomial models, we also need the intercept...
         beta <- as.numeric(lme4::fixef(fit)["(Intercept)"])
@@ -440,19 +422,7 @@ icc.posterior <- function(fit, obj.name) {
     stop("Please install and load package `brms` first.", call. = F)
 
   # get family
-  fitfam <- stats::family(fit)$family
-
-  # is neg. binomial?
-  is_negbin <-
-    sjmisc::str_contains(
-      fitfam,
-      c("Negative Binomial", "nbinom", "negbinomial"),
-      ignore.case = TRUE,
-      logic = "OR"
-    )
-
-  # is logistic?
-  is_logistic <- fitfam %in% c("bernoulli", "binomial")
+  fitfam <- model_family(fit)
 
   # get random effect variances for each sample of posterior
   reva <- brms::VarCorr(fit, summary = FALSE)
@@ -478,7 +448,7 @@ icc.posterior <- function(fit, obj.name) {
 
   # set default, if no residual variance is available
   if (is.null(sig)) {
-    if (is_logistic)
+    if (fitfam$is_bin)
       sig <- sqrt((pi ^ 2) / 3)
     else
       sig <- 1
@@ -488,7 +458,7 @@ icc.posterior <- function(fit, obj.name) {
   # residual variances, i.e.
   # within-cluster-variance (sigma^2)
 
-  if (is_logistic) {
+  if (fitfam$is_bin) {
     # for logistic models, we use pi / 3
     resid_var <- (pi ^ 2) / 3
   } else {
@@ -500,10 +470,13 @@ icc.posterior <- function(fit, obj.name) {
   # total variance, sum of random intercept and residual variances
   total_var <- apply(as.data.frame(vars), MARGIN = 1, FUN = sum) + resid_var
 
+  # make sure residual variance has same length as other components
+  # if not, just repeat the current value to match number of samples
+  if (length(resid_var) == 1) resid_var <- rep(resid_var, length(total_var))
 
   # check whether we have negative binomial
 
-  if (is_negbin) {
+  if (fitfam$is_negbin) {
 
     # for negative binomial models, we also need the intercept...
     beta <- as.numeric(brms::fixef(fit)[[1]])
