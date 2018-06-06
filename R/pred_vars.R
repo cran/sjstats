@@ -32,6 +32,9 @@
 #'      \item \code{is_logit}: model has logit link
 #'      \item \code{is_linear}: family is gaussian
 #'      \item \code{is_linear}: family is gaussian
+#'      \item \code{is_ordinal}: family is ordinal or cumulative link
+#'      \item \code{is_zeroinf}: model has zero-inflation component
+#'      \item \code{is_multivariate}: model is a multivariate response model (currently only works for \emph{brmsfit} objects)
 #'      \item \code{link.fun}: the link-function
 #'      \item \code{family}: the family-object
 #'    }
@@ -101,10 +104,15 @@ pred_vars <- function(x) {
 #' @export
 resp_var <- function(x) {
   if (inherits(x, "brmsfit")) {
-    if (is.null(stats::formula(x)$responses))
+    if (is.null(stats::formula(x)$responses)) {
       deparse(stats::formula(x)$formula[[2L]])
-    else
-      stats::formula(x)$responses
+    } else {
+      purrr::map_chr(
+        x$formula$forms,
+        ~ stats::formula(.x)[[2L]] %>% all.vars()
+      )
+      # stats::formula(x)$responses
+    }
   } else
     deparse(stats::formula(x)[[2L]])
 }
@@ -159,7 +167,7 @@ link_inverse <- function(x) {
     il <- stats::gaussian(link = "identity")$linkinv
   } else if (inherits(x, "betareg")) {
     il <- x$link$mean$linkinv
-  } else if (inherits(x, "vgam")) {
+  } else if (inherits(x, c("vgam", "vglm"))) {
     il <- x@family@linkinv
   } else if (inherits(x, "brmsfit")) {
     fam <- stats::family(x)
@@ -175,8 +183,14 @@ link_inverse <- function(x) {
     if (!is.null(fam$family) && (is.character(fam$family) && fam$family == "custom")) {
       il <- stats::make.link(fam$link)$linkinv
     } else {
-      ff <- get(fam$family, asNamespace("stats"))
-      il <- ff(fam$link)$linkinv
+      if ("linkinv" %in% names(fam)) {
+        il <- fam$linkinv
+      } else if ("link" %in% names(fam) && is.character(fam$link)) {
+        il <- stats::make.link(fam$link)$linkinv
+      } else {
+        ff <- get(fam$family, asNamespace("stats"))
+        il <- ff(fam$link)$linkinv
+      }
     }
   } else if (inherits(x, c("lrm", "polr", "clm", "logistf", "multinom", "Zelig-relogit"))) {
     # "lrm"-object from pkg "rms" have no family method
@@ -207,7 +221,18 @@ model_frame <- function(x, fe.only = TRUE) {
     fitfram <- prediction::find_data(x)
   else if (inherits(x, "Zelig-relogit"))
     fitfram <- get_zelig_relogit_frame(x)
-  else
+  else if (inherits(x, "vglm")) {
+    if (!length(x@model)) {
+      env <- environment(x@terms$terms)
+      if (is.null(env)) env <- parent.frame()
+      fcall <- x@call
+      fcall$method <- "model.frame"
+      fcall$smart <- FALSE
+      fitfram <- eval(fcall, env, parent.frame())
+    } else {
+      fitfram <- x@model
+    }
+  } else
     fitfram <- stats::model.frame(x)
 
 
@@ -287,9 +312,11 @@ model_frame <- function(x, fe.only = TRUE) {
 #' @rdname pred_vars
 #' @importFrom sjmisc str_contains
 #' @importFrom stats family formula
+#' @importFrom tidyselect starts_with
 #' @export
 model_family <- function(x) {
   zero.inf <- FALSE
+  multi.resp <- FALSE
 
   # for gam-components from gamm4, add class attributes, so family
   # function works correctly
@@ -304,9 +331,10 @@ model_family <- function(x) {
     link.fun <- "identity"
   } else if (inherits(x, c("vgam", "vglm"))) {
     faminfo <- x@family
-    fitfam <- faminfo@vfamily
+    fitfam <- faminfo@vfamily[1]
     logit_link <- sjmisc::str_contains(faminfo@blurb, "logit")
     link.fun <- faminfo@blurb[3]
+    if (tidyselect::starts_with("logit(", vars = link.fun)) link.fun <- "logit"
   } else if (inherits(x, c("zeroinfl", "hurdle"))) {
     fitfam <- "negative binomial"
     logit_link <- FALSE
@@ -333,13 +361,16 @@ model_family <- function(x) {
 
     # in case of multivariate response models for brms, we just take the
     # information from the first model
-    if (inherits(x, "brmsfit") && !is.null(stats::formula(x)$response))
+    if (inherits(x, "brmsfit") && !is.null(stats::formula(x)$response)) {
+      multi.resp <- TRUE
       faminfo <- faminfo[[1]]
+    }
 
     fitfam <- faminfo$family
     logit_link <- faminfo$link == "logit"
     link.fun <- faminfo$link
   }
+
 
   # create logical for family
   binom_fam <-
@@ -360,6 +391,10 @@ model_family <- function(x) {
 
   zero.inf <- zero.inf | sjmisc::str_contains(fitfam, "zero_inflated", ignore.case = T)
 
+  is.ordinal <-
+    inherits(x, c("polr", "clm", "multinom")) |
+    fitfam %in% c("cumulative", "cratio", "sratio", "acat")
+
   list(
     is_bin = binom_fam & !neg_bin_fam,
     is_pois = poisson_fam | neg_bin_fam,
@@ -367,6 +402,8 @@ model_family <- function(x) {
     is_logit = logit_link,
     is_linear = linear_model,
     is_zeroinf = zero.inf,
+    is_ordinal = is.ordinal,
+    is_multivariate = multi.resp,
     link.fun = link.fun,
     family = fitfam
   )

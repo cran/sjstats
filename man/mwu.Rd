@@ -27,7 +27,9 @@ weights that will be applied to weight all  observations. Default is
 
 \item{out}{Character vector, indicating whether the results should be printed
 to console (\code{out = "txt"}) or as HTML-table in the viewer-pane
-(\code{out = "viewer"}) or browser (\code{out = "browser"}).}
+(\code{out = "viewer"}) or browser (\code{out = "browser"}), of if the
+results should be plotted (\code{out = "plot"}, only applies to certain
+functions). May be abbreviated.}
 }
 \value{
 (Invisibly) returns a data frame with U, p and Z-values for each group-comparison
@@ -36,7 +38,7 @@ to console (\code{out = "txt"}) or as HTML-table in the viewer-pane
 }
 \description{
 This function performs a Mann-Whitney-U-Test (or Wilcoxon rank sum test,
-               see \code{\link{wilcox.test}} and \code{\link[coin]{wilcox_test}})
+               see \code{\link[stats]{wilcox.test}} and \code{\link[coin]{wilcox_test}})
                for \code{x}, for each group indicated by \code{grp}. If \code{grp}
                has more than two categories, a comparison between each combination of
                two groups is performed. \cr \cr

@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<meta name="author" content="Daniel Lüdecke" />
+
+<meta name="date" content="2018-06-06" />
+
+<title>Statistics for Bayesian Models</title>
+
+
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+a.sourceLine { display: inline-block; line-height: 1.25; }
+a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
+a.sourceLine:empty { height: 1.2em; position: absolute; }
+.sourceCode { overflow: visible; }
+code.sourceCode { white-space: pre; position: relative; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+code.sourceCode { white-space: pre-wrap; }
+a.sourceLine { text-indent: -1em; padding-left: 1em; }
+}
+pre.numberSource a.sourceLine
+  { position: relative; }
+pre.numberSource a.sourceLine:empty
+  { position: absolute; }
+pre.numberSource a.sourceLine::before
+  { content: attr(data-line-number);
+    position: absolute; left: -5em; text-align: right; vertical-align: baseline;
+    border: none; pointer-events: all;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {  }
+@media screen {
+a.sourceLine::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#header {
+text-align: center;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Statistics for Bayesian Models</h1>
+<h4 class="author"><em>Daniel Lüdecke</em></h4>
+<h4 class="date"><em>2018-06-06</em></h4>
+
+
+
+<!--
+vignette: >
+  %\VignetteIndexEntry{Statistics for Bayesian Models}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+-->
+<p>This vignettes demontrates those functions of the <em>sjstats</em>-package that deal especially with Bayesian models. <em>sjstats</em> provides following functions:</p>
+<ul>
+<li><code>hdi()</code></li>
+<li><code>rope()</code></li>
+<li><code>mcse()</code></li>
+<li><code>n_eff()</code></li>
+<li><code>tidy_stan()</code></li>
+<li><code>equi_test()</code></li>
+<li><code>mediation()</code></li>
+<li><code>icc()</code></li>
+<li><code>r2()</code></li>
+</ul>
+<p>Befor we start, we fit some models, including a mediation-object from the <em>mediation</em>-package, which we use for comparison with <em>brms</em>. The functions work with <code>brmsfit</code>, <code>stanreg</code> and <code>stanfit</code>-objects.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="kw">library</span>(sjstats)</a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="kw">library</span>(sjmisc)</a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="kw">library</span>(mediation)</a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="kw">library</span>(brms)</a>
+<a class="sourceLine" id="cb1-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb1-6" data-line-number="6"><span class="co"># load sample data</span></a>
+<a class="sourceLine" id="cb1-7" data-line-number="7"><span class="kw">data</span>(jobs)</a>
+<a class="sourceLine" id="cb1-8" data-line-number="8"><span class="kw">data</span>(efc)</a>
+<a class="sourceLine" id="cb1-9" data-line-number="9">efc &lt;-<span class="st"> </span><span class="kw">to_factor</span>(efc, e42dep, c172code, c161sex, e15relat)</a>
+<a class="sourceLine" id="cb1-10" data-line-number="10">zinb &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="st">&quot;http://stats.idre.ucla.edu/stat/data/fish.csv&quot;</span>)</a>
+<a class="sourceLine" id="cb1-11" data-line-number="11"></a>
+<a class="sourceLine" id="cb1-12" data-line-number="12"><span class="co"># linear models, for mediation analysis</span></a>
+<a class="sourceLine" id="cb1-13" data-line-number="13">b1 &lt;-<span class="st"> </span><span class="kw">lm</span>(job_seek <span class="op">~</span><span class="st"> </span>treat <span class="op">+</span><span class="st"> </span>econ_hard <span class="op">+</span><span class="st"> </span>sex <span class="op">+</span><span class="st"> </span>age, <span class="dt">data =</span> jobs)</a>
+<a class="sourceLine" id="cb1-14" data-line-number="14">b2 &lt;-<span class="st"> </span><span class="kw">lm</span>(depress2 <span class="op">~</span><span class="st"> </span>treat <span class="op">+</span><span class="st"> </span>job_seek <span class="op">+</span><span class="st"> </span>econ_hard <span class="op">+</span><span class="st"> </span>sex <span class="op">+</span><span class="st"> </span>age, <span class="dt">data =</span> jobs)</a>
+<a class="sourceLine" id="cb1-15" data-line-number="15"></a>
+<a class="sourceLine" id="cb1-16" data-line-number="16"><span class="co"># mediation analysis, for comparison with brms</span></a>
+<a class="sourceLine" id="cb1-17" data-line-number="17">m1 &lt;-<span class="st"> </span><span class="kw">mediate</span>(b1, b2, <span class="dt">sims =</span> <span class="dv">1000</span>, <span class="dt">treat =</span> <span class="st">&quot;treat&quot;</span>, <span class="dt">mediator =</span> <span class="st">&quot;job_seek&quot;</span>)</a>
+<a class="sourceLine" id="cb1-18" data-line-number="18"></a>
+<a class="sourceLine" id="cb1-19" data-line-number="19"><span class="co"># fit Bayesian models</span></a>
+<a class="sourceLine" id="cb1-20" data-line-number="20">f1 &lt;-<span class="st"> </span><span class="kw">bf</span>(job_seek <span class="op">~</span><span class="st"> </span>treat <span class="op">+</span><span class="st"> </span>econ_hard <span class="op">+</span><span class="st"> </span>sex <span class="op">+</span><span class="st"> </span>age)</a>
+<a class="sourceLine" id="cb1-21" data-line-number="21">f2 &lt;-<span class="st"> </span><span class="kw">bf</span>(depress2 <span class="op">~</span><span class="st"> </span>treat <span class="op">+</span><span class="st"> </span>job_seek <span class="op">+</span><span class="st"> </span>econ_hard <span class="op">+</span><span class="st"> </span>sex <span class="op">+</span><span class="st"> </span>age)</a>
+<a class="sourceLine" id="cb1-22" data-line-number="22"></a>
+<a class="sourceLine" id="cb1-23" data-line-number="23">m2 &lt;-<span class="st"> </span><span class="kw">brm</span>(f1 <span class="op">+</span><span class="st"> </span>f2 <span class="op">+</span><span class="st"> </span><span class="kw">set_rescor</span>(<span class="ot">FALSE</span>), <span class="dt">data =</span> jobs, <span class="dt">cores =</span> <span class="dv">4</span>)</a>
+<a class="sourceLine" id="cb1-24" data-line-number="24"></a>
+<a class="sourceLine" id="cb1-25" data-line-number="25">m3 &lt;-<span class="st"> </span><span class="kw">brm</span>(</a>
+<a class="sourceLine" id="cb1-26" data-line-number="26">  <span class="kw">bf</span>(count <span class="op">~</span><span class="st"> </span>child <span class="op">+</span><span class="st"> </span>camper <span class="op">+</span><span class="st"> </span>(<span class="dv">1</span> <span class="op">|</span><span class="st"> </span>persons), </a>
+<a class="sourceLine" id="cb1-27" data-line-number="27">     zi <span class="op">~</span><span class="st"> </span>child <span class="op">+</span><span class="st"> </span>camper <span class="op">+</span><span class="st"> </span>(<span class="dv">1</span> <span class="op">|</span><span class="st"> </span>persons)),</a>
+<a class="sourceLine" id="cb1-28" data-line-number="28">  <span class="dt">data =</span> zinb,</a>
+<a class="sourceLine" id="cb1-29" data-line-number="29">  <span class="dt">family =</span> <span class="kw">zero_inflated_poisson</span>(),</a>
+<a class="sourceLine" id="cb1-30" data-line-number="30">  <span class="dt">cores =</span> <span class="dv">4</span></a>
+<a class="sourceLine" id="cb1-31" data-line-number="31">)</a>
+<a class="sourceLine" id="cb1-32" data-line-number="32"></a>
+<a class="sourceLine" id="cb1-33" data-line-number="33">m4 &lt;-<span class="st"> </span><span class="kw">brm</span>(</a>
+<a class="sourceLine" id="cb1-34" data-line-number="34">  mpg <span class="op">~</span><span class="st"> </span>wt <span class="op">+</span><span class="st"> </span>hp <span class="op">+</span><span class="st"> </span>(<span class="dv">1</span> <span class="op">|</span><span class="st"> </span>cyl) <span class="op">+</span><span class="st"> </span>(<span class="dv">1</span> <span class="op">+</span><span class="st"> </span>wt <span class="op">|</span><span class="st"> </span>gear), </a>
+<a class="sourceLine" id="cb1-35" data-line-number="35">  <span class="dt">data =</span> mtcars, </a>
+<a class="sourceLine" id="cb1-36" data-line-number="36">  <span class="dt">cores =</span> <span class="dv">4</span></a>
+<a class="sourceLine" id="cb1-37" data-line-number="37">)</a>
+<a class="sourceLine" id="cb1-38" data-line-number="38"></a>
+<a class="sourceLine" id="cb1-39" data-line-number="39">m5 &lt;-<span class="st"> </span><span class="kw">brm</span>(</a>
+<a class="sourceLine" id="cb1-40" data-line-number="40">  neg_c_<span class="dv">7</span> <span class="op">~</span><span class="st"> </span>e42dep <span class="op">+</span><span class="st"> </span>c12hour <span class="op">+</span><span class="st"> </span>c172code <span class="op">+</span><span class="st"> </span>(<span class="dv">1</span> <span class="op">|</span><span class="st"> </span>e15relat),</a>
+<a class="sourceLine" id="cb1-41" data-line-number="41">  <span class="dt">data =</span> efc,</a>
+<a class="sourceLine" id="cb1-42" data-line-number="42">  <span class="dt">cores =</span> <span class="dv">4</span></a>
+<a class="sourceLine" id="cb1-43" data-line-number="43">)</a></code></pre></div>
+<div id="highest-density-interval" class="section level2">
+<h2>Highest Density Interval</h2>
+<p><code>hdi()</code> computes the highest density interval for posterior samples. Unlike equal-tailed intervals that exclude 2.5% from each tail of the distribution, the HDI is <em>not</em> equal-tailed and therefor always includes the mode(s) of posterior distributions.</p>
+<p>By default, <code>hdi()</code> prints the 90% intervals, however, the <code>prob</code>-argument can be used to calculate different or even multiple intervals.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">hdi</span>(m2)</a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb2-3" data-line-number="3"><span class="co">#&gt; # Highest Density Interval</span></a>
+<a class="sourceLine" id="cb2-4" data-line-number="4"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb2-5" data-line-number="5"><span class="co">#&gt;                            HDI(90%)</span></a>
+<a class="sourceLine" id="cb2-6" data-line-number="6"><span class="co">#&gt;  b_jobseek_Intercept  [ 3.48  3.88]</span></a>
+<a class="sourceLine" id="cb2-7" data-line-number="7"><span class="co">#&gt;  b_depress2_Intercept [ 1.95  2.44]</span></a>
+<a class="sourceLine" id="cb2-8" data-line-number="8"><span class="co">#&gt;  b_jobseek_treat      [-0.01  0.16]</span></a>
+<a class="sourceLine" id="cb2-9" data-line-number="9"><span class="co">#&gt;  b_jobseek_econ_hard  [ 0.02  0.10]</span></a>
+<a class="sourceLine" id="cb2-10" data-line-number="10"><span class="co">#&gt;  b_jobseek_sex        [-0.08  0.08]</span></a>
+<a class="sourceLine" id="cb2-11" data-line-number="11"><span class="co">#&gt;  b_jobseek_age        [ 0.00  0.01]</span></a>
+<a class="sourceLine" id="cb2-12" data-line-number="12"><span class="co">#&gt;  b_depress2_treat     [-0.11  0.03]</span></a>
+<a class="sourceLine" id="cb2-13" data-line-number="13"><span class="co">#&gt;  b_depress2_job_seek  [-0.29 -0.19]</span></a>
+<a class="sourceLine" id="cb2-14" data-line-number="14"><span class="co">#&gt;  b_depress2_econ_hard [ 0.12  0.18]</span></a>
+<a class="sourceLine" id="cb2-15" data-line-number="15"><span class="co">#&gt;  b_depress2_sex       [ 0.04  0.18]</span></a>
+<a class="sourceLine" id="cb2-16" data-line-number="16"><span class="co">#&gt;  b_depress2_age       [-0.00  0.00]</span></a>
+<a class="sourceLine" id="cb2-17" data-line-number="17"><span class="co">#&gt;  sigma_jobseek        [ 0.70  0.75]</span></a>
+<a class="sourceLine" id="cb2-18" data-line-number="18"><span class="co">#&gt;  sigma_depress2       [ 0.59  0.64]</span></a>
+<a class="sourceLine" id="cb2-19" data-line-number="19"></a>
+<a class="sourceLine" id="cb2-20" data-line-number="20"><span class="kw">hdi</span>(m2, <span class="dt">prob =</span> <span class="kw">c</span>(.<span class="dv">5</span>, <span class="fl">.89</span>))</a>
+<a class="sourceLine" id="cb2-21" data-line-number="21"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb2-22" data-line-number="22"><span class="co">#&gt; # Highest Density Interval</span></a>
+<a class="sourceLine" id="cb2-23" data-line-number="23"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb2-24" data-line-number="24"><span class="co">#&gt;                            HDI(50%)      HDI(89%)</span></a>
+<a class="sourceLine" id="cb2-25" data-line-number="25"><span class="co">#&gt;  b_jobseek_Intercept  [ 3.58  3.75] [ 3.48  3.87]</span></a>
+<a class="sourceLine" id="cb2-26" data-line-number="26"><span class="co">#&gt;  b_depress2_Intercept [ 2.09  2.30] [ 1.97  2.44]</span></a>
+<a class="sourceLine" id="cb2-27" data-line-number="27"><span class="co">#&gt;  b_jobseek_treat      [ 0.03  0.10] [-0.01  0.16]</span></a>
+<a class="sourceLine" id="cb2-28" data-line-number="28"><span class="co">#&gt;  b_jobseek_econ_hard  [ 0.03  0.07] [ 0.02  0.10]</span></a>
+<a class="sourceLine" id="cb2-29" data-line-number="29"><span class="co">#&gt;  b_jobseek_sex        [-0.03  0.03] [-0.08  0.07]</span></a>
+<a class="sourceLine" id="cb2-30" data-line-number="30"><span class="co">#&gt;  b_jobseek_age        [ 0.00  0.01] [ 0.00  0.01]</span></a>
+<a class="sourceLine" id="cb2-31" data-line-number="31"><span class="co">#&gt;  b_depress2_treat     [-0.07 -0.01] [-0.11  0.03]</span></a>
+<a class="sourceLine" id="cb2-32" data-line-number="32"><span class="co">#&gt;  b_depress2_job_seek  [-0.26 -0.22] [-0.29 -0.19]</span></a>
+<a class="sourceLine" id="cb2-33" data-line-number="33"><span class="co">#&gt;  b_depress2_econ_hard [ 0.13  0.16] [ 0.12  0.18]</span></a>
+<a class="sourceLine" id="cb2-34" data-line-number="34"><span class="co">#&gt;  b_depress2_sex       [ 0.08  0.13] [ 0.04  0.18]</span></a>
+<a class="sourceLine" id="cb2-35" data-line-number="35"><span class="co">#&gt;  b_depress2_age       [-0.00  0.00] [-0.00  0.00]</span></a>
+<a class="sourceLine" id="cb2-36" data-line-number="36"><span class="co">#&gt;  sigma_jobseek        [ 0.71  0.74] [ 0.70  0.75]</span></a>
+<a class="sourceLine" id="cb2-37" data-line-number="37"><span class="co">#&gt;  sigma_depress2       [ 0.60  0.62] [ 0.59  0.64]</span></a></code></pre></div>
+<p>For multilevel models, the <code>type</code>-argument defines whether the HDI of fixed, random or all effects are shown.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">hdi</span>(m5, <span class="dt">type =</span> <span class="st">&quot;random&quot;</span>)</a>
+<a class="sourceLine" id="cb3-2" data-line-number="2"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3"><span class="co">#&gt; # Highest Density Interval</span></a>
+<a class="sourceLine" id="cb3-4" data-line-number="4"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb3-5" data-line-number="5"><span class="co">#&gt;                              HDI(90%)</span></a>
+<a class="sourceLine" id="cb3-6" data-line-number="6"><span class="co">#&gt;  r_e15relat.1.Intercept. [-0.10 1.27]</span></a>
+<a class="sourceLine" id="cb3-7" data-line-number="7"><span class="co">#&gt;  r_e15relat.2.Intercept. [-0.17 1.00]</span></a>
+<a class="sourceLine" id="cb3-8" data-line-number="8"><span class="co">#&gt;  r_e15relat.3.Intercept. [-0.88 0.68]</span></a>
+<a class="sourceLine" id="cb3-9" data-line-number="9"><span class="co">#&gt;  r_e15relat.4.Intercept. [-0.57 0.77]</span></a>
+<a class="sourceLine" id="cb3-10" data-line-number="10"><span class="co">#&gt;  r_e15relat.5.Intercept. [-0.93 0.79]</span></a>
+<a class="sourceLine" id="cb3-11" data-line-number="11"><span class="co">#&gt;  r_e15relat.6.Intercept. [-1.66 0.23]</span></a>
+<a class="sourceLine" id="cb3-12" data-line-number="12"><span class="co">#&gt;  r_e15relat.7.Intercept. [-1.20 0.88]</span></a>
+<a class="sourceLine" id="cb3-13" data-line-number="13"><span class="co">#&gt;  r_e15relat.8.Intercept. [-0.82 0.47]</span></a></code></pre></div>
+<p>The computation for the HDI is based on the code from <em>Kruschke 2015, pp. 727f</em>. For default sampling in Stan (4000 samples), the 90% intervals for HDI are more stable than, for instance, 95% intervals. An effective sample size of at least 10.000 is recommended if 95% intervals should be computed (see <em>Kruschke 2015, p. 183ff</em>).</p>
+</div>
+<div id="region-of-practical-equivalence-rope" class="section level2">
+<h2>Region of Practical Equivalence (ROPE)</h2>
+<p>Unlike a frequentist approach, Bayesian inference is not based on stastical significance, where effects need to be different from “zero”. Rather, the magnitude of a model’s parameter value and its uncertainty should not be ignored, and hence, an effect is not present when it simply differs from zero, but if it’s outside a specific range that can be considered as “practically no effect”. This range is called the <em>region of practical equivalence</em> (ROPE).</p>
+<p><code>rope()</code> requires the <code>rope</code>-argument, which defined this region, and then gives a summary about the parameters and their proportion that lies inside and outside this ROPE.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="kw">rope</span>(m5, <span class="dt">rope =</span> <span class="kw">c</span>(<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>))</a>
+<a class="sourceLine" id="cb4-2" data-line-number="2"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3"><span class="co">#&gt; # Proportions of samples inside and outside the ROPE</span></a>
+<a class="sourceLine" id="cb4-4" data-line-number="4"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb4-5" data-line-number="5"><span class="co">#&gt;              inside outside</span></a>
+<a class="sourceLine" id="cb4-6" data-line-number="6"><span class="co">#&gt;  b_Intercept   0.0%  100.0%</span></a>
+<a class="sourceLine" id="cb4-7" data-line-number="7"><span class="co">#&gt;  b_e42dep2    42.6%   57.4%</span></a>
+<a class="sourceLine" id="cb4-8" data-line-number="8"><span class="co">#&gt;  b_e42dep3     0.6%   99.4%</span></a>
+<a class="sourceLine" id="cb4-9" data-line-number="9"><span class="co">#&gt;  b_e42dep4     0.0%  100.0%</span></a>
+<a class="sourceLine" id="cb4-10" data-line-number="10"><span class="co">#&gt;  b_c12hour   100.0%    0.0%</span></a>
+<a class="sourceLine" id="cb4-11" data-line-number="11"><span class="co">#&gt;  b_c172code2  99.6%    0.4%</span></a>
+<a class="sourceLine" id="cb4-12" data-line-number="12"><span class="co">#&gt;  b_c172code3  78.2%   21.8%</span></a>
+<a class="sourceLine" id="cb4-13" data-line-number="13"><span class="co">#&gt;  sigma         0.0%  100.0%</span></a></code></pre></div>
+<p><code>rope()</code> does not suggest limits for the region of practical equivalence and does not tell you how big is practically equivalent to the null value. However, there are suggestions how to choose reasonable limits (see <em>Kruschke 2018</em>), which are implemented in the <code>equi_test()</code> functions.</p>
+</div>
+<div id="test-for-practical-equivalence" class="section level2">
+<h2>Test for Practical Equivalence</h2>
+<p><code>equi_test()</code> combines the two functions <code>hdi()</code> and <code>rope()</code> and performs a “HDI+ROPE decision rule” (Test for Practical Equivalence) (<em>Kruschke 2018</em>) to check whether parameter values should be accepted or rejected against the background of a formulated null hypothesis.</p>
+<p><code>equi_test()</code> computes the 95%-HDI and checks if a model predictor’s HDI lies completely outside, completely inside or partially inside the ROPE. If the HDI is completely outside the ROPE, the “null hypothesis” for this parameter is “rejected”. If the ROPE completely covers the HDI, i.e. all most credible values of a parameter are inside the region of practical equivalence, the null hypothesis is accepted. Else, it’s undecided whether to accept or reject the null hypothesis. In short, desirable results are low proportions inside the ROPE (the closer to zero the better) and the H0 should be rejected.</p>
+<p>If neither the <code>rope</code> nor <code>eff_size</code> argument are specified, the effect size will be set to 0.1 (half of a small effect according to Cohen) and the ROPE is then <code>0 +/- .1 * sd(y)</code> for linear models. This is the suggested way to specify the ROPE limits according to <em>Kruschke</em> (2018).</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="kw">equi_test</span>(m5)</a>
+<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb5-3" data-line-number="3"><span class="co">#&gt; # Test for Practical Equivalence of Model Predictors</span></a>
+<a class="sourceLine" id="cb5-4" data-line-number="4"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb5-5" data-line-number="5"><span class="co">#&gt;   Effect Size: 0.10</span></a>
+<a class="sourceLine" id="cb5-6" data-line-number="6"><span class="co">#&gt;          ROPE: [-0.39 0.39]</span></a>
+<a class="sourceLine" id="cb5-7" data-line-number="7"><span class="co">#&gt;       Samples: 4000</span></a>
+<a class="sourceLine" id="cb5-8" data-line-number="8"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb5-9" data-line-number="9"><span class="co">#&gt;                         H0 %inROPE     HDI(95%)</span></a>
+<a class="sourceLine" id="cb5-10" data-line-number="10"><span class="co">#&gt;  b_Intercept (*)    reject    0.00 [ 7.59 9.90]</span></a>
+<a class="sourceLine" id="cb5-11" data-line-number="11"><span class="co">#&gt;  b_e42dep2 (*)   undecided    8.88 [ 0.08 2.14]</span></a>
+<a class="sourceLine" id="cb5-12" data-line-number="12"><span class="co">#&gt;  b_e42dep3 (*)      reject    0.00 [ 1.36 3.35]</span></a>
+<a class="sourceLine" id="cb5-13" data-line-number="13"><span class="co">#&gt;  b_e42dep4 (*)      reject    0.00 [ 2.76 4.96]</span></a>
+<a class="sourceLine" id="cb5-14" data-line-number="14"><span class="co">#&gt;  b_c12hour          accept  100.00 [ 0.00 0.01]</span></a>
+<a class="sourceLine" id="cb5-15" data-line-number="15"><span class="co">#&gt;  b_c172code2     undecided   72.00 [-0.46 0.78]</span></a>
+<a class="sourceLine" id="cb5-16" data-line-number="16"><span class="co">#&gt;  b_c172code3     undecided   23.02 [-0.10 1.50]</span></a>
+<a class="sourceLine" id="cb5-17" data-line-number="17"><span class="co">#&gt;  sigma              reject    0.00 [ 3.41 3.75]</span></a>
+<a class="sourceLine" id="cb5-18" data-line-number="18"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb5-19" data-line-number="19"><span class="co">#&gt; (*) the number of effective samples may be insufficient for some parameters</span></a></code></pre></div>
+<p>For models with binary outcome, there is no concrete way to derive the effect size that defines the ROPE limits. Two examples from Kruschke suggest that a negligible change is about .05 on the logit-scale. In these cases, it is recommended to specify the <code>rope</code> argument, however, if not specified, the ROPE limits are calculated in this way: <code>0 +/- .1 * sd(intercept) / 4</code>. For all other models, <code>0 +/- .1 * sd(intercept)</code> is used to determine the ROPE limits. These formulas are based on experience that worked well in real-life situations, but are most likely not generally the best approach.</p>
+<p>Beside a numerical output, the results can also be printed as HTML-table or plotted, using the <code>out</code>-argument. For plots, the 95% distributions of the posterior samles are shown, the ROPE is a light-blue shaded region in the plot, and the distributions are colored depending on whether the parameter values are accepted, rejected or undecided.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="kw">equi_test</span>(m5, <span class="dt">out =</span> <span class="st">&quot;plot&quot;</span>)</a></code></pre></div>
+<p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAqAAAAHgCAMAAABNUi8GAAABMlBMVEUAAAAAADoAAGYAOmYAOpAAZrYzMzM6AAA6ADo6AGY6Ojo6OmY6OpA6kJA6kNtNTU1NTW5NTY5Nbo5NbqtNjshmAABmADpmAGZmOgBmOpBmZjpmkJBmtv9uTU1uTW5uTY5ubo5ubqtuq6tuq+R1zqJ50aV/2KyOTU2OTW6OTY6Obk2Ojk2Ojm6Ojo6OyP+QOgCQOjqQZgCQkDqQkGaQtpCQ27aQ2/+iusqrbk2rbm6rbo6rq26ryKur5OSr5P+wyNi2ZgC225C22/+2/9u2//+3w8u6ZYW+ytLBbIzIjk3Ijm7I09vI///Kz9PNco7Z5OzbkDrb25Db29vb/9vb///f39/hgZnkq27k///l5eXr6+v/tmb/yI7/25D/27b/29v/5Kv//7b//8j//9v//+T///8UzH9CAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAdJElEQVR4nO2dD5/c1lWGxyEbxxC8CXGaAuv8qaFOArVL024TaJ1tMQVDSJdgsMvasF57vv9XQFe6V3M1oyPpas6dc1/5Pb9fvF7t0TvPjJ65ksbtntWaxSq4VtYALNZQUVBW0UVBWUUXBWUVXRSUVXRRUFbRlU3Q/5lWm75/G61ffrMab+qLTuLQbsaMNueAFHRFQQ8Vbc6BKeh344amvhDZmzGjzTkoqMSh3YwZbc6BKOjqXyjooaLNOUAFHTc09YXI3owZbc5BQSUO7WbMaHMOCipxaDdjRptzUFCJQ7sZM9qcg4JKHNrNmNHmHICCrn5HQQ8Wbc5BQSUO7WbMaHMOVEFHDU19IbI3Y0abc1BQiUO7GTPanIOCShzazZjR5hwUVOLQbsaMNuegoBKHdjNmtDkHBZU4tJsxo8058ARdfUdBDxdtzkFBJQ7tZsxocw5YQccMTX0hsjdjRptzUFCJQ7sZM9qcg4JKHNrNmNHmHBRU4tBuxow256CgEod2M2a0OQcFlTi0mzGjzTkoqMSh3YwZbc5BQSUO7WbMaHMOCipxaDdjRptzwAm6+o6CHjDanANX0BFDU1+I7M2Y0eYcFFTi0G7GjDbnoKASh3YzZrQ5BwWVOLSbMaPNOSioxKHdjBltzkFBJQ7tZsxocw4KKnFoN2NGm3NQUIlDuxkz2pyDgkoc2s2Y0eYcFFTi0G7GjDbnQBO08pOCHjDanANY0GFDU1+I7M2Y0eYcFFTi0G7GjDbnoKASh3YzZrQ5BwWVOLSbMaPNOSioxKHdjBltzkFBJQ7tZsxocw4KKnFoN2NGm3NQUIlDuxkz2pyDgkoc2s2Y0eYcYII6PynoAaPNOSioxKHdjBltzoEs6KChqS9E9mbMaHMOCipxaDdjRptzUFCJQ7sZM9qcg4JKHNrNmNHmHBRU4tBuxow256CgEod2M2a0OQcFlTi0mzGjzTkoqMSh3YwZbc6BJWjtJwU9YLQ5B7SgQ4amvhDZmzGjzTkoqMSh3YwZbc5BQSUO7WbMaHMOCipxaDdjRptzUFCJQ7sZM9qcg4JKHNrNmNHmHBRU4tBuxow254AStPGTgh4w2pyDgkoc2s2Y0eYc2IIOGJr6QmRvxow256CgEod2M2a0OQcFlTi0mzGjzTkoqMSh3YwZbc5BQSUO7WbMaHMOJEG9nxT0gNHmHBRU4tBuxow25wAXVDY09YXI3owZbc5BQSUO7WbMaHMOCipxaDdjRptzUFCJQ7sZM9qcA0jQ4CcFPWC0OQe6oKKhqS9E9mbMaHMOCipxaDdjRptzUFCJQ7sZM9qcA0fQ1k8KesBocw54QSVDU1+I7M2Y0eYcFFTi0G7GjDbngBF04ycFPWC0OQe+oIKhqS9E9mbMaHOOUUEf3evbevnxt9Uft4+P7zV/zS5o5CcFPWC0Occ8QZ8dv/ft+uqzB+vLjx6YC9pvaOoLkb0ZM9qcY1zQn7hlMtTV3eN3H6wfvfuryspnt2p/Lz/+m7qj+lFlrdO1+u/yky/e+1ZR0NjPHUF7DU19IbI3Y0abc4wL+v7TzRr56qt762fvP1235/VqFb28fafe9qj+EgS9XUv91ltvDa2uvfX7vloNV88eyY/LKroGT/Htab5V1f/l1Vd3wpp59Xl90g+Ctk4nv536T/Fx/fKb8R6uoAvhGBX0Xx/Egn76NBb06u6d9TpS8tXXFHRh0eYcU1ZQd2LvW0Gb8zhX0CVHm3OMC3pr3b0Gbdx0HjbXmV5Jfw3qbu2fvEdBlxJtzjEu6E/cfXuo5i6+sfLJsat7QdDmLt5t/dHnFHQp0eYco4LuW8m0FLSkaHOOaYK6fzOqKlpKKWhqM2a0Occ0QfeoZFoKWlK0OQcFlTi0mzGjzTkoqMSh3YwZbc5BQSUO7WbMaHMOCipxaDdjRptzUFCJQ7sZM9qcg4JKHNrNmNHmHBRU4tBuxow256CgEod2M2a0OQcFlTi0mzGjzTkoqMSh3YwZbc5BQSUO7WbMaHMOCipxaDdjRptzUFCJQ7sZM9qcg4JKHNrNmNHmHBRU4tBuxow256CgEod2M2a0OQcFlTi0mzGjzTkoqMSh3YwZbc5BQSUO7WbMaHMOCipxaDdjRptzQAva/Q1iFNS6mYJGgjol/71TXU1TX4jszZjR5hyQgu7K2dWUgi6HA05QJ+A/S3ZGkqa+ENmbMaPNOaAE9SvnP40J2pV0wUcvf7Q5B5Cg7Wl9kqDfV9U4uuCjlz/anANF0Piqc7KgjaMLPnr5o805IATduidKEbR2VP1Vm9OMGW3OUbygPXfsiYL+IUVRrKOXP9qco3BBez9OShY0YRXFOnr5o805ihZU+LRzhqCTFcU6evmjzTkKFlT8MH6WoBMVxTp6+aPNOUoVdODfiuYKGj52UnjV5jRjRptzFCnokJ37CNo4Oigp1tHLH23OUZ6gI3buKejYQop19PJHm3PsCCqP3/ZjZ/wU7p3ajPvqdKTRjtupIOjQQop19PJHm3NME7Qev13/pRnVdfnR7ryPjaCdjum0TprKnYMIKkqKdfTyR5tz7Aoqjt/26vkp3P5HfnxX9eXPvrjnvwsdaYKuvDcHE7SW9AAvMXS0OceuoEPjt5/catdI/6NHm1ncldfVF9/iVE4bxz0ycTtTTcZj2VbnFC+N326s20zhrrY0I2Tdl8pY93P316ajqeS3k/i/ZmqL/5+kw0Wbc+wIOjR+u15MwxTu+kfREO5qr+oM34yjqzso6AKizTn6VlBp/LY7g6/jKdw7K+jnTbufg0xB8aPNOXYFFcdvu6VyY5//0c41aPVd7CcFxY4259gVVBy/7S9Bw8ehnbv4V1+Fu/hqW+igoPjR5hw7gmpXMi0FLSnanKNf0D3Gb1PQRUWbc/QLqljJtBS0pGhzDgoqcWg3Y0abc1BQiUO7GTPanIOCShzazZjR5hwUVOLQbsaMNuegoBKHdjNmtDkHBZU4tJsxo805KKjEod2MGW3OQUElDu1mzGhzDgoqcWg3Y0abc1BQiUO7GTPanIOCShzazZjR5hwUVOLQbsaMNuegoBKHdjNmtDkHBZU4tJsxo805KKjEod2MGW3OQUElDu1mzGhzDgoqcWg3Y0abc1BQiUO7GTPanIOCShzazZjR5hwUVOLQbsaMNuegoBKHdjNmtDkHBZU4tJsxo805KKjEod2MGW3O8ZoJGv9q0D1etTnNmNHmHK+NoI2U278CfMdTrKOXP9qcY+GCbtZL+beAd0TFOnr5o805Fixo0HLod9TviIp19PJHm3MsVNB4zZwoaKSp7ks8q7uUaHOOBQrqFJs65WOn/hAs1XuJZ3WXEm3OsShBm7N0yhiafkG9pEov8azuUqLNORYiaKymjqBTHDU/evmjzTnwBd1RU03Q78cuSc2PXv5ocw5oQQU3FQUdttT86OWPNucAFXT3lJ5RUNFS86OXP9qcY0dQjWnHz47D8NkMgo6qmUfQPkvNj17+aHOOaYKmTTuubb6VRdDaTcVhsomCbixdJR8PMDFK4dgVdP9px0FSZUHbldNY0G1NdQ/InObXS1CdacfNl5Rpx6F+L9WU4cWHruRnx5pZutOOL2+3I5aS306TbpLGK/Wdmr0ZM9qcY0dQlWnHG5cpKHa0OUffCrr3tOOwElNQ+Ghzjl1B95927DZwBV1GtDnHrqD7Tzt2LbwGXUa0OceOoNqVTEtBS4o25+gXlNOO9Zsxo805+gVVrGRaClpStDkHBZU4tJsxo805KKjEod2MGW3OQUElDu1mzGhzDgoqcWg3Y0abc1BQiUO7GTPanIOCShzazZjR5hwUVOLQbsaMNuegoBKHdjNmtDkHBZU4tJsxo805KKjEod2MGW3OQUElDu1mzGhzDgoqcWg3Y0abc1BQiUO7GTPanIOCShzazZjR5hwUVOLQbsaMNuegoBKHdjNmtDkHBZU4tJsxo805KKjEod2MGW3OQUElDu1mzGhzDgoqcWg3Y0abc1BQiUO7GTPanIOCShzazZjR5hwUVOLQbsaMNuegoBKHdjNmtDkHBZU4tJsxo805KKjEod2MGW3OQUElDu1mzGhzDgralviL6CdApz1F7WYKumhBg4filA/RVvOjlz/anOO1FLS7QKaNoYlVNT96+aPNOV4zQXuUnDknaWzQ7NBT1G6moAsQdFTNZEHr5pGr1PQDMqeZgkILOlHNeYI2NeWOCkyMUjgWLWijTJ5RiFKz7CmWGKVwLFDQ7dufwwra9XT2bGRzMUrhGBS0fzR3M+hrM5Q7msPtKx7YnUw7V9BWicMMk53aHM311D96s7qxOOYI+sRNSdoM5d4RtDOwO5k2SdDo4u/A046Tm7/fXVP3Pnqzupck6PZo7nrW9uUnX9yLh3Jv5nBfff4PbnRN+FlmQXusLFrQ0D1JU3MxSuEYFjQezR1mbb/6+td+yXQrZWcO99Xd958+e6+dLK88jrutb74pdjz39Ep+XV7zEk/x7Wk+zNp+csef091Q7u4c7qu79/xAT/ezppLfTnOvQbcq9Z2avRkz2pxjUNDOaG4/a/vy06eNoM1Q7s4c7nrZdDvUP6OgC4g25xhbQTd3QH7WdjNL9o4fetydw+0EdSuoH4hMQfGjzTmGBY1Hc/tZ22s/ids72JnDfXX3lvsS+0lBsaPNOYYF7R3NXQsahnJ35nBfffa37kv4GQXFjzbnGBQ0tZpb924l01LQkqLNOcYFTRjNTUEXF23OMS7onpVMS0FLijbnoKASh3YzZrQ5BwWVOLSbMaPNOSioxKHdjBltzkFBJQ7tZsxocw4KKnFoN2NGm3NQUIlDuxkz2pyDgkoc2s2Y0eYcFFTi0G7GjDbnoKASh3YzZrQ5BwWVOLSbMaPNOSioxKHdjBltzkFBJQ7tZsxocw4KKnFoN2NGm3NQUIlDuxkz2pyDgkoc2s2Y0eYcFFTi0G7GjDbnoKASh3YzZrQ5BwWVOLSbMaPNOSioxKHdjBltzkFBJQ7tZsxocw4KKnFoN2NGm3NQUIlDuxkz2pyDgkoc2s2Y0eYcFFTi0G7GjDbnoKASh3YzZrQ5BwWVOLSbMaPNOSioxKHdjBltzkFBJQ7tZt+d9pvszakp6A7tQgUNyv3VtPpx82WipmU8RQoKKWgr5o8nuhkLGml6WOpZzRQUStDtJXO+oNFi2i8qBaWgCc3CyXxPQbdEVadWaKagxQs6dJmpJGjHU4OneOBoCipxpDS3d917OTejOfl+f/ZTtIqmoBLHhJrkZVZBN93TRV2QoHPHcT87bsbOLlZQL0OyRRkFDTW+pC5f0LFx3G74lxs7u0hB4xWzREHbEs/+SxJ03jjuIOkSBV2NeaHknGb0wW75Dy/o/HHczQqadRz3cCU/7rQa/cfJIivTi3HI0h3HfXm7nfuV/HYqewWd34wZbc4xKOjscdzR0LlkWgpaUrQ5x9gKOmscd1h9KSh8tDnHsKDzxnG7Lq6gy4g25xgWdN44bvdDXoMuI9qcY1DQ1OK048VFm3OMC8px3DrNmNHmHOOC7lnJtBS0pGhzDgoqcWg3Y0abc1BQiUO7GTPanIOCShzazZjR5hwUVOLQbsaMNuegoBKHdjNmtDkHBZU4tJsxo805KKjEod2MGW3OQUElDu1mzGhzDgoqcWg3Y0abc1BQiUO7GTPanIOCShzazZjR5hwUVOLQbsaMNuegoBKHdjNmtDkHBZU4tJsxo805KKjEod2MGW3OQUElDu1mzGhzDgoqcWg3Y0abc1BQiUO7GTPanIOCShzazZjR5hwUVOLQbsaMNuegoBKHdjNmtDkHBZU4tJsxo805KKjEod2MGW3OQUElDu1mzGhzDgoqcWg3Y0abc1BQiUO7GTPanIOCShzazZjR5hwUVOLQbi4/euQX3R+Mo9tFQQUO7eaSovsNHJkfMsFTCkpB9+oeUnHqgJuhJZWCUtB53bGYavOadi2loBQ0tXt3ycwwdTnjU6SgEod28wGjhy8sM0y8S7uVSnqKFFTi0G4+RPSkS8xDTF3We4qDgs6ddhxvS3yJKeiM5sH78AML2tSUz6jyCTo27di3UNDc0a2X+ZzTGmrbI6qGoHOnHdctFDRT9O6CWb6goSJRNQSdOe24bVnetOMSqvdTdrBKf9J9G+dOO25b1lxBwaPNOQYFnTntuG2hoPDR5hxjK+icacehhYLiR5tzDAs6b9rxmh8zLSbanGNY0JnTjinoYqLNOQYFTS0Ok11ctDnHuKCcdqzTjBltzjEu6J6VTEtBS4o256CgEod2M2a0OQcFlTi0mzGjzTkoqMSh3YwZbc5BQSUO7WbMaHMOCipxaDdjRptzUFCJQ7sZM9qcg4JKHNrNmNHmHBRU4tBuxow256CgEod2M2a0OQcFlTi0mzGjzTkoqMSh3YwZbc5BQSUO7WbMaHMOCipxaDdjRptzUFCJQ7sZM9qcg4JKHNrNmNHmHBRU4tBuxow256CgEod2M2a0OQcFlTi0mzGjzTkoqMSh3YwZbc5BQSUO7WbMaHMOCipxaDdjRptzUFCJQ7sZM9qcg4JKHNrNmNHmHBRU4tBuxow256CgEod2M2a0OQcFlTi0mzGjzTkoqMSh3YwZbc5BQSUO7WbMaHMOCipxaDdjRptzUFCJQ7sZM9qcg4JKHNrNmNHmHBRU4tBuxow256CgEod2M2a0OQcFlTi0mzGjzTkoqMSh3YwZbc5BQSUO7WbMaHMOCipxaDdjRptzUFCJQ7sZM9qcI7ugOSp9xjeji0tOjKagjD5sMgVldNHJFJTRRScvWVDW61cUlFV0UVBW0UVBWUUXBWUVXTiCXt09fv9prvDLj7/NFHz7+Phenuhnx8fvZaJev/oqE/ST40RqGEHdS/bkVqbwZ7kO9dVnD9aXHz3IEe3eU9lekCe53lWPUnNhBL36/Nts69yjd3+VKfmZMyj5oEyuXC/I5Sdf5GF+9XXqmxVG0MtPn9brUab0XKf49Tojda4V9NXXv850iq+u0xIveWAEffY+qKCvvrqTKfny9rt5Xo8nd3Jdg7rLnbRVFEZQ1BX06m4uP9e5Fufqpc52k+Qq6ZIHRtCc16BZ7+IzHulMl7fuTvv4ON/7apmCujNltpvWfHcb+fzMes2TawV10K/+fpEfM2F+DtosRnkOdpWd6Ro07+egadA4grJey6KgrKKLgrKKLgrKKrooKKvooqCsoouCsoouCsoquhYq6IsPVqub1dfn11er1ZuP1xfNtxdH7c9P3JeLNx4+f/s07BT9tVv/+9v6y8v7K1dH/U1thO/25XeqH76neajOV9dONwnXepq7DyUlngt7J8FY1TIFfXn/zccv71dOXFRyrmsf3QF48eFD37ARNNpLOkZhe51YZw899lZKs1P1TjlJfRKeMSScd1gHgbtV73ixGnl8CnrIunALhrPv/Kj+/vmNhy/vn6zP22VsD0FbcYTqF3R9dpT0DCY97CSp3BN3jz/8tqKgB61aPPeSnzV2NIJuFtCtU3x1QXDt5zeqv35ZnQxPmpNqneAuEE7cn3VMcM1Z71uev/3z6/UuTav//mZtY/PmiAUNue3jndabjtabnGYXt80lxgkO2Xd3wALJjZ+t3vhNlOi+fxgBhN1uBsjn1xviL+uLoACzed45Dkx6LVTQegVdnbz44I/rl7w5xW8W0K6gLz64WW2o/nq9OlDVCfHl/aNKrzcf14tKdW7eWsrcdUPb4neJWt1f3RvEr1x+J3eKDTu1j/f2qdvk/gs5zR5+W/dhzxqw9icebENyVL8nN4lH4cUIF8D1kz4Pz3Plya83uX7X+HlnOzwptUxBX3zgjpJbY27Wy2d9kKoF9CzcLLibKFe1JfV6Wx+rk/oYXzSr3Inb0dWOoG88bFv8LlFrsySfrP2mcJN04tf16kft4/mHutg8tI/v3L75hGpr+5MIbJukk+jrvLm1+7/HnrBuDeTh6+7zLqKWKWhzEn07yNgcqvOb1Su/uWtyXxoNzt225zf8Mlh9H+67z/wJdXcFDS1hl6i13lSd3v3lb71T/UZZh52ix6txwk5B0HjbOj5Hh5/EYNsk23u3L4jbflHfz28eLPT5M8zW8y6iFiqoq+ddQV/8+eNw+hoTdHM/UYkeL2Xt5WRoicQKrc2mG/94P74Hr2+iw077CxqBbZMIgq7rS5nq/NF5sC1Bt563wjHYv5YpaLOKvfm4OWn9oD5UZydrQdDOOdV9H39o6D+hchXdrYSWWCzfWn/38v5f+vPk5gqy3Sl6vPBxQ0fQeNu6I2j4cCIC2ybZ3jukBncvtlfQ+hR/42HP81Y4EPvXMgVt7hJOmhuV5qz+/J3Ha+EUH920+PsM99H+tdPwWUD3A8n6p6Gl1cK3tt3n4STZfg561O7Ud5MUCSrcJEU/icG2Sbb3rt4b106bXZ2Az6/vCBrdJHWfd/7jNKGWKWh9E3Tiv9ZKNvfU55ubpO2Pmb6MljF3W9J8DtB8PQuf92z+Tci3tLv41uYC8Si6CW4/m/KfCF07XceP137MFK3E8bZ1LGj7MVMMtk2ytffaX/u6jOra8tov/Blhc4r/su3fft4l1EIFTa+LkQ+yE2v0Tlj58WZXKSulVBS0ubSrPwNUrOgz14M83uyioAB1PvI/AUmu+qPwAz7eHkVBWaw9ioKyii4Kyiq6KCir6KKgrKKLgrKKLgrKKrooKKvooqCsoouCsoouCsoquigoq+iioKyii4Kyii4Kyiq6KCir6KKgrKKLgrKKLgrKKrooKKvooqCsoouCsoouCsoquiho/lr1174BuXcto5BYUWv1132VIuh/99REQf+rp5AOOhIralHQPQqJFbUo6B6FxIpaFHSPQmJFLQq6RyGx9tXAeMLo97Yl/Aq3gcGDcm2PJOwWBd2jkFj7atp4wuTAvsGDco34P19Q/2twpwj68qenvbtOF9QPdtpO6G7ebspeyxBU8Vf+zwksQVBp1/mC9m6moInVM54w/i3t7YTCoaGDnW2RoGFyYD1UsG+MoH/E3ZGEDzvDBGVBfYz7nfWnmz/daLwPf7Zy0xaaYTCioM//5IdvPGy63Arq+13QL8KukqBOYDfc452/Cwh/9MOTOKEeTraz2X130FqKoNF4Qve19itMBKpnBg4OHexsC2NjNpMDj4QxgvHswO2RhNEcBVFQNyDHz7m9ePM/6z8fn910bzY3d2szUk4W1D1Es4cT1P+tDvqPkRU0CHr9Zv3r8qtd3Syn7YTO5vDdQWsxgkbjCd9uJwdFMwMHhw5G2zaDBzuTA3vHCMaP2B1J2BmhMHiKf/Gh17D50zlbbaoHzPz0dFRQt8g1e1Td/m9x3LigzRc3Z9eN291K6G723+U8nLu1GEE34wnDpKvuzMDRmW6toJvxB9HkwN4xgvEYws5Iwu4wwQFBz+pLhHfCICc/RPRa7dr67GSSoM0eTtDmbz4uSdC6++xkO2Frc/NdrkPZX0sRNBpPGAu6mRmYLmhncmDvGMF4DGFnJGF43CZIPsU3M2c7K2gzMtwJOnUFbfZwgjZ/22cF3UrobuYKOqOk8YTrWJWTKUMHdwTtTA7sHSMYP+L2o0cfBIiC1na4y+MTP9yz2nBWXxO6cc3VlymCrps9/DVofS3ugn4zIqh7C5y/EQSNLjY7CZ3NvAadUT3jCaNhgNGEwtGhg7uCxpMDe8cIbmYbbo0k7A4TlE/x1XWBv0mO7+Ldnz/4i1U9TWnkLv5GuOUOd/FhkN1p2FX8mKl67D/9sBW0uvTekGzu4rub/XcHLXxBd8YTxh8zRRMKx4YO7l6DxpMDe8cIto+4PZKwO0xwxuegfgBuCJAEFffY7CoKClJIrKh1CEHPV/3/lkZBWaPFf4vfo5BYUYuC7lFIrKhFQfcoJFbU4v9pbo9CYmW9hkVBWUUXBWUVXRSUVXRRUFbRRUFZRRcFZRVdFJRVdFFQVtFFQVlFFwVlFV0UlFV0UVBW0UVBWUUXBWUVXf8Pv54YmDXXwxMAAAAASUVORK5CYII=" /><!-- --></p>
+</div>
+<div id="tidy-summary-of-bayesian-models" class="section level2">
+<h2>Tidy Summary of Bayesian Models</h2>
+<p><code>tidy_stan()</code> is no substitute, but rather a convenient alternative to <code>summary()</code>. The major differences are: <code>tidy_stan()</code>…</p>
+<ul>
+<li>focusses on the parameter values (estimates) and gives no information on samples, data, or formula</li>
+<li>calculates the HDI rather than equi-tailed intervals</li>
+<li>separates different model parts, e.g. random from fixed effects, or conditional from zero-inflated models</li>
+<li>and prints everything nicely</li>
+</ul>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="kw">tidy_stan</span>(m3)</a>
+<a class="sourceLine" id="cb7-2" data-line-number="2"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb7-3" data-line-number="3"><span class="co">#&gt; # Summary Statistics of Stan-Model</span></a>
+<a class="sourceLine" id="cb7-4" data-line-number="4"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb7-5" data-line-number="5"><span class="co">#&gt; ## Conditional Model:</span></a>
+<a class="sourceLine" id="cb7-6" data-line-number="6"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb7-7" data-line-number="7"><span class="co">#&gt;            estimate std.error      HDI(89%) neff_ratio Rhat mcse</span></a>
+<a class="sourceLine" id="cb7-8" data-line-number="8"><span class="co">#&gt;  Intercept     1.21      0.77 [-0.29  2.90]       0.09 1.02 0.05</span></a>
+<a class="sourceLine" id="cb7-9" data-line-number="9"><span class="co">#&gt;  child        -1.15      0.09 [-1.31 -1.00]       0.62 1.00 0.00</span></a>
+<a class="sourceLine" id="cb7-10" data-line-number="10"><span class="co">#&gt;  camper        0.73      0.09 [ 0.59  0.88]       0.69 1.00 0.00</span></a>
+<a class="sourceLine" id="cb7-11" data-line-number="11"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb7-12" data-line-number="12"><span class="co">#&gt; ## Zero-Inflated Model:</span></a>
+<a class="sourceLine" id="cb7-13" data-line-number="13"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb7-14" data-line-number="14"><span class="co">#&gt;            estimate std.error      HDI(89%) neff_ratio Rhat mcse</span></a>
+<a class="sourceLine" id="cb7-15" data-line-number="15"><span class="co">#&gt;  Intercept    -0.71      0.73 [-2.02  0.45]       0.28    1 0.02</span></a>
+<a class="sourceLine" id="cb7-16" data-line-number="16"><span class="co">#&gt;  child         1.89      0.35 [ 1.36  2.45]       0.35    1 0.01</span></a>
+<a class="sourceLine" id="cb7-17" data-line-number="17"><span class="co">#&gt;  camper       -0.85      0.37 [-1.43 -0.27]       0.83    1 0.01</span></a></code></pre></div>
+<p>Additional statistics in the output are:</p>
+<ul>
+<li>standard errors (which are actually median absolute deviations)</li>
+<li>ratio of effective numbers of samples, <em>neff_ratio</em>, (i.e. effective number of samples divided by total number of samples); this ratio ranges from 0 to 1, and should be close to 1; the closer this ratio comes to zero means that the chains may be inefficient, but possibly still okay</li>
+<li>Rhat statistics; when Rhat is above 1, it usually indicates that the chain has not yet converged, indicating that the drawn samples might not be trustworthy; drawing more iteration may solve this issue</li>
+<li>Monte Carlo Standard Error (<em>mcse</em>);</li>
+</ul>
+<p>By default, the “estimate” is the median of the posterior distribution, but this can be changed with the <code>typical</code>-argument.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb8-1" data-line-number="1"><span class="kw">tidy_stan</span>(m3, <span class="dt">typical =</span> <span class="st">&quot;mean&quot;</span>)</a>
+<a class="sourceLine" id="cb8-2" data-line-number="2"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb8-3" data-line-number="3"><span class="co">#&gt; # Summary Statistics of Stan-Model</span></a>
+<a class="sourceLine" id="cb8-4" data-line-number="4"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb8-5" data-line-number="5"><span class="co">#&gt; ## Conditional Model:</span></a>
+<a class="sourceLine" id="cb8-6" data-line-number="6"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb8-7" data-line-number="7"><span class="co">#&gt;            estimate std.error      HDI(89%) neff_ratio Rhat mcse</span></a>
+<a class="sourceLine" id="cb8-8" data-line-number="8"><span class="co">#&gt;  Intercept     1.16      0.77 [-0.29  2.90]       0.09 1.02 0.05</span></a>
+<a class="sourceLine" id="cb8-9" data-line-number="9"><span class="co">#&gt;  child        -1.15      0.09 [-1.31 -1.00]       0.62 1.00 0.00</span></a>
+<a class="sourceLine" id="cb8-10" data-line-number="10"><span class="co">#&gt;  camper        0.73      0.09 [ 0.59  0.88]       0.69 1.00 0.00</span></a>
+<a class="sourceLine" id="cb8-11" data-line-number="11"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb8-12" data-line-number="12"><span class="co">#&gt; ## Zero-Inflated Model:</span></a>
+<a class="sourceLine" id="cb8-13" data-line-number="13"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb8-14" data-line-number="14"><span class="co">#&gt;            estimate std.error      HDI(89%) neff_ratio Rhat mcse</span></a>
+<a class="sourceLine" id="cb8-15" data-line-number="15"><span class="co">#&gt;  Intercept    -0.73      0.73 [-2.02  0.45]       0.28    1 0.02</span></a>
+<a class="sourceLine" id="cb8-16" data-line-number="16"><span class="co">#&gt;  child         1.89      0.35 [ 1.36  2.45]       0.35    1 0.01</span></a>
+<a class="sourceLine" id="cb8-17" data-line-number="17"><span class="co">#&gt;  camper       -0.85      0.37 [-1.43 -0.27]       0.83    1 0.01</span></a></code></pre></div>
+<p>To also show random effects of multilevel models, use the <code>type</code>-argument.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="co"># printing fixed and random effects of multilevel model</span></a>
+<a class="sourceLine" id="cb9-2" data-line-number="2"><span class="kw">tidy_stan</span>(m3, <span class="dt">type =</span> <span class="st">&quot;all&quot;</span>)</a>
+<a class="sourceLine" id="cb9-3" data-line-number="3"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb9-4" data-line-number="4"><span class="co">#&gt; # Summary Statistics of Stan-Model</span></a>
+<a class="sourceLine" id="cb9-5" data-line-number="5"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb9-6" data-line-number="6"><span class="co">#&gt; ## Conditional Model: Fixed effects</span></a>
+<a class="sourceLine" id="cb9-7" data-line-number="7"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb9-8" data-line-number="8"><span class="co">#&gt;            estimate std.error      HDI(89%) neff_ratio Rhat mcse</span></a>
+<a class="sourceLine" id="cb9-9" data-line-number="9"><span class="co">#&gt;  Intercept     1.21      0.77 [-0.29  2.90]       0.09 1.02 0.05</span></a>
+<a class="sourceLine" id="cb9-10" data-line-number="10"><span class="co">#&gt;  child        -1.15      0.09 [-1.31 -1.00]       0.62 1.00 0.00</span></a>
+<a class="sourceLine" id="cb9-11" data-line-number="11"><span class="co">#&gt;  camper        0.73      0.09 [ 0.59  0.88]       0.69 1.00 0.00</span></a>
+<a class="sourceLine" id="cb9-12" data-line-number="12"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb9-13" data-line-number="13"><span class="co">#&gt; ## Conditional Model: Random effect (Intercept: persons)</span></a>
+<a class="sourceLine" id="cb9-14" data-line-number="14"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb9-15" data-line-number="15"><span class="co">#&gt;            estimate std.error      HDI(89%) neff_ratio Rhat mcse</span></a>
+<a class="sourceLine" id="cb9-16" data-line-number="16"><span class="co">#&gt;  persons.1    -1.27      0.78 [-3.00  0.21]       0.09 1.02 0.05</span></a>
+<a class="sourceLine" id="cb9-17" data-line-number="17"><span class="co">#&gt;  persons.2    -0.30      0.75 [-1.97  1.20]       0.09 1.02 0.06</span></a>
+<a class="sourceLine" id="cb9-18" data-line-number="18"><span class="co">#&gt;  persons.3     0.40      0.76 [-1.32  1.90]       0.09 1.02 0.05</span></a>
+<a class="sourceLine" id="cb9-19" data-line-number="19"><span class="co">#&gt;  persons.4     1.30      0.77 [-0.32  2.85]       0.09 1.02 0.05</span></a>
+<a class="sourceLine" id="cb9-20" data-line-number="20"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb9-21" data-line-number="21"><span class="co">#&gt; ## Zero-Inflated Model: Fixed effects</span></a>
+<a class="sourceLine" id="cb9-22" data-line-number="22"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb9-23" data-line-number="23"><span class="co">#&gt;            estimate std.error      HDI(89%) neff_ratio Rhat mcse</span></a>
+<a class="sourceLine" id="cb9-24" data-line-number="24"><span class="co">#&gt;  Intercept    -0.71      0.73 [-2.02  0.45]       0.28    1 0.02</span></a>
+<a class="sourceLine" id="cb9-25" data-line-number="25"><span class="co">#&gt;  child         1.89      0.35 [ 1.36  2.45]       0.35    1 0.01</span></a>
+<a class="sourceLine" id="cb9-26" data-line-number="26"><span class="co">#&gt;  camper       -0.85      0.37 [-1.43 -0.27]       0.83    1 0.01</span></a>
+<a class="sourceLine" id="cb9-27" data-line-number="27"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb9-28" data-line-number="28"><span class="co">#&gt; ## Zero-Inflated Model: Random effect (Intercept: persons)</span></a>
+<a class="sourceLine" id="cb9-29" data-line-number="29"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb9-30" data-line-number="30"><span class="co">#&gt;            estimate std.error      HDI(89%) neff_ratio Rhat mcse</span></a>
+<a class="sourceLine" id="cb9-31" data-line-number="31"><span class="co">#&gt;  persons.1     1.31      0.81 [-0.03  2.68]       0.19 1.01 0.03</span></a>
+<a class="sourceLine" id="cb9-32" data-line-number="32"><span class="co">#&gt;  persons.2     0.35      0.65 [-0.77  1.65]       0.36 1.00 0.02</span></a>
+<a class="sourceLine" id="cb9-33" data-line-number="33"><span class="co">#&gt;  persons.3    -0.10      0.66 [-1.30  1.09]       0.37 1.00 0.02</span></a>
+<a class="sourceLine" id="cb9-34" data-line-number="34"><span class="co">#&gt;  persons.4    -1.24      0.73 [-2.52  0.03]       0.35 1.00 0.02</span></a></code></pre></div>
+<p>By default, 89%-HDI are computed (a convention following <em>McElreath 2015</em>), but other or even multiple HDI can be computed using the <code>prob</code> argument.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb10-1" data-line-number="1"><span class="co"># two different HDI for multivariate response model</span></a>
+<a class="sourceLine" id="cb10-2" data-line-number="2"><span class="kw">tidy_stan</span>(m2, <span class="dt">prob =</span> <span class="kw">c</span>(.<span class="dv">5</span>, <span class="fl">.95</span>))</a>
+<a class="sourceLine" id="cb10-3" data-line-number="3"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb10-4" data-line-number="4"><span class="co">#&gt; # Summary Statistics of Stan-Model</span></a>
+<a class="sourceLine" id="cb10-5" data-line-number="5"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb10-6" data-line-number="6"><span class="co">#&gt; ## Response: jobseek</span></a>
+<a class="sourceLine" id="cb10-7" data-line-number="7"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb10-8" data-line-number="8"><span class="co">#&gt;            estimate std.error      HDI(50%)      HDI(95%) neff_ratio Rhat mcse</span></a>
+<a class="sourceLine" id="cb10-9" data-line-number="9"><span class="co">#&gt;  Intercept     3.67      0.13 [ 3.58  3.75] [ 3.44  3.91]          1    1    0</span></a>
+<a class="sourceLine" id="cb10-10" data-line-number="10"><span class="co">#&gt;  treat         0.07      0.05 [ 0.03  0.10] [-0.03  0.17]          1    1    0</span></a>
+<a class="sourceLine" id="cb10-11" data-line-number="11"><span class="co">#&gt;  econ_hard     0.05      0.03 [ 0.03  0.07] [ 0.01  0.10]          1    1    0</span></a>
+<a class="sourceLine" id="cb10-12" data-line-number="12"><span class="co">#&gt;  sex          -0.01      0.05 [-0.03  0.03] [-0.10  0.08]          1    1    0</span></a>
+<a class="sourceLine" id="cb10-13" data-line-number="13"><span class="co">#&gt;  age           0.00      0.00 [ 0.00  0.01] [ 0.00  0.01]          1    1    0</span></a>
+<a class="sourceLine" id="cb10-14" data-line-number="14"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb10-15" data-line-number="15"><span class="co">#&gt; ## Response: depress2</span></a>
+<a class="sourceLine" id="cb10-16" data-line-number="16"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb10-17" data-line-number="17"><span class="co">#&gt;            estimate std.error      HDI(50%)      HDI(95%) neff_ratio Rhat mcse</span></a>
+<a class="sourceLine" id="cb10-18" data-line-number="18"><span class="co">#&gt;  Intercept     2.21      0.15 [ 2.09  2.30] [ 1.89  2.48]          1    1    0</span></a>
+<a class="sourceLine" id="cb10-19" data-line-number="19"><span class="co">#&gt;  treat        -0.04      0.04 [-0.07 -0.01] [-0.13  0.04]          1    1    0</span></a>
+<a class="sourceLine" id="cb10-20" data-line-number="20"><span class="co">#&gt;  joseek       -0.24      0.03 [-0.26 -0.22] [-0.29 -0.18]          1    1    0</span></a>
+<a class="sourceLine" id="cb10-21" data-line-number="21"><span class="co">#&gt;  econ_hard     0.15      0.02 [ 0.13  0.16] [ 0.11  0.19]          1    1    0</span></a>
+<a class="sourceLine" id="cb10-22" data-line-number="22"><span class="co">#&gt;  sex           0.11      0.04 [ 0.08  0.13] [ 0.03  0.19]          1    1    0</span></a>
+<a class="sourceLine" id="cb10-23" data-line-number="23"><span class="co">#&gt;  age           0.00      0.00 [-0.00  0.00] [-0.00  0.00]          1    1    0</span></a></code></pre></div>
+</div>
+<div id="summary-of-mediation-analysis" class="section level2">
+<h2>Summary of Mediation Analysis</h2>
+<p><code>mediation()</code> is another summary function, especially for mediation analysis, i.e. for multivariate response models with casual mediation effects.</p>
+<p>Let us recall the models:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb11-1" data-line-number="1">f1 &lt;-<span class="st"> </span><span class="kw">bf</span>(job_seek <span class="op">~</span><span class="st"> </span>treat <span class="op">+</span><span class="st"> </span>econ_hard <span class="op">+</span><span class="st"> </span>sex <span class="op">+</span><span class="st"> </span>age)</a>
+<a class="sourceLine" id="cb11-2" data-line-number="2">f2 &lt;-<span class="st"> </span><span class="kw">bf</span>(depress2 <span class="op">~</span><span class="st"> </span>treat <span class="op">+</span><span class="st"> </span>job_seek <span class="op">+</span><span class="st"> </span>econ_hard <span class="op">+</span><span class="st"> </span>sex <span class="op">+</span><span class="st"> </span>age)</a>
+<a class="sourceLine" id="cb11-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb11-4" data-line-number="4">m2 &lt;-<span class="st"> </span><span class="kw">brm</span>(f1 <span class="op">+</span><span class="st"> </span>f2 <span class="op">+</span><span class="st"> </span><span class="kw">set_rescor</span>(<span class="ot">FALSE</span>), <span class="dt">data =</span> jobs, <span class="dt">cores =</span> <span class="dv">4</span>)</a></code></pre></div>
+<p>Here, <em>treat</em> is the treatment effect, <em>job_seek</em> is the mediator effect, <em>f1</em> describes the mediator model and <em>f2</em> describes the outcome model.</p>
+<p><code>mediation()</code> returns a data frame with information on the <em>direct effect</em> (median value of posterior samples from treatment of the outcome model), <em>mediator effect</em> (median value of posterior samples from mediator of the outcome model), <em>indirect effect</em> (median value of the multiplication of the posterior samples from mediator of the outcome model and the posterior samples from treatment of the mediation model) and the <em>total effect</em> (median value of sums of posterior samples used for the direct and indirect effect). The <em>proportion mediated</em> is the indirect effect divided by the total effect.</p>
+<p>The simplest call just needs the model-object.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb12-1" data-line-number="1"><span class="kw">mediation</span>(m2)</a>
+<a class="sourceLine" id="cb12-2" data-line-number="2"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb12-3" data-line-number="3"><span class="co">#&gt; # Causal Mediation Analysis for Stan Model</span></a>
+<a class="sourceLine" id="cb12-4" data-line-number="4"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb12-5" data-line-number="5"><span class="co">#&gt;   Treatment: treat</span></a>
+<a class="sourceLine" id="cb12-6" data-line-number="6"><span class="co">#&gt;    Mediator: job_seek</span></a>
+<a class="sourceLine" id="cb12-7" data-line-number="7"><span class="co">#&gt;    Response: depress2</span></a>
+<a class="sourceLine" id="cb12-8" data-line-number="8"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb12-9" data-line-number="9"><span class="co">#&gt;                  Estimate    HDI (90%)</span></a>
+<a class="sourceLine" id="cb12-10" data-line-number="10"><span class="co">#&gt;   Direct effect:    -0.04 [-0.11 0.03]</span></a>
+<a class="sourceLine" id="cb12-11" data-line-number="11"><span class="co">#&gt; Indirect effect:    -0.02 [-0.04 0.00]</span></a>
+<a class="sourceLine" id="cb12-12" data-line-number="12"><span class="co">#&gt;    Total effect:    -0.06 [-0.13 0.02]</span></a>
+<a class="sourceLine" id="cb12-13" data-line-number="13"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb12-14" data-line-number="14"><span class="co">#&gt; Proportion mediated: 28.22% [-83.74% 140.19%]</span></a></code></pre></div>
+<p>Typically, <code>mediation()</code> finds the treatment and mediator variables automatically. If this does not work, use the <code>treatment</code> and <code>mediator</code> arguments to specify the related variable names. For all values, the 90% HDIs are calculated by default. Use <code>prob</code> to calculate a different interval.</p>
+<p>Here is a comparison with the <em>mediation</em> package. Note that the <code>summary()</code>-output of the <em>mediation</em> package shows the indirect effect first, followed by the direct effect.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb13-1" data-line-number="1"><span class="kw">summary</span>(m1)</a>
+<a class="sourceLine" id="cb13-2" data-line-number="2"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-3" data-line-number="3"><span class="co">#&gt; Causal Mediation Analysis </span></a>
+<a class="sourceLine" id="cb13-4" data-line-number="4"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-5" data-line-number="5"><span class="co">#&gt; Quasi-Bayesian Confidence Intervals</span></a>
+<a class="sourceLine" id="cb13-6" data-line-number="6"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-7" data-line-number="7"><span class="co">#&gt;                Estimate 95% CI Lower 95% CI Upper p-value</span></a>
+<a class="sourceLine" id="cb13-8" data-line-number="8"><span class="co">#&gt; ACME            -0.0158      -0.0423         0.01    0.20</span></a>
+<a class="sourceLine" id="cb13-9" data-line-number="9"><span class="co">#&gt; ADE             -0.0387      -0.1267         0.05    0.38</span></a>
+<a class="sourceLine" id="cb13-10" data-line-number="10"><span class="co">#&gt; Total Effect    -0.0546      -0.1427         0.03    0.23</span></a>
+<a class="sourceLine" id="cb13-11" data-line-number="11"><span class="co">#&gt; Prop. Mediated   0.2321      -1.5566         3.25    0.33</span></a>
+<a class="sourceLine" id="cb13-12" data-line-number="12"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-13" data-line-number="13"><span class="co">#&gt; Sample Size Used: 899 </span></a>
+<a class="sourceLine" id="cb13-14" data-line-number="14"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-15" data-line-number="15"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-16" data-line-number="16"><span class="co">#&gt; Simulations: 1000</span></a>
+<a class="sourceLine" id="cb13-17" data-line-number="17"></a>
+<a class="sourceLine" id="cb13-18" data-line-number="18"><span class="kw">mediation</span>(m2, <span class="dt">prob =</span> <span class="fl">.95</span>)</a>
+<a class="sourceLine" id="cb13-19" data-line-number="19"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-20" data-line-number="20"><span class="co">#&gt; # Causal Mediation Analysis for Stan Model</span></a>
+<a class="sourceLine" id="cb13-21" data-line-number="21"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-22" data-line-number="22"><span class="co">#&gt;   Treatment: treat</span></a>
+<a class="sourceLine" id="cb13-23" data-line-number="23"><span class="co">#&gt;    Mediator: job_seek</span></a>
+<a class="sourceLine" id="cb13-24" data-line-number="24"><span class="co">#&gt;    Response: depress2</span></a>
+<a class="sourceLine" id="cb13-25" data-line-number="25"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-26" data-line-number="26"><span class="co">#&gt;                  Estimate    HDI (95%)</span></a>
+<a class="sourceLine" id="cb13-27" data-line-number="27"><span class="co">#&gt;   Direct effect:    -0.04 [-0.13 0.04]</span></a>
+<a class="sourceLine" id="cb13-28" data-line-number="28"><span class="co">#&gt; Indirect effect:    -0.02 [-0.04 0.01]</span></a>
+<a class="sourceLine" id="cb13-29" data-line-number="29"><span class="co">#&gt;    Total effect:    -0.06 [-0.14 0.03]</span></a>
+<a class="sourceLine" id="cb13-30" data-line-number="30"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-31" data-line-number="31"><span class="co">#&gt; Proportion mediated: 28.22% [-190.2% 246.65%]</span></a></code></pre></div>
+<p>If you want to calculate mean instead of median values from the posterior samples, use the <code>typical</code>-argument. Furthermore, there is a <code>print()</code>-method, which allows to print more digits.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb14-1" data-line-number="1"><span class="kw">mediation</span>(m2, <span class="dt">typical =</span> <span class="st">&quot;mean&quot;</span>, <span class="dt">prob =</span> <span class="fl">.95</span>) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">print</span>(<span class="dt">digits =</span> <span class="dv">4</span>)</a>
+<a class="sourceLine" id="cb14-2" data-line-number="2"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb14-3" data-line-number="3"><span class="co">#&gt; # Causal Mediation Analysis for Stan Model</span></a>
+<a class="sourceLine" id="cb14-4" data-line-number="4"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb14-5" data-line-number="5"><span class="co">#&gt;   Treatment: treat</span></a>
+<a class="sourceLine" id="cb14-6" data-line-number="6"><span class="co">#&gt;    Mediator: job_seek</span></a>
+<a class="sourceLine" id="cb14-7" data-line-number="7"><span class="co">#&gt;    Response: depress2</span></a>
+<a class="sourceLine" id="cb14-8" data-line-number="8"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb14-9" data-line-number="9"><span class="co">#&gt;                  Estimate        HDI (95%)</span></a>
+<a class="sourceLine" id="cb14-10" data-line-number="10"><span class="co">#&gt;   Direct effect:  -0.0401 [-0.1279 0.0399]</span></a>
+<a class="sourceLine" id="cb14-11" data-line-number="11"><span class="co">#&gt; Indirect effect:  -0.0160 [-0.0415 0.0083]</span></a>
+<a class="sourceLine" id="cb14-12" data-line-number="12"><span class="co">#&gt;    Total effect:  -0.0561 [-0.1426 0.0320]</span></a>
+<a class="sourceLine" id="cb14-13" data-line-number="13"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb14-14" data-line-number="14"><span class="co">#&gt; Proportion mediated: 28.4872% [-189.9363% 246.9108%]</span></a></code></pre></div>
+<p>As you can see, the results are similar to what the <em>mediation</em> package produces for non-Bayesian models.</p>
+</div>
+<div id="icc-for-multilevel-models" class="section level2">
+<h2>ICC for multilevel models</h2>
+<p>Similar to <a href="mixedmodels-statistics.html">frequentist multilevel models</a>, <code>icc()</code> computes the intraclass correlation coefficient for Bayesian multilevel models.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb15-1" data-line-number="1"><span class="kw">icc</span>(m5)</a>
+<a class="sourceLine" id="cb15-2" data-line-number="2"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb15-3" data-line-number="3"><span class="co">#&gt; Bayesian mixed model</span></a>
+<a class="sourceLine" id="cb15-4" data-line-number="4"><span class="co">#&gt;  Family: gaussian (identity)</span></a>
+<a class="sourceLine" id="cb15-5" data-line-number="5"><span class="co">#&gt; Formula: list() neg_c_7 ~ e42dep + c12hour + c172code + (1 | e15relat) list()</span></a>
+<a class="sourceLine" id="cb15-6" data-line-number="6"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb15-7" data-line-number="7"><span class="co">#&gt;   ICC (e15relat): 0.030803</span></a></code></pre></div>
+<p>One advantage of the <em>brms</em> package is that you can compute the ICC for each sample of the posterior distribution, which allows you to easily calculate uncertainty intervals.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb16-1" data-line-number="1"><span class="kw">icc</span>(m4, <span class="dt">posterior =</span> <span class="ot">TRUE</span>)</a>
+<a class="sourceLine" id="cb16-2" data-line-number="2"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb16-3" data-line-number="3"><span class="co">#&gt; # Random Effect Variances and ICC</span></a>
+<a class="sourceLine" id="cb16-4" data-line-number="4"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb16-5" data-line-number="5"><span class="co">#&gt; Family: gaussian (identity)</span></a>
+<a class="sourceLine" id="cb16-6" data-line-number="6"><span class="co">#&gt; Formula: mpg ~ wt + hp + (1 | cyl) + (1 + wt | gear)</span></a>
+<a class="sourceLine" id="cb16-7" data-line-number="7"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb16-8" data-line-number="8"><span class="co">#&gt; ## cyl</span></a>
+<a class="sourceLine" id="cb16-9" data-line-number="9"><span class="co">#&gt;           ICC: 0.19 (HDI 89%: 0.00-0.73)</span></a>
+<a class="sourceLine" id="cb16-10" data-line-number="10"><span class="co">#&gt; Between-group: 4.80 (HDI 89%: 0.00-51.24)</span></a>
+<a class="sourceLine" id="cb16-11" data-line-number="11"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb16-12" data-line-number="12"><span class="co">#&gt; ## gear</span></a>
+<a class="sourceLine" id="cb16-13" data-line-number="13"><span class="co">#&gt;           ICC:  0.52 (HDI 89%: 0.00-0.90)</span></a>
+<a class="sourceLine" id="cb16-14" data-line-number="14"><span class="co">#&gt; Between-group: 16.29 (HDI 89%: 0.00-102.40)</span></a>
+<a class="sourceLine" id="cb16-15" data-line-number="15"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb16-16" data-line-number="16"><span class="co">#&gt; ## Residuals</span></a>
+<a class="sourceLine" id="cb16-17" data-line-number="17"><span class="co">#&gt; Within-group: 6.07 (HDI 89%: 3.67-9.41)</span></a>
+<a class="sourceLine" id="cb16-18" data-line-number="18"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb16-19" data-line-number="19"><span class="co">#&gt; ## Random-slope-variance</span></a>
+<a class="sourceLine" id="cb16-20" data-line-number="20"><span class="co">#&gt; gear: 1.46 (HDI 89%: 0.00-11.23)</span></a>
+<a class="sourceLine" id="cb16-21" data-line-number="21"></a>
+<a class="sourceLine" id="cb16-22" data-line-number="22"><span class="kw">icc</span>(m5, <span class="dt">posterior =</span> <span class="ot">TRUE</span>)</a>
+<a class="sourceLine" id="cb16-23" data-line-number="23"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb16-24" data-line-number="24"><span class="co">#&gt; # Random Effect Variances and ICC</span></a>
+<a class="sourceLine" id="cb16-25" data-line-number="25"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb16-26" data-line-number="26"><span class="co">#&gt; Family: gaussian (identity)</span></a>
+<a class="sourceLine" id="cb16-27" data-line-number="27"><span class="co">#&gt; Formula: neg_c_7 ~ e42dep + c12hour + c172code + (1 | e15relat)</span></a>
+<a class="sourceLine" id="cb16-28" data-line-number="28"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb16-29" data-line-number="29"><span class="co">#&gt; ## e15relat</span></a>
+<a class="sourceLine" id="cb16-30" data-line-number="30"><span class="co">#&gt;           ICC: 0.02 (HDI 89%: 0.00-0.09)</span></a>
+<a class="sourceLine" id="cb16-31" data-line-number="31"><span class="co">#&gt; Between-group: 0.33 (HDI 89%: 0.00-1.19)</span></a>
+<a class="sourceLine" id="cb16-32" data-line-number="32"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb16-33" data-line-number="33"><span class="co">#&gt; ## Residuals</span></a>
+<a class="sourceLine" id="cb16-34" data-line-number="34"><span class="co">#&gt; Within-group: 12.80 (HDI 89%: 11.76-13.74)</span></a></code></pre></div>
+<p>There’s also a <code>print()</code>-method which allows you to specify the HDI-interval and digits:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb17-1" data-line-number="1"><span class="kw">icc</span>(m5, <span class="dt">posterior =</span> <span class="ot">TRUE</span>) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">print</span>(<span class="dt">prob =</span> <span class="fl">.95</span>, <span class="dt">digits =</span> <span class="dv">3</span>)</a>
+<a class="sourceLine" id="cb17-2" data-line-number="2"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb17-3" data-line-number="3"><span class="co">#&gt; # Random Effect Variances and ICC</span></a>
+<a class="sourceLine" id="cb17-4" data-line-number="4"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb17-5" data-line-number="5"><span class="co">#&gt; Family: gaussian (identity)</span></a>
+<a class="sourceLine" id="cb17-6" data-line-number="6"><span class="co">#&gt; Formula: neg_c_7 ~ e42dep + c12hour + c172code + (1 | e15relat)</span></a>
+<a class="sourceLine" id="cb17-7" data-line-number="7"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb17-8" data-line-number="8"><span class="co">#&gt; ## e15relat</span></a>
+<a class="sourceLine" id="cb17-9" data-line-number="9"><span class="co">#&gt;           ICC: 0.025 (HDI 95%: 0.000-0.124)</span></a>
+<a class="sourceLine" id="cb17-10" data-line-number="10"><span class="co">#&gt; Between-group: 0.328 (HDI 95%: 0.000-1.826)</span></a>
+<a class="sourceLine" id="cb17-11" data-line-number="11"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb17-12" data-line-number="12"><span class="co">#&gt; ## Residuals</span></a>
+<a class="sourceLine" id="cb17-13" data-line-number="13"><span class="co">#&gt; Within-group: 12.804 (HDI 95%: 11.621-14.050)</span></a></code></pre></div>
+</div>
+<div id="bayes-r-squared-and-loo-adjusted-r-squared" class="section level2">
+<h2>Bayes r-squared and LOO-adjusted r-squared</h2>
+<p><code>r2()</code> computes either the Bayes r-squared value, or - if <code>loo = TRUE</code> - a LOO-adjusted r-squared value (which comes conceptionally closer to an adjusted r-squared measure).</p>
+<p>For the Bayes r-squared, the standard error is also reported. Note that <code>r2()</code> uses the median as measure of central tendency and the median absolute deviation as measure for variability.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb18-1" data-line-number="1"><span class="kw">r2</span>(m5)</a>
+<a class="sourceLine" id="cb18-2" data-line-number="2"><span class="co">#&gt;       Bayes R2: 0.168</span></a>
+<a class="sourceLine" id="cb18-3" data-line-number="3"><span class="co">#&gt; Standard Error: 0.022</span></a>
+<a class="sourceLine" id="cb18-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb18-5" data-line-number="5"><span class="kw">r2</span>(m5, <span class="dt">loo =</span> <span class="ot">TRUE</span>)</a>
+<a class="sourceLine" id="cb18-6" data-line-number="6"><span class="co">#&gt; LOO-adjusted R2: 0.145</span></a></code></pre></div>
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
+<p>Kruschke JK. Doing Bayesian Data Analysis: A Tutorial with R, JAGS, and Stan. 2nd edition. Academic Press, 2015</p>
+<p>Kruschke JK. Rejecting or Accepting Parameter Values in Bayesian Estimation. Advances in Methods and Practices in Psychological Science. 2018; doi: <a href="https://doi.org/10.1177/2515245918771304">10.1177/2515245918771304</a></p>
+<p>McElreath R. Statistical Rethinking. A Bayesian Course with Examples in R and Stan. Chapman and Hall, 2015</p>
+<p>Norman GR, Sloan JA, Wyrwich KW. Interpretation of Changes in Health-related Quality of Life: The Remarkable Universality of Half a Standard Deviation. Medical Care. 2003;41: 582–592. doi: <a href="https://doi.org/10.1097/01.MLR.0000062554.74615.4C">10.1097/01.MLR.0000062554.74615.4C</a></p>
+</div>
+
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

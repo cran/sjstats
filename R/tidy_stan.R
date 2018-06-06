@@ -4,9 +4,6 @@
 #' @description Returns a tidy summary output for stan models.
 #'
 #' @param x A \code{stanreg}, \code{stanfit} or \code{brmsfit} object.
-#' @param typical The typical value that will represent the Bayesian point estimate.
-#'        By default, the posterior median is returned. See \code{\link{typical_value}}
-#'        for possible values for this argument.
 #' @param trans Name of a function or character vector naming a function, used
 #'        to apply transformations on the estimate and HDI-values. The
 #'        values for standard errors are \emph{not} transformed!
@@ -31,15 +28,14 @@
 #'            default the posterior median; other statistics are also possible,
 #'            see argument \code{typical}).}
 #'      \item{
-#'        The standard error (which are actually \emph{median absolute
-#'        deviations}).
+#'        The standard error (which is actually the \emph{median absolute deviation}).
 #'      }
 #'      \item{
 #'        The HDI (see \code{\link{hdi}}). Computation for HDI is based on the
 #'        code from Kruschke 2015, pp. 727f.
 #'      }
 #'      \item{
-#'        The ratio of effective numbers of samples, \emph{n_eff}, (i.e.
+#'        The ratio of effective numbers of samples, \emph{neff_ratio}, (i.e.
 #'        effective number of samples divided by total number of samples).
 #'        This ratio ranges from 0 to 1, and should be close to 1. The closer
 #'        this ratio comes to zero means that the chains may be inefficient,
@@ -50,7 +46,12 @@
 #'        the chain has not yet converged, indicating that the drawn samples
 #'        might not be trustworthy. Drawing more iteration may solve this issue.
 #'      }
-#'      \item{The Monte Carlo standard error (see \code{\link{mcse}}).}
+#'      \item{
+#'        The Monte Carlo standard error (see \code{\link{mcse}}). It is defined
+#'        as standard deviation of the chains divided by their effective sample
+#'        size and \dQuote{provides a quantitative suggestion of how big the
+#'        estimation noise is} (\emph{Kruschke 2015, p.187}).
+#'      }
 #'    }
 #'
 #' @seealso \code{\link{hdi}}
@@ -128,7 +129,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
       by = "term"
     ) %>%
     dplyr::mutate(
-      n_eff = nr,
+      neff_ratio = nr,
       Rhat = rh,
       mcse = se
     )
@@ -170,6 +171,9 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
       }
     }
 
+
+    ## TODO if random intercept variable has levels with "/" or ".", these are also dot-separated
+    ## and will be confused with nested groups
 
     # find random intercepts
 
@@ -303,6 +307,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
 
   attr(out, "digits") <- digits
   attr(out, "model_name") <- deparse(substitute(x))
+  attr(out, "prob") <- prob
 
   if (inherits(x, "brmsfit"))
     attr(out, "formula") <- as.character(stats::formula(x))[1]
@@ -340,14 +345,20 @@ remove_effects_from_stan <- function(out, type, is.brms) {
   # check if we need to remove random or fixed effects
   # therefor, find random effect parts first
 
+  alt.term.names <- make.names(out$term)
+
   re <- tidyselect::starts_with("b[", vars = out$term)
   re.s <- tidyselect::starts_with("Sigma[", vars = out$term)
-  re.i <- intersect(
+  re.i1 <- intersect(
     tidyselect::starts_with("r_", vars = out$term),
     tidyselect::ends_with(".", vars = out$term)
   )
+  re.i2 <- intersect(
+    tidyselect::starts_with("r_", vars = alt.term.names),
+    tidyselect::ends_with(".", vars = alt.term.names)
+  )
 
-  removers <- unique(c(re, re.s, re.i))
+  removers <- unique(c(re, re.s, re.i1, re.i2))
 
   if (!sjmisc::is_empty(removers)) {
     if (type == "fixed") {
@@ -401,4 +412,22 @@ brms_clean <- function(out) {
     out <- dplyr::select(out, !! -removers)
 
   out
+}
+
+
+#' @importFrom purrr map_dbl
+n_of_samples <- function(x) {
+  if (inherits(x, "brmsfit") && requireNamespace("brms", quietly = TRUE)) {
+    brms::nsamples(x, incl_warmup = FALSE)
+  } else {
+    purrr::map_dbl(x$stanfit@stan_args, ~ .x$iter - .x$warmup) %>% sum()
+  }
+}
+
+
+n_of_chains <- function(x) {
+  if (inherits(x, "brmsfit"))
+    length(x$fit@stan_args)
+  else
+    length(x$stanfit@stan_args)
 }

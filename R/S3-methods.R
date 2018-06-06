@@ -178,45 +178,19 @@ deviance.svyglm.nb <- function(object, ...) {
 }
 
 
+#' @importFrom purrr map_chr map2_chr
 #' @export
-print.sjstats_r2 <- function(x, ...) {
-  s3 <- NULL
-  s4 <- NULL
-  if (length(x) > 1) {
-    if (identical(names(x[[2]]), "Nagelkerke")) {
-      s1 <- "Cox & Snell's R-squared"
-      s2 <- " Nagelkerke's R-squared"
-    } else if (identical(names(x[[2]]), "Sums-of-Squares-r-squared")) {
-      s1 <- "       R-squared (deviance)"
-      s2 <- "R-squared (sums-of-squares)"
-    } else if (identical(names(x[[2]]), "adj.R2")) {
-      s1 <- "         R-squared"
-      s2 <- "adjusted R-squared"
-    } else if (identical(names(x[[2]]), "O2")) {
-      s1 <- "    R-squared"
-      s2 <- "Omega-squared"
-    } else if (identical(names(x[[2]]), "R2(tau-11)")) {
-      s1 <- "R-squared (tau-00)"
-      s2 <- "R-squared (tau-11)"
-      s3 <- "     Omega-squared"
-      s4 <- "         R-squared"
-    } else {
-      return(NULL)
-    }
-    cat(sprintf("%s: %.4f\n%s: %.4f\n", s1, x[[1]], s2, x[[2]]))
-    if (!is.null(s3)) {
-      cat(sprintf("%s: %.4f\n%s: %.4f\n", s3, x[[3]], s4, x[[4]]))
-    }
-  } else {
-    if (identical(names(x[[1]]), "D")) {
-      s1 <- "Tjur's D"
-    } else if (identical(names(x[[1]]), "Bayes R2")) {
-      s1 <- "Bayes R2"
-    } else {
-      return(NULL)
-    }
-    cat(sprintf("%s: %.4f\n", s1, x[[1]]))
-  }
+print.sjstats_r2 <- function(x, digits = 3, ...) {
+
+  labels <- purrr::map_chr(x, ~ names(.x))
+  width <- max(nchar(labels))
+
+  out <- purrr::map2_chr(
+    x, labels,
+    ~ sprintf("%*s: %.*f", width, .y, digits, .x)
+  )
+
+  cat(paste0(out, collapse = "\n"))
 }
 
 
@@ -1224,11 +1198,92 @@ print.sj_hdi <- function(x, digits = 2, ...) {
 }
 
 
+#' @importFrom crayon blue cyan
+#' @export
+print.sj_equi_test <- function(x, ...) {
+  cat(crayon::blue("\n# Test for Practical Equivalence of Model Predictors\n\n"))
+  cat(crayon::cyan(sprintf(
+    "  Effect Size: %.2f\n         ROPE: [%.2f %.2f]\n",
+    attr(x, "eff_size", exact = TRUE),
+    attr(x, "rope", exact = TRUE)[1],
+    attr(x, "rope", exact = TRUE)[2]
+  )))
+
+  if (!is.null(attr(x, "nsamples", exact = TRUE))) {
+    cat(crayon::cyan(sprintf(
+      "      Samples: %i\n",
+      attr(x, "nsamples", exact = TRUE)
+    )))
+  }
+
+  cat("\n")
+
+  dat <- get_hdi_data(x, digits = 2)
+  dat[["inside.rope"]] <- sprintf("%.2f", dat[["inside.rope"]])
+  colnames(dat) <- c("", "H0", "%inROPE", "HDI(95%)")
+
+  print(as.data.frame(dat), ..., row.names = FALSE)
+
+  if (isTRUE(attr(x, "critical"))) {
+    message("\n(*) the number of effective samples may be insufficient for some parameters")
+  }
+}
+
+
+#' @importFrom crayon blue cyan
+#' @export
+print.sj_mediation <- function(x, digits = 2, ...) {
+  cat(crayon::blue("\n# Causal Mediation Analysis for Stan Model\n\n"))
+  cat(crayon::cyan(sprintf(
+    "  Treatment: %s\n   Mediator: %s\n   Response: %s\n",
+    attr(x, "treatment", exact = TRUE),
+    attr(x, "mediator", exact = TRUE),
+    attr(x, "response", exact = TRUE)
+  )))
+
+  cat("\n")
+
+  prop.med <- 100 * x[5, 2:4]
+  x <- x[c(1, 2, 4), ]
+
+  x$value <- format(round(x$value, digits = digits))
+  x$hdi.low <- format(round(x$hdi.low, digits = digits))
+  x$hdi.high <- format(round(x$hdi.high, digits = digits))
+  prop.med <- format(round(prop.med, digits = digits))
+
+  # ensure minimum width for column header
+  if (max(nchar(x$value)) < 8) x$value <- format(x$value, width = 8, justify = "right")
+
+  indent.width1 <- max(nchar(x$value)) + 17
+  indent.width2 <- max(nchar(x$hdi.low)) + max(nchar(x$hdi.high)) + 4
+
+  cat(sprintf(
+    "%s%s\n",
+    format("Estimate", width = indent.width1, justify = "right"),
+    format(sprintf("HDI (%i%%)", as.integer(100 * attr(x, "prob", exact = TRUE))), width = indent.width2, justify = "right")
+  ))
+
+  cat(sprintf("  Direct effect: %s [%s %s]\n", x$value[1], x$hdi.low[1], x$hdi.high[1]))
+  cat(sprintf("Indirect effect: %s [%s %s]\n", x$value[2], x$hdi.low[2], x$hdi.high[2]))
+  cat(sprintf("   Total effect: %s [%s %s]\n", x$value[3], x$hdi.low[3], x$hdi.high[3]))
+
+  cat(crayon::red(
+    sprintf(
+      "\nProportion mediated: %s%% [%s%% %s%%]\n",
+      prop.med[1], prop.med[2], prop.med[3]))
+  )
+
+  if (prop.med[1] < 0)
+    message("\nDirect and indirect effects have opposite directions. The proportion mediated is not meaningful.")
+}
+
 
 #' @importFrom purrr map_at map_df
 #' @importFrom dplyr bind_cols select
 get_hdi_data <- function(x, digits) {
   cn <- colnames(x)
+  prob <- attr(x, "prob", exact = TRUE)
+
   hdi.cols <- tidyselect::starts_with("hdi.", vars = cn)
 
   # convert all to character, with fixed fractional part
@@ -1249,9 +1304,12 @@ get_hdi_data <- function(x, digits) {
 
     tmp <- data.frame(hdi = sprintf("[%*s %*s]", ml1, x[[i]], ml2, x[[i + 1]]))
 
-    if (ci_pos[i] < 0)
-      interv <- 89
-    else
+    if (ci_pos[i] < 0) {
+      if (!is.null(prob))
+        interv <- round(100 * prob[1])
+      else
+        interv <- 90
+    } else
       interv <- round(100 * as.numeric(substr(cn[i], ci_pos[i] + 1, nchar(cn[i]))))
 
     colnames(tmp) <- sprintf("HDI(%d%%)", interv)
@@ -1268,4 +1326,20 @@ get_hdi_data <- function(x, digits) {
     dat <- dplyr::bind_cols(dat, x[, hdi.cols[1]:ncol(x), drop = FALSE])
 
   dat
+}
+
+
+#' @export
+print.sj_pval <- function(x, digits = 3, summary = FALSE, ...) {
+
+  if (summary) {
+    df.kr <- attr(x, "df.kr", exact = TRUE)
+    t.kr <- attr(x, "t.kr", exact = TRUE)
+
+    if (!is.null(df.kr)) x$df <- df.kr
+    if (!is.null(t.kr)) x$statistic <- t.kr
+  }
+
+  x <- purrr::map_if(x, is.numeric, round, digits = digits)
+  print.data.frame(as.data.frame(x), ..., row.names = TRUE)
 }

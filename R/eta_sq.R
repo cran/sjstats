@@ -30,6 +30,8 @@
 #'   omega-squared is also based on bootstrapping.
 #'
 #' @references Levine TR, Hullett CR (2002): Eta Squared, Partial Eta Squared, and Misreporting of Effect Size in Communication Research (\href{https://www.msu.edu/~levinet/eta\%20squared\%20hcr.pdf}{pdf})
+#'   \cr \cr
+#'   Tippey K, Longnecker MT (2016): An Ad Hoc Method for Computing Pseudo-Effect Size for Mixed Model. (\href{http://www.scsug.org/wp-content/uploads/2016/11/Ad-Hoc-Method-for-Computing-Effect-Size-for-Mixed-Models_PROCEEDINGS-UPDATE-1.pdf}{pdf})
 #'
 #' @examples
 #' # load sample data
@@ -207,14 +209,34 @@ aov_stat <- function(model, type) {
 }
 
 
-
+#' @importFrom tibble add_row has_name add_column
+#' @importFrom stats anova residuals
+#' @importFrom broom tidy
 aov_stat_summary <- function(model) {
+  # check if we have a mixed model
+  mm <- is_merMod(model)
+  ori.model <- model
+
   # check that model inherits from correct class
   # else, try to coerce to anova table
   if (!inherits(model, c("aov", "anova", "anova.rms"))) model <- stats::anova(model)
 
   # get summary table
   aov.sum <- broom::tidy(model)
+
+  # for mixed models, add information on residuals
+  if (mm) {
+    res <- stats::residuals(ori.model)
+    aov.sum <- tibble::add_row(
+      aov.sum,
+      term = "Residuals",
+      df = length(res) - sum(aov.sum[["df"]]),
+      sumsq = sum(res ^ 2, na.rm = TRUE),
+      meansq = mse(ori.model),
+      statistic = NA
+    )
+  }
+
 
   # need special handling for rms-anova
   if (inherits(model, "anova.rms"))
