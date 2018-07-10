@@ -9,6 +9,9 @@
 #'    character vector.
 #' @param fe.only Logical, if \code{TRUE} (default) and \code{x} is a mixed effects
 #'    model, returns the model frame for fixed effects only.
+#' @param multi.resp Logical, if \code{TRUE} and model is a multivariate response
+#'    model from a \code{brmsfit} object or of class \code{stanmvreg}, then a
+#'    list of values (one for each regression) is returned.
 #'
 #' @return For \code{pred_vars()} and \code{resp_var()}, the name(s) of the
 #'    response or predictor variables from \code{x} as character vector.
@@ -30,7 +33,6 @@
 #'      \item \code{is_pois}: family is either poisson or negative binomial
 #'      \item \code{is_negbin}: family is negative binomial
 #'      \item \code{is_logit}: model has logit link
-#'      \item \code{is_linear}: family is gaussian
 #'      \item \code{is_linear}: family is gaussian
 #'      \item \code{is_ordinal}: family is ordinal or cumulative link
 #'      \item \code{is_zeroinf}: model has zero-inflation component
@@ -90,6 +92,11 @@ pred_vars <- function(x) {
         unique()
     } else
       av <- all.vars(fm$formula[[3L]])
+  } else if (inherits(x, "stanmvreg")) {
+    av <- fm %>%
+      purrr::map(~ all.vars(.x[[3L]])) %>%
+      purrr::flatten_chr() %>%
+      unique()
   } else
     av <- all.vars(fm[[3L]])
 
@@ -99,6 +106,8 @@ pred_vars <- function(x) {
   av
 }
 
+
+#' @importFrom purrr map_chr
 #' @importFrom stats formula
 #' @rdname pred_vars
 #' @export
@@ -113,6 +122,8 @@ resp_var <- function(x) {
       )
       # stats::formula(x)$responses
     }
+  } else if (inherits(x, "stanmvreg")) {
+    purrr::map_chr(stats::formula(x), ~ deparse(.x[[2L]]))
   } else
     deparse(stats::formula(x)[[2L]])
 }
@@ -126,6 +137,8 @@ resp_val <- function(x) {
     as.vector(nlme::getResponse(x))
   else if (inherits(x, "brmsfit") && !is.null(stats::formula(x)$responses))
     as.vector(model_frame(x)[, var_names(resp_var(x))])
+  else if (inherits(x, "stanmvreg"))
+    as.vector(model_frame(x)[, var_names(resp_var(x))])
   else
     as.vector(model_frame(x)[[var_names(resp_var(x))]])
 }
@@ -134,7 +147,7 @@ resp_val <- function(x) {
 #' @rdname pred_vars
 #' @importFrom stats family binomial gaussian make.link
 #' @export
-link_inverse <- function(x) {
+link_inverse <- function(x, multi.resp = FALSE) {
 
   # handle glmmTMB models
   if (inherits(x, "glmmTMB")) {
@@ -163,39 +176,42 @@ link_inverse <- function(x) {
     il <- NULL
   } else if (inherits(x, c("hurdle", "zeroinfl"))) {
     il <- x$linkinv
-  } else if (inherits(x, c("lme", "plm", "gls", "lm")) && !inherits(x, "glm")) {
+  } else if (inherits(x, c("lme", "plm", "gls", "lm", "lmRob")) && !inherits(x, "glm")) {
     il <- stats::gaussian(link = "identity")$linkinv
   } else if (inherits(x, "betareg")) {
     il <- x$link$mean$linkinv
   } else if (inherits(x, c("vgam", "vglm"))) {
     il <- x@family@linkinv
+  } else if (inherits(x, "stanmvreg")) {
+    fam <- stats::family(x)
+    if (multi.resp) {
+      il <- purrr::map(fam, ~ .x$linkinv)
+    } else {
+      fam <- fam[[1]]
+      il <- fam$linkinv
+    }
   } else if (inherits(x, "brmsfit")) {
     fam <- stats::family(x)
-
-    ## TODO save different family types for brms multivariate reponse models
-
-    # in case of multivariate response models for brms, we just take the
-    # information from the first model
-    if (!is.null(stats::formula(x)$response))
-      fam <- fam[[1]]
-
-    # do we have custom families?
-    if (!is.null(fam$family) && (is.character(fam$family) && fam$family == "custom")) {
-      il <- stats::make.link(fam$link)$linkinv
-    } else {
-      if ("linkinv" %in% names(fam)) {
-        il <- fam$linkinv
-      } else if ("link" %in% names(fam) && is.character(fam$link)) {
-        il <- stats::make.link(fam$link)$linkinv
+    if (!is.null(stats::formula(x)$response)) {
+      if (multi.resp) {
+        il <- purrr::map(fam, ~ brms_link_inverse(.x))
       } else {
-        ff <- get(fam$family, asNamespace("stats"))
-        il <- ff(fam$link)$linkinv
+        fam <- fam[[1]]
+        il <- brms_link_inverse(fam)
       }
+    } else {
+      il <- brms_link_inverse(fam)
     }
-  } else if (inherits(x, c("lrm", "polr", "clm", "logistf", "multinom", "Zelig-relogit"))) {
+  } else if (inherits(x, "polr")) {
+    link <- x$method
+    if (link == "logistic") link <- "logit"
+    il <- stats::make.link(link)$linkinv
+  } else if (inherits(x, c("clm", "clmm"))) {
+    il <- stats::make.link(x$link)$linkinv
+  } else if (inherits(x, c("lrm", "logistf", "multinom", "Zelig-relogit"))) {
     # "lrm"-object from pkg "rms" have no family method
     # so we construct a logistic-regression-family-object
-    il <- stats::binomial(link = "logit")$linkinv
+    il <- stats::make.link(link = "logit")$linkinv
   } else {
     # get family info
     il <- stats::family(x)$linkinv
@@ -204,16 +220,40 @@ link_inverse <- function(x) {
   il
 }
 
+brms_link_inverse <- function(fam) {
+  # do we have custom families?
+  if (!is.null(fam$family) && (is.character(fam$family) && fam$family == "custom")) {
+    il <- stats::make.link(fam$link)$linkinv
+  } else {
+    if ("linkinv" %in% names(fam)) {
+      il <- fam$linkinv
+    } else if ("link" %in% names(fam) && is.character(fam$link)) {
+      il <- stats::make.link(fam$link)$linkinv
+    } else {
+      ff <- get(fam$family, asNamespace("stats"))
+      il <- ff(fam$link)$linkinv
+    }
+  }
+  il
+}
+
 
 #' @rdname pred_vars
 #' @importFrom stats model.frame formula getCall na.omit
 #' @importFrom prediction find_data
-#' @importFrom purrr map_lgl map
-#' @importFrom dplyr select bind_cols
+#' @importFrom purrr map_lgl map reduce
+#' @importFrom dplyr select bind_cols full_join
 #' @importFrom tibble as_tibble
 #' @export
 model_frame <- function(x, fe.only = TRUE) {
-  if (inherits(x, c("merMod", "lmerMod", "glmerMod", "nlmerMod", "merModLmerTest")))
+  # we may store model weights here later
+  mw <- NULL
+
+  if (inherits(x, "stanmvreg"))
+    fitfram <- suppressMessages(
+      purrr::reduce(stats::model.frame(x), ~ dplyr::full_join(.x, .y))
+    )
+  else if (inherits(x, c("merMod", "lmerMod", "glmerMod", "nlmerMod", "merModLmerTest")))
     fitfram <- stats::model.frame(x, fixed.only = fe.only)
   else if (inherits(x, "lme"))
     fitfram <- x$data
@@ -267,7 +307,13 @@ model_frame <- function(x, fe.only = TRUE) {
 
     # if data not found in environment, reduce matrix variables into regular vectors
     if (is.null(md)) {
-      fitfram <- dplyr::bind_cols(purrr::map(fitfram, ~ tibble::as_tibble(.x)))
+      # first, we select the non-matrix variables. calling "as_tibble" would
+      # remove their column name, so we us as_tibble to convert matrix
+      # to vectors only for the matrix-columns
+      fitfram_matrix <- dplyr::select(fitfram, which(mc))
+      fitfram_nonmatrix <- dplyr::select(fitfram, -which(mc))
+      fitfram_matrix <- dplyr::bind_cols(purrr::map(fitfram_matrix, ~ tibble::as_tibble(.x)))
+      fitfram <- dplyr::bind_cols(fitfram_nonmatrix, fitfram_matrix)
     } else {
 
       # get "matrix" terms and "normal" predictors, but exclude
@@ -292,7 +338,18 @@ model_frame <- function(x, fe.only = TRUE) {
         needed.vars <- c(colnames(fitfram)[1], needed.vars)
       }
 
+      # check model weights
+
+      if ("(weights)" %in% needed.vars && !tibble::has_name(md, "(weights)")) {
+        needed.vars <- needed.vars[-which(needed.vars == "(weights)")]
+        mw <- fitfram[["(weights)"]]
+      }
+
+
       fitfram <- stats::na.omit(dplyr::select(md, !! needed.vars))
+
+      # add back model weights, if any
+      if (!is.null(mw)) fitfram$`(weights)` <- mw
     }
 
   }
@@ -310,13 +367,13 @@ model_frame <- function(x, fe.only = TRUE) {
 
 
 #' @rdname pred_vars
-#' @importFrom sjmisc str_contains
+#' @importFrom sjmisc str_contains is_empty
 #' @importFrom stats family formula
 #' @importFrom tidyselect starts_with
 #' @export
-model_family <- function(x) {
+model_family <- function(x, multi.resp = FALSE) {
   zero.inf <- FALSE
-  multi.resp <- FALSE
+  multi.var <- FALSE
 
   # for gam-components from gamm4, add class attributes, so family
   # function works correctly
@@ -325,53 +382,74 @@ model_family <- function(x) {
 
   # do we have glm? if so, get link family. make exceptions
   # for specific models that don't have family function
-  if (inherits(x, c("lme", "plm", "gls", "truncreg"))) {
+  if (inherits(x, c("lme", "plm", "gls", "truncreg", "lmRob"))) {
     fitfam <- "gaussian"
-    logit_link <- FALSE
+    logit.link <- FALSE
     link.fun <- "identity"
   } else if (inherits(x, c("vgam", "vglm"))) {
     faminfo <- x@family
     fitfam <- faminfo@vfamily[1]
-    logit_link <- sjmisc::str_contains(faminfo@blurb, "logit")
+    logit.link <- sjmisc::str_contains(faminfo@blurb, "logit")
     link.fun <- faminfo@blurb[3]
-    if (tidyselect::starts_with("logit(", vars = link.fun)) link.fun <- "logit"
+    if (!sjmisc::is_empty(tidyselect::starts_with("logit(", vars = link.fun)))
+      link.fun <- "logit"
   } else if (inherits(x, c("zeroinfl", "hurdle"))) {
     fitfam <- "negative binomial"
-    logit_link <- FALSE
+    logit.link <- FALSE
     link.fun <- NULL
     zero.inf <- TRUE
   } else if (inherits(x, "betareg")) {
     fitfam <- "beta"
-    logit_link <- x$link$mean$name == "logit"
+    logit.link <- x$link$mean$name == "logit"
     link.fun <- x$link$mean$linkfun
   } else if (inherits(x, "coxph")) {
     fitfam <- "survival"
-    logit_link <- TRUE
+    logit.link <- TRUE
     link.fun <- NULL
   } else {
     # "lrm"-object from pkg "rms" have no family method
     # so we construct a logistic-regression-family-object
-    if (inherits(x, c("lrm", "polr", "logistf", "clm", "multinom", "Zelig-relogit")))
+    if (inherits(x, c("lrm", "polr", "logistf", "clmm", "clm", "multinom", "Zelig-relogit")))
       faminfo <- stats::binomial(link = "logit")
     else
       # get family info
       faminfo <- stats::family(x)
 
-    ## TODO save different family types for brms multivariate reponse models
-
-    # in case of multivariate response models for brms, we just take the
-    # information from the first model
+    # in case of multivariate response models for brms or rstanarm,
+    # we just take the information from the first model
     if (inherits(x, "brmsfit") && !is.null(stats::formula(x)$response)) {
-      multi.resp <- TRUE
-      faminfo <- faminfo[[1]]
+      multi.var <- TRUE
+      if (!multi.resp) faminfo <- faminfo[[1]]
     }
 
+    if (inherits(x, "stanmvreg")) {
+      multi.var <- TRUE
+      if (!multi.resp) faminfo <- faminfo[[1]]
+    }
+
+
+    if (multi.resp && multi.var) {
+      return(purrr::map(faminfo, ~ make_family(
+        x,
+        .x$family,
+        zero.inf,
+        .x$link == "logit",
+        TRUE,
+        .x$link
+      )))
+    }
+
+
     fitfam <- faminfo$family
-    logit_link <- faminfo$link == "logit"
+    logit.link <- faminfo$link == "logit"
     link.fun <- faminfo$link
   }
 
+  make_family(x, fitfam, zero.inf, logit.link, multi.var, link.fun)
+}
 
+
+make_family <- function(x, fitfam, zero.inf, logit.link, multi.var, link.fun) {
   # create logical for family
   binom_fam <-
     fitfam %in% c("bernoulli", "binomial", "quasibinomial", "binomialff") |
@@ -387,23 +465,23 @@ model_family <- function(x) {
     sjmisc::str_contains(fitfam, "negbinomial", ignore.case = TRUE) |
     sjmisc::str_contains(fitfam, "neg_binomial", ignore.case = TRUE)
 
-  linear_model <- !binom_fam & !poisson_fam & !neg_bin_fam & !logit_link
+  linear_model <- !binom_fam & !poisson_fam & !neg_bin_fam & !logit.link
 
   zero.inf <- zero.inf | sjmisc::str_contains(fitfam, "zero_inflated", ignore.case = T)
 
   is.ordinal <-
-    inherits(x, c("polr", "clm", "multinom")) |
+    inherits(x, c("polr", "clm", "clmm", "multinom")) |
     fitfam %in% c("cumulative", "cratio", "sratio", "acat")
 
   list(
     is_bin = binom_fam & !neg_bin_fam,
     is_pois = poisson_fam | neg_bin_fam,
     is_negbin = neg_bin_fam,
-    is_logit = logit_link,
+    is_logit = logit.link,
     is_linear = linear_model,
     is_zeroinf = zero.inf,
     is_ordinal = is.ordinal,
-    is_multivariate = multi.resp,
+    is_multivariate = multi.var,
     link.fun = link.fun,
     family = fitfam
   )
@@ -427,7 +505,7 @@ var_names <- function(x) {
 }
 
 
-#' @importFrom sjmisc is_empty
+#' @importFrom sjmisc is_empty trim
 #' @importFrom purrr map_chr
 get_vn_helper <- function(x) {
 
@@ -437,16 +515,20 @@ get_vn_helper <- function(x) {
   # for gam-smoothers/loess, remove s()- and lo()-function in column name
   # for survival, remove strata(), and so on...
   pattern <- c(
-    "as.factor", "log", "lag", "diff", "lo", "bs", "ns", "t2", "te", "ti", "mi",
-    "pspline", "poly", "strata", "scale", "offset", "s"
+    "as.factor", "offset", "log", "lag", "diff", "lo", "bs", "ns", "t2", "te",
+    "ti", "mi", "gp", "pspline", "poly", "strata", "scale", "s"
   )
 
   # do we have a "log()" pattern here? if yes, get capture region
   # which matches the "cleaned" variable name
   purrr::map_chr(1:length(x), function(i) {
     for (j in 1:length(pattern)) {
-      p <- paste0("^", pattern[j], "\\(([^,)]*).*")
-      x[i] <- unique(sub(p, "\\1", x[i]))
+      if (pattern[j] == "offset") {
+        x[i] <- sjmisc::trim(unique(sub("^offset\\(([^-+ )]*).*", "\\1", x[i])))
+      } else {
+        p <- paste0("^", pattern[j], "\\(([^,)]*).*")
+        x[i] <- unique(sub(p, "\\1", x[i]))
+      }
     }
     x[i]
   })

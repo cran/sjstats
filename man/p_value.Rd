@@ -2,14 +2,17 @@
 % Please edit documentation in R/merMod_p.R
 \name{p_value}
 \alias{p_value}
+\alias{p_value.lmerMod}
 \title{Get p-values from regression model objects}
 \usage{
-p_value(fit, p.kr = FALSE)
+p_value(fit, ...)
+
+\method{p_value}{lmerMod}(fit, p.kr = FALSE, ...)
 }
 \arguments{
-\item{fit}{A fitted model object of class \code{lm}, \code{glm}, \code{merMod},
-\code{merModLmerTest}, \code{pggls} or \code{gls}. Other classes may
-work as well.}
+\item{fit}{A model object.}
+
+\item{...}{Currently not used.}
 
 \item{p.kr}{Logical, if \code{TRUE}, the computation of p-values is based on
 conditional F-tests with Kenward-Roger approximation for the df (see
@@ -36,7 +39,8 @@ For linear mixed models (\code{lmerMod}-objects), the computation of
         \cr \cr
         The \code{print()}-method has a \code{summary}-argument, that - in
         case \code{p.kr = TRUE} - also prints information on the approximated
-        degrees of freedom (see 'Examples').
+        degrees of freedom (see 'Examples'). A shortcut is the
+        \code{summary()}-method, which simply calls \code{print(..., summary = TRUE)}.
 }
 \examples{
 data(efc)
@@ -61,5 +65,7 @@ pv
 
 # add information on df and t-statistic
 print(pv, summary = TRUE)
+# or
+summary(pv)
 
 }

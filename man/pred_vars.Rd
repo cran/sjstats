@@ -16,17 +16,21 @@ resp_var(x)
 
 resp_val(x)
 
-link_inverse(x)
+link_inverse(x, multi.resp = FALSE)
 
 model_frame(x, fe.only = TRUE)
 
-model_family(x)
+model_family(x, multi.resp = FALSE)
 
 var_names(x)
 }
 \arguments{
 \item{x}{A fitted model; for \code{var_names()}, \code{x} may also be a
 character vector.}
+
+\item{multi.resp}{Logical, if \code{TRUE} and model is a multivariate response
+model from a \code{brmsfit} object or of class \code{stanmvreg}, then a
+list of values (one for each regression) is returned.}
 
 \item{fe.only}{Logical, if \code{TRUE} (default) and \code{x} is a mixed effects
 model, returns the model frame for fixed effects only.}
@@ -58,7 +62,6 @@ Several functions to retrieve information from model objects,
      \item \code{is_pois}: family is either poisson or negative binomial
      \item \code{is_negbin}: family is negative binomial
      \item \code{is_logit}: model has logit link
-     \item \code{is_linear}: family is gaussian
      \item \code{is_linear}: family is gaussian
      \item \code{is_ordinal}: family is ordinal or cumulative link
      \item \code{is_zeroinf}: model has zero-inflation component

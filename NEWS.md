@@ -1,3 +1,40 @@
+# sjstats 0.16.0
+
+## General
+
+* The S3-generics for functions like `hdi()`, `rope()`, `equi_test()` etc. are now more generic, and function usage for each supported object is now included in the documentation.
+* Following functions are now S3-generic: `icc()`, `r2()`, `p_value()`, `se()`, and `std_beta()`.
+* Added `print()`-methods for some more functions, for a clearer output.
+* Revised `r2()` for mixed models (packages **lme4**, **glmmTMB**). The r-squared value should be much more precise now, and reports the marginal and conditional r-squared values.
+* Reduced package dependencies and removed _apaTables_ and _MBESS_ from suggested packages
+* `stanmvreg`-models are now supported by many functions.
+
+## New functions
+
+* `binned_resid()` to plot binned residuals for logistic regression models.
+* `error_rate()` to compute model quality for logistic regression models.
+* `auto_prior()` to quickly create automatically adjusted priors for brms-models.
+* `difficulty()` to compute the item difficulty.
+
+## Changes to functions
+
+* `icc()` gets a `ppd`-argument for Stan-models (*brmsfit* and *stanreg*), which performs a variance decomposition based on the posterior predictive distribution. This is the recommended way for non-Gaussian models.
+* For Stan-models (*brmsfit* and *stanreg*), `icc()` now also computes the HDI for the ICC and random-effect variances. Use the `prob`-argument to specify the limits of this interval.
+* `link_inverse()` and `model_family()` now support _clmm_-models (package *ordinal*) and _glmRob_ and _lmRob_-models (package *robust*).
+* `model_family()` gets a `multi.resp`-argument, to return a list of family-informations for multivariate-response models (of class `brmsfit` or `stanmvreg`).
+* `link_inverse()` gets a `multi.resp`-argument, to return a list of link-inverse-functions for multivariate-response models (of class `brmsfit` or `stanmvreg`).
+* `p_value()` now supports _rlm_-models (package *MASS*).
+* `check_assumptions()` for single models with `as.logical = FALSE` now has a nice print-method.
+* `eta_sq()` and `omega_sq()` now also work for repeated-measure Anovas, i.e. Anova with error term (requires broom > 0.4.5).
+
+## Bug fixes
+
+* `model_frame()` and `var_names()` now correctly cleans nested patterns like `offset(log(x + 10))` from column names.
+* `model_frame()` now returns proper column names from _gamm4_ models.
+* `model_frame()` did not work when the model frame had spline-terms and weights.
+* Fix issue in `robust()` when `exponentiate = TRUE` and `conf.int = FALSE`.
+* `reliab_test()` returned an error when the provided data frame has less than three columns, instead of returning `NULL`.
+
 # sjstats 0.15.0
 
 ## General

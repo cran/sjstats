@@ -54,8 +54,6 @@
 #'      }
 #'    }
 #'
-#' @seealso \code{\link{hdi}}
-#'
 #' @references Kruschke JK. \emph{Doing Bayesian Data Analysis: A Tutorial with R, JAGS, and Stan.} 2nd edition. Academic Press, 2015
 #' \cr \cr
 #' Gelman A, Carlin JB, Stern HS, Dunson DB, Vehtari A, Rubin DB. \emph{Bayesian data analysis.} 3rd ed. Boca Raton: Chapman & Hall/CRC, 2013
@@ -97,25 +95,51 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
   if (inherits(x, "brmsfit")) mod.dat <- brms_clean(mod.dat)
 
   # compute HDI
-  out <- hdi(x, prob = prob, trans = trans, type = type)
+  out.hdi <- hdi(x, prob = prob, trans = trans, type = type)
+
+  # get statistics
+  nr <- bayesplot::neff_ratio(x)
 
   # we need names of elements, for correct removal
-  nr <- bayesplot::neff_ratio(x)
 
   if (inherits(x, "brmsfit")) {
     cnames <- make.names(names(nr))
-    keep <- cnames %in% out$term
+    keep <- cnames %in% out.hdi$term
   } else {
-    keep <- 1:nrow(out)
+    keep <- names(nr) %in% out.hdi$term
   }
 
-
-  # compute additional statistics, like point estimate, standard errors etc.
-
   nr <- nr[keep]
-  rh <- bayesplot::rhat(x)[keep]
+  ratio <- data.frame(
+    term = names(nr),
+    ratio = nr,
+    stringsAsFactors = FALSE
+  )
+
+
+  rh <- bayesplot::rhat(x)
+
+  if (inherits(x, "brmsfit")) {
+    cnames <- make.names(names(rh))
+    keep <- cnames %in% out.hdi$term
+  } else {
+    keep <- names(rh) %in% out.hdi$term
+  }
+
+  rh <- rh[keep]
+  rhat <- data.frame(
+    term = names(rh),
+    rhat = rh,
+    stringsAsFactors = FALSE
+  )
+
+  if (inherits(x, "brmsfit")) {
+    ratio$term <- make.names(ratio$term)
+    rhat$term <- make.names(rhat$term)
+  }
+
   se <- mcse(x, type = type)
-  se <- se$mcse[se$term %in% out$term]
+  se <- se[se$term %in% out.hdi$term, ]
 
   est <- purrr::map_dbl(mod.dat, ~ sjstats::typical_value(.x, fun = typical))
 
@@ -125,13 +149,20 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
     std.error = purrr::map_dbl(mod.dat, stats::mad)
   ) %>%
     dplyr::inner_join(
-      out,
+      out.hdi,
       by = "term"
     ) %>%
-    dplyr::mutate(
-      neff_ratio = nr,
-      Rhat = rh,
-      mcse = se
+    dplyr::inner_join(
+      ratio,
+      by = "term"
+    ) %>%
+    dplyr::inner_join(
+      rhat,
+      by = "term"
+    ) %>%
+    dplyr::inner_join(
+      se,
+      by = "term"
     )
 
 
@@ -221,6 +252,9 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
     }
 
 
+    ## TODO extract Sigma for stanmvreg random effects
+
+
     # find random slopes
 
     rs1 <- grep("b\\[(.*) (.*)\\]", out$term)
@@ -298,6 +332,32 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
         out$random.effect[re] <- gsub(sprintf("__%s", i), "", out$random.effect[re], fixed = TRUE)
         out$term[re] <- gsub(sprintf("__%s", i), "", out$term[re], fixed = TRUE)
       }
+    }
+
+  }
+
+
+  if (inherits(x, "stanmvreg")) {
+
+    # get response variables
+
+    responses <- resp_var(x)
+    resp.names <- names(responses)
+
+
+    # create "response-level" variable
+
+    out <- tibble::add_column(out, response = "", .before = 1)
+
+
+    # copy name of response into new character variable
+    # and remove response name from term name
+
+    for (i in 1:length(responses)) {
+      pattern <- paste0(resp.names[i], "|")
+      m <- tidyselect::starts_with(pattern, vars = out$term)
+      out$response[intersect(which(out$response == ""), m)] <- responses[i]
+      out$term <- gsub(pattern, "", out$term, fixed = TRUE)
     }
 
   }

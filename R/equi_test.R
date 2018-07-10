@@ -1,6 +1,6 @@
 #' @rdname hdi
 #' @export
-equi_test <- function(x, rope, eff_size, out = c("txt", "viewer", "browser", "plot"), ...) {
+equi_test <- function(x, ...) {
   UseMethod("equi_test")
 }
 
@@ -12,6 +12,7 @@ equi_test.default <- function(x, rope, eff_size, out = c("txt", "viewer", "brows
 }
 
 
+#' @rdname hdi
 #' @export
 equi_test.stanreg <- function(x, rope, eff_size, out = c("txt", "viewer", "browser", "plot"), ...) {
   out <- match.arg(out)
@@ -19,6 +20,7 @@ equi_test.stanreg <- function(x, rope, eff_size, out = c("txt", "viewer", "brows
 }
 
 
+#' @rdname hdi
 #' @export
 equi_test.brmsfit <- function(x, rope, eff_size, out = c("txt", "viewer", "browser", "plot"), ...) {
   # check for pkg availability, else function might fail
@@ -139,7 +141,7 @@ equi_test_worker <- function(x, rope, eff_size, out, fm, ...) {
 #' @importFrom tidyselect contains
 plot_sj_equi_test <- function(x, model, ...) {
 
-  if (!requireNamespace("ggplot2", quietly = TRUE) || !requireNamespace("ggridges", quietly = TRUE)) {
+  if (!requireNamespace("ggplot2", quietly = TRUE) && !requireNamespace("ggridges", quietly = TRUE)) {
     warning("Packages 'ggplot2' and 'ggridges' required to plot test for practical equivalence.", call. = FALSE)
     return(x)
   }

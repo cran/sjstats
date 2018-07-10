@@ -180,7 +180,7 @@ deviance.svyglm.nb <- function(object, ...) {
 
 #' @importFrom purrr map_chr map2_chr
 #' @export
-print.sjstats_r2 <- function(x, digits = 3, ...) {
+print.sj_r2 <- function(x, digits = 3, ...) {
 
   labels <- purrr::map_chr(x, ~ names(.x))
   width <- max(nchar(labels))
@@ -196,7 +196,7 @@ print.sjstats_r2 <- function(x, digits = 3, ...) {
 
 
 #' @export
-print.icc.lme4 <- function(x, comp, ...) {
+print.sj_icc_merMod <- function(x, comp, ...) {
   # print model information
   cat(sprintf("\n%s\n Family: %s (%s)\nFormula: %s\n\n",
               attr(x, "model", exact = T),
@@ -633,17 +633,14 @@ clean_term_name <- function(x) {
 #' @importFrom crayon cyan blue red magenta green silver
 #' @importFrom dplyr case_when
 #' @export
-print.icc.posterior <- function(x, ..., prob = .89, digits = 2) {
+print.sj_icc_brms <- function(x, digits = 2, ...) {
   # print model information
   cat("\n# Random Effect Variances and ICC\n\n")
   cat(sprintf(
-    "Family: %s (%s)\nFormula: %s\n\n",
+    "Family: %s (%s)\n\n",
     attr(x, "family", exact = T),
-    attr(x, "link", exact = T),
-    as.character(attr(x, "formula"))[1]
+    attr(x, "link", exact = T)
   ))
-
-  x <- sjmisc::remove_empty_cols(x)
 
   get_re_col <- function(i, st) {
     dplyr::case_when(
@@ -656,45 +653,160 @@ print.icc.posterior <- function(x, ..., prob = .89, digits = 2) {
     )
   }
 
-  cn <- colnames(x)
-  cn.icc <- cn[tidyselect::starts_with("icc_", vars = cn)]
-  cn.tau00 <- cn[tidyselect::starts_with("tau.00_", vars = cn)]
+  prob <- attr(x, "prob", exact = TRUE)
+  cn <- names(x)
 
   # print icc
 
-  for (i in seq_len(length(cn.icc))) {
-    re.name <- substr(cn[i], 5, nchar(cn.icc[i]))
+  for (i in seq_len(length(cn))) {
+    re.name <- substr(cn[i], 5, nchar(cn[i]))
 
     cat(get_re_col(i, sprintf("## %s\n", re.name)))
 
-    icc.val <- sprintf("%.*f", digits, median(x[[cn.icc[i]]]))
-    tau.val <- sprintf("%.*f", digits, median(x[[cn.tau00[i]]]))
+    icc.val <- sprintf("%.*f", digits, x[i])
+    tau.val <- sprintf("%.*f", digits, attr(x, "tau.00", exact = TRUE)[i])
     ml <- max(nchar(icc.val), nchar(tau.val))
 
-    ci.icc <- hdi(x[[cn.icc[i]]], prob = prob)
+    ci.icc <- attr(x, "hdi.icc", exact = TRUE)[[i]]
     ci.icc.lo <- sprintf("%.*f", digits, ci.icc[1])
     ci.icc.hi <- sprintf("%.*f", digits, ci.icc[2])
 
-    ci.tau <- hdi(x[[cn.tau00[i]]], prob = prob)
+    ci.tau <- attr(x, "hdi.tau.00", exact = TRUE)[[i]]
     ci.tau.lo <- sprintf("%.*f", digits, ci.tau[1])
     ci.tau.hi <- sprintf("%.*f", digits, ci.tau[2])
 
     ml.ci <- max(nchar(ci.icc.lo), nchar(ci.tau.lo))
+    mh.ci <- max(nchar(ci.icc.hi), nchar(ci.tau.hi))
 
     # ICC
     cat(sprintf(
-      "          ICC: %*s (HDI %i%%: %*s-%s)\n",
+      "          ICC: %*s  HDI %i%%: [%*s %*s]\n",
       ml,
       icc.val,
       as.integer(round(prob * 100)),
       ml.ci,
       ci.icc.lo,
+      mh.ci,
       ci.icc.hi
     ))
 
     # Tau00
     cat(sprintf(
-      "Between-group: %*s (HDI %i%%: %*s-%s)\n\n",
+      "Between-group: %*s  HDI %i%%: [%*s %*s]\n\n",
+      ml,
+      tau.val,
+      as.integer(round(prob * 100)),
+      ml.ci,
+      ci.tau.lo,
+      mh.ci,
+      ci.tau.hi
+    ))
+  }
+
+  # print sigma squared
+
+  ci <- attr(x, "hdi.sigma_2", exact = TRUE)
+  infs <- crayon::red("## Residuals")
+  cat(sprintf(
+    "%s\nWithin-group: %.*f  HDI %i%%: [%.*f %.*f]\n",
+    infs,
+    digits,
+    attr(x, "sigma_2", exact = TRUE),
+    as.integer(round(prob * 100)),
+    digits,
+    ci[1],
+    digits,
+    ci[2]
+  ))
+
+
+  rsv <- attr(x, "tau.11", exact = TRUE)
+  if (!is.null(rsv)) cat(crayon::red("\n## Random-slope-variance\n"))
+
+  # print Random-slope-variance
+
+  for (i in seq_len(length(rsv))) {
+    infs <- sprintf("%s", substr(names(rsv[i]), 8, nchar(names(rsv[i]))))
+    ci <- attr(x, "hdi.tau.11")[[i]]
+    cat(sprintf(
+      "%s: %.*f  HDI %i%%: [%.*f %.*f]\n",
+      infs,
+      digits,
+      rsv[i],
+      as.integer(round(prob * 100)),
+      digits,
+      ci[1],
+      digits,
+      ci[2]
+    ))
+  }
+}
+
+
+#' @importFrom tidyselect starts_with
+#' @importFrom sjmisc remove_empty_cols
+#' @importFrom crayon cyan blue red magenta green silver
+#' @importFrom dplyr case_when
+#' @export
+print.sj_icc_stanreg <- function(x, digits = 2, ...) {
+  # print model information
+  cat("\n# Random Effect Variances and ICC\n\n")
+  cat(sprintf(
+    "Family: %s (%s)\n\n",
+    attr(x, "family", exact = T),
+    attr(x, "link", exact = T)
+  ))
+
+  get_re_col <- function(i, st) {
+    dplyr::case_when(
+      i == 1 ~ crayon::blue(st),
+      i == 2 ~ crayon::cyan(st),
+      i == 3 ~ crayon::magenta(st),
+      i == 4 ~ crayon::green(st),
+      i == 5 ~ crayon::red(st),
+      TRUE ~ crayon::silver(st)
+    )
+  }
+
+  prob <- attr(x, "prob", exact = TRUE)
+  cn <- names(x)
+
+  # print icc
+
+  for (i in seq_len(length(cn))) {
+
+    cat(get_re_col(i, sprintf("## %s\n", cn[i])))
+
+    icc.val <- sprintf("%.*f", digits, x[i])
+    tau.val <- sprintf("%.*f", digits, attr(x, "tau.00", exact = TRUE)[i])
+    ml <- max(nchar(icc.val), nchar(tau.val))
+
+    ci.icc <- attr(x, "hdi.icc", exact = TRUE)[[i]]
+    ci.icc.lo <- sprintf("%.*f", digits, ci.icc[1])
+    ci.icc.hi <- sprintf("%.*f", digits, ci.icc[2])
+
+    ci.tau <- attr(x, "hdi.tau.00", exact = TRUE)[[i]]
+    ci.tau.lo <- sprintf("%.*f", digits, ci.tau[1])
+    ci.tau.hi <- sprintf("%.*f", digits, ci.tau[2])
+
+    ml.ci <- max(nchar(ci.icc.lo), nchar(ci.tau.lo))
+    mh.ci <- max(nchar(ci.icc.hi), nchar(ci.tau.hi))
+
+    # ICC
+    cat(sprintf(
+      "          ICC: %*s  HDI %i%%: [%*s %*s]\n",
+      ml,
+      icc.val,
+      as.integer(round(prob * 100)),
+      ml.ci,
+      ci.icc.lo,
+      mh.ci,
+      ci.icc.hi
+    ))
+
+    # Tau00
+    cat(sprintf(
+      "Between-group: %*s  HDI %i%%: [%*s %s]\n\n",
       ml,
       tau.val,
       as.integer(round(prob * 100)),
@@ -706,13 +818,13 @@ print.icc.posterior <- function(x, ..., prob = .89, digits = 2) {
 
   # print sigma squared
 
-  ci <- hdi(x[["resid_var"]], prob = prob)
+  ci <- attr(x, "hdi.sigma_2", exact = TRUE)
   infs <- crayon::red("## Residuals")
   cat(sprintf(
-    "%s\nWithin-group: %.*f (HDI %i%%: %.*f-%.*f)\n\n",
+    "%s\nWithin-group: %.*f  HDI %i%%: [%.*f %.*f]\n",
     infs,
     digits,
-    median(x[["resid_var"]]),
+    attr(x, "sigma_2", exact = TRUE),
     as.integer(round(prob * 100)),
     digits,
     ci[1],
@@ -721,22 +833,19 @@ print.icc.posterior <- function(x, ..., prob = .89, digits = 2) {
   ))
 
 
-  cn <- colnames(x)
-  cn <- cn[tidyselect::starts_with("tau.11_", vars = cn)]
-
-  if (!sjmisc::is_empty(cn)) cat(crayon::red("## Random-slope-variance\n"))
+  rsv <- attr(x, "tau.11", exact = TRUE)
+  if (!is.null(rsv)) cat(crayon::cyan("\n## Random-slope-variance\n"))
 
   # print Random-slope-variance
 
-  for (i in seq_len(length(cn))) {
-    tau.name <- substr(cn[i], 8, nchar(cn[i]))
-    infs <- sprintf("%s", tau.name)
-    ci <- hdi(x[[cn[i]]], prob = prob)
+  for (i in seq_len(length(rsv))) {
+    infs <- sprintf("%s", names(rsv[i]))
+    ci <- attr(x, "hdi.tau.11")[[i]]
     cat(sprintf(
-      "%s: %.*f (HDI %i%%: %.*f-%.*f)\n",
+      "%s: %.*f  HDI %i%%: [%.*f %.*f]\n",
       infs,
       digits,
-      median(x[[cn[i]]]),
+      rsv[i],
       as.integer(round(prob * 100)),
       digits,
       ci[1],
@@ -744,6 +853,158 @@ print.icc.posterior <- function(x, ..., prob = .89, digits = 2) {
       ci[2]
     ))
   }
+
+
+  rsicov <- attr(x, "tau.01", exact = TRUE)
+  rsicor <- attr(x, "rho.01", exact = TRUE)
+  if (!is.null(rsicov)) cat(crayon::cyan("\n## Random-slope-intercept covariances\n"))
+
+  # print Random-slope-variance
+
+  for (i in seq_len(length(rsicov))) {
+    infs <- sprintf("%s", gsub("^Sigma\\[(.*),\\(Intercept\\)\\]" , "\\1", names(rsicov[i])))
+
+    cov.val <- sprintf("%.*f", digits, rsicov[i])
+    cor.val <- sprintf("%.*f", digits, rsicor[i])
+
+    ml <- max(nchar(cov.val), nchar(cor.val))
+
+    ci.cov <- attr(x, "hdi.tau.01")[[i]]
+    ci.cor <- attr(x, "hdi.rho.01")[[i]]
+
+    ci.cov.lo <- sprintf("%.*f", digits, ci.cov[1])
+    ci.cov.hi <- sprintf("%.*f", digits, ci.cov[2])
+
+    ci.cor.lo <- sprintf("%.*f", digits, ci.cor[1])
+    ci.cor.hi <- sprintf("%.*f", digits, ci.cor[2])
+
+    ml.ci <- max(nchar(ci.cov.lo), nchar(ci.cor.lo))
+    mh.ci <- max(nchar(ci.cov.hi), nchar(ci.cov.hi))
+
+    cat(sprintf(
+      " Covariance %s: %*s  HDI %i%%: [%*s %*s]\n",
+      infs,
+      ml,
+      cov.val,
+      as.integer(round(prob * 100)),
+      ml.ci,
+      ci.cov.lo,
+      mh.ci,
+      ci.cov.hi
+    ))
+
+    infs <- sprintf("%s", gsub("^Sigma\\[(.*),\\(Intercept\\)\\]" , "\\1", names(rsicor[i])))
+
+    cat(sprintf(
+      "Correlation %s: %*s  HDI %i%%: [%*s %*s]\n",
+      infs,
+      ml,
+      cor.val,
+      as.integer(round(prob * 100)),
+      ml.ci,
+      ci.cor.lo,
+      mh.ci,
+      ci.cor.hi
+    ))
+  }
+}
+
+
+#' @export
+print.icc_ppd <- function(x, digits = 2, ...) {
+  # print model information
+  cat("\n# Random Effect Variances and ICC\n\n")
+
+  reform <- attr(x, "re.form", exact = TRUE)
+  if (is.null(reform))
+    reform <- "all random effects"
+  else
+    reform <- deparse(reform)
+
+  cat(sprintf(
+    "Family: %s (%s)\nConditioned on: %s\n\n",
+    attr(x, "family", exact = T),
+    attr(x, "link", exact = T),
+    reform
+  ))
+
+  prob <- attr(x, "prob", exact = TRUE)
+
+  cat(crayon::blue("## Variance Ratio (comparable to ICC)\n"))
+
+  icc.val <- sprintf("%.*f", digits, x["icc"])
+
+  ci.icc <- attr(x, "hdi.icc", exact = TRUE)
+  ci.icc.lo <- sprintf("%.*f", digits, ci.icc[1])
+  ci.icc.hi <- sprintf("%.*f", digits, ci.icc[2])
+
+  # ICC
+  cat(sprintf(
+    "Ratio: %s  HDI %i%%: [%s %s]\n",
+    icc.val,
+    as.integer(round(prob * 100)),
+    ci.icc.lo,
+    ci.icc.hi
+  ))
+
+  cat(crayon::blue("\n## Variances of Posterior Predicted Distribution\n"))
+
+  null.model <- sprintf("%.*f", digits, x["tau.00"])
+
+  ci.null <- attr(x, "hdi.tau.00", exact = TRUE)
+  ci.null.lo <- sprintf("%.*f", digits, ci.null[1])
+  ci.null.hi <- sprintf("%.*f", digits, ci.null[2])
+
+  full.model <- sprintf("%.*f", digits, x["total.var"])
+
+  ci.full <- attr(x, "hdi.total", exact = TRUE)
+  ci.full.lo <- sprintf("%.*f", digits, ci.full[1])
+  ci.full.hi <- sprintf("%.*f", digits, ci.full[2])
+
+  ml <- max(nchar(null.model), nchar(full.model))
+  ml.ci <- max(nchar(ci.full.lo), nchar(ci.null.lo))
+  mh.ci <- max(nchar(ci.full.hi), nchar(ci.null.hi))
+
+  # Conditioned on fixed effects
+  cat(sprintf(
+    "Conditioned on fixed effects: %*s  HDI %i%%: [%*s %*s]\n",
+    ml,
+    null.model,
+    as.integer(round(prob * 100)),
+    ml.ci,
+    ci.null.lo,
+    mh.ci,
+    ci.null.hi
+  ))
+
+  # Conditioned on random effects
+  cat(sprintf(
+    "Conditioned on rand. effects: %*s  HDI %i%%: [%*s %*s]\n",
+    ml,
+    full.model,
+    as.integer(round(prob * 100)),
+    ml.ci,
+    ci.full.lo,
+    mh.ci,
+    ci.full.hi
+  ))
+
+  cat(crayon::red("\n## Difference in Variances\n"))
+
+  res <- sprintf("%.*f", digits, x["resid.var"])
+
+  ci.res <- attr(x, "hdi.resid", exact = TRUE)
+  ci.res.lo <- sprintf("%.*f", digits, ci.res[1])
+  ci.res.hi <- sprintf("%.*f", digits, ci.res[2])
+
+  # ICC
+  cat(sprintf(
+    "Difference: %s  HDI %i%%: [%s %s]\n",
+    res,
+    as.integer(round(prob * 100)),
+    ci.res.lo,
+    ci.res.hi
+  ))
 }
 
 
@@ -777,7 +1038,7 @@ print.sj_resample <- function(x, ...) {
 
 
 #' @export
-print.se.icc.lme4 <- function(x, ...) {
+print.sj_se_icc <- function(x, ...) {
   cat("Standard Error of ICC\n")
   cat(sprintf("      Model: %s\n", x$result$model[[1]]))
 
@@ -916,7 +1177,7 @@ print.sj_splithalf <- function(x, ...) {
 
 #' @importFrom crayon blue
 #' @export
-print.sjstats_zcf <- function(x, ...) {
+print.sj_zcf <- function(x, ...) {
   cat(crayon::blue("\n# Zero-Count overfitting\n\n"))
   cat(sprintf("   Observed zero-counts: %i\n", x$observed.zeros))
   cat(sprintf("  Predicted zero-counts: %i\n", x$predicted.zeros))
@@ -937,7 +1198,7 @@ print.sjstats_zcf <- function(x, ...) {
 
 #' @importFrom crayon blue
 #' @export
-print.sjstats_ovderdisp <- function(x, ...) {
+print.sj_ovderdisp <- function(x, ...) {
   cat(crayon::blue("\n# Overdispersion test\n\n"))
   cat(sprintf("       dispersion ratio = %.4f\n", x$ratio))
   cat(sprintf("  Pearson's Chi-Squared = %.4f\n", x$chisq))
@@ -952,7 +1213,7 @@ print.sjstats_ovderdisp <- function(x, ...) {
 
 
 #' @export
-print.sjstats_outliers <- function(x, ...) {
+print.sj_outliers <- function(x, ...) {
   print(x$result, ...)
 }
 
@@ -990,7 +1251,7 @@ print.sj_xtab_stat <- function(x, ...) {
 
 #' @importFrom crayon blue
 #' @export
-print.sjstats_pred_accuracy <- function(x, ...) {
+print.sj_pred_accuracy <- function(x, ...) {
   # headline
   cat(crayon::blue("\n# Accuracy of Model Predictions\n\n"))
 
@@ -1127,7 +1388,7 @@ print.sj_revar <- function(x, ...) {
 #' @importFrom purrr map_df
 #' @importFrom tibble add_column
 #' @export
-print.sjstats.pca_rotate <- function(x, cutoff = .1, ...) {
+print.sj_pca_rotate <- function(x, cutoff = .1, ...) {
 
   xs <- attr(x, "variance", exact = TRUE)
 
@@ -1157,7 +1418,7 @@ print.sjstats.pca_rotate <- function(x, cutoff = .1, ...) {
 
 
 #' @export
-print.sjstats.pca <- function(x, ...) {
+print.sj_pca <- function(x, ...) {
   x <- as.data.frame(round(x, 4))
   rownames(x) <- c("Standard deviation", "Eigenvalue", "Proportion variance", "Cumulative variance")
 
@@ -1342,4 +1603,178 @@ print.sj_pval <- function(x, digits = 3, summary = FALSE, ...) {
 
   x <- purrr::map_if(x, is.numeric, round, digits = digits)
   print.data.frame(as.data.frame(x), ..., row.names = TRUE)
+}
+
+
+#' @export
+summary.sj_pval <- function(object, digits = 3, summary = FALSE, ...) {
+  print(object, digits, summary = TRUE)
+}
+
+
+#' @export
+print.sj_error_rate <- function(x, ...) {
+  cat(crayon::blue("\n# Error Rate of Logistic Regression Model\n\n"))
+  cat(sprintf("  Full model: %.2f%%\n", 100 * x$error.model))
+  cat(sprintf("  Null model: %.2f%%\n", 100 * x$error.null))
+
+  cat(crayon::blue("\n# Likelihood-Ratio-Test\n\n"))
+
+  v1 <- sprintf("%.3f", x$lrt.chisq)
+  v2 <- sprintf("%.3f", x$lrt.p)
+
+  space <- max(nchar(c(v1, v2)))
+
+  cat(sprintf("  Chi-squared: %*s\n", space, v1))
+  cat(sprintf("      p-value: %*s\n\n", space, v2))
+}
+
+
+#' @importFrom rlang .data
+#' @export
+print.sj_binres <- function(x, ...) {
+  if (!requireNamespace("ggplot2", quietly = TRUE)) {
+    stop("Package `ggplot2` required.", call. = F)
+  }
+
+  if (!requireNamespace("scales", quietly = TRUE)) {
+    stop("Package `scales` required.", call. = F)
+  }
+
+  x$se.lo <- -x$se
+  if (length(unique(x$group)) > 1)
+    ltitle <- "Within error bounds"
+  else
+    ltitle <- NULL
+
+  term <- attr(x, "term", exact = TRUE)
+  term.label <- attr(x, "term.label", exact = TRUE)
+
+  if (is.null(term))
+    xtitle <- sprintf("Estimated Probability of %s", attr(x, "resp_var", exact = TRUE))
+  else
+    xtitle = term.label
+
+  p <- ggplot2::ggplot(data = x, ggplot2::aes_string(x = "xbar")) +
+    ggplot2::geom_abline(slope = 0, intercept = 0, colour = "grey80")
+
+  if (!is.null(term)) {
+    p <- p +
+      ggplot2::stat_smooth(
+        ggplot2::aes_string(y = "ybar"),
+        method = "loess",
+        se = FALSE,
+        colour = "#00b159",
+        size = .5
+      )
+  }
+
+  p <- p +
+    ggplot2::geom_ribbon(ggplot2::aes_string(ymin = -Inf, ymax = "se.lo"), alpha = .1 , fill = "grey70") +
+    ggplot2::geom_ribbon(ggplot2::aes_string(ymin = "se", ymax = Inf), alpha = .1 , fill = "grey70") +
+    ggplot2::geom_line(ggplot2::aes_string(y = "se"), colour = "grey70") +
+    ggplot2::geom_line(ggplot2::aes_string(y = "se.lo"), colour = "grey70") +
+    ggplot2::theme_bw() +
+    ggplot2::scale_color_manual(values = c("#d11141", "#00aedb")) +
+    ggplot2::labs(
+      y = "Average residual",
+      x = xtitle,
+      colour = ltitle
+    )
+
+  if (is.null(term)) {
+    p <- p + ggplot2::scale_x_continuous(labels = scales::percent)
+  }
+
+  if (is.null(ltitle)) {
+    p <- p + ggplot2::geom_point(ggplot2::aes_string(y = "ybar"))
+  } else {
+    p <- p + ggplot2::geom_point(ggplot2::aes_string(y = "ybar", colour = "group"))
+  }
+
+  suppressWarnings(graphics::plot(p))
+}
+
+
+#' @export
+print.sj_chi2gof <- function(x, ...) {
+  cat(crayon::blue("\n# Chi-squared Goodness-of-Fit Test\n\n"))
+
+  v1 <- sprintf("%.3f", x$chisq)
+  v2 <- sprintf("%.3f", x$z.score)
+  v3 <- sprintf("%.3f", x$p.value)
+
+  space <- max(nchar(c(v1, v2, v3)))
+
+  cat(sprintf("  Chi-squared: %*s\n", space, v1))
+  cat(sprintf("      z-score: %*s\n", space, v2))
+  cat(sprintf("      p-value: %*s\n\n", space, v3))
+
+  if (x$p.value >= 0.05)
+    message("Summary: model seems to fit well.")
+  else
+    message("Summary: model does not fit well.")
+}
+
+
+#' @importFrom crayon blue
+#' @export
+print.sj_hoslem <- function(x, ...) {
+  cat(crayon::blue("\n# Hosmer-Lemeshow Goodness-of-Fit Test\n\n"))
+
+  v1 <- sprintf("%.3f", x$chisq)
+  v2 <- sprintf("%i    ", x$df)
+  v3 <- sprintf("%.3f", x$p.value)
+
+  space <- max(nchar(c(v1, v2, v3)))
+
+  cat(sprintf("  Chi-squared: %*s\n", space, v1))
+  cat(sprintf("           df: %*s\n", space, v2))
+  cat(sprintf("      p-value: %*s\n\n", space, v3))
+
+  if (x$p.value >= 0.05)
+    message("Summary: model seems to fit well.")
+  else
+    message("Summary: model does not fit well.")
+}
+
+
+#' @importFrom crayon blue
+#' @export
+print.sj_check_assump <- function(x, ...) {
+  cat(crayon::blue("\n# Checking Model-Assumptions\n\n"))
+  cat(sprintf("  Model: %s", attr(x, "formula", exact = TRUE)))
+
+  cat(crayon::red("\n\n                          violated    statistic\n"))
+
+  v1 <- ifelse(x$heteroskedasticity < 0.05, "yes", "no")
+  v2 <- ifelse(x$multicollinearity > 4, "yes", "no")
+  v3 <- ifelse(x$non.normal.resid < 0.05, "yes", "no")
+  v4 <- ifelse(x$autocorrelation < 0.05, "yes", "no")
+
+  s1 <- sprintf("p = %.3f", x$heteroskedasticity)
+  s2 <- sprintf("vif = %.3f", x$multicollinearity)
+  s3 <- sprintf("p = %.3f", x$non.normal.resid)
+  s4 <- sprintf("p = %.3f", x$autocorrelation)
+
+  cat(sprintf("  Heteroskedasticity      %8s  %11s\n", v1, s1))
+  cat(sprintf("  Non-normal residuals    %8s  %11s\n", v3, s3))
+  cat(sprintf("  Autocorrelated residuals%8s  %11s\n", v4, s4))
+  cat(sprintf("  Multicollinearity       %8s  %11s\n", v2, s2))
+}
+
+
+#' @importFrom crayon blue
+#' @export
+print.sj_item_diff <- function(x, ...) {
+  cat(crayon::blue("\n# Item Difficulty\n\n"))
+
+  items <- attr(x, "items", exact = TRUE)
+  ideal <- attr(x, "ideal.difficulty", exact = TRUE)
+  spaces <- max(nchar(items))
+
+  cat(crayon::red(sprintf("  %*s  ideal\n", spaces + 10, "difficulty")))
+
+  for (i in 1:length(items))
+    cat(sprintf("  %*s      %.2f   %.2f\n", spaces, items[i], x[i], ideal[i]))
 }
