@@ -50,7 +50,6 @@
 #' scale_weights(nhanes_sample, SDMVSTRA, WTINT2YR)
 #'
 #' @importFrom dplyr group_by summarise n right_join enquo filter quo_name slice
-#' @importFrom tibble tibble
 #' @importFrom rlang .data
 #' @importFrom sjmisc is_empty
 #' @export
@@ -84,7 +83,7 @@ scale_weights <- function(x, cluster.id, pweight) {
   # copy data set, so we only append the two new weights
 
   tmp <- dummy_x
-  tmp$s_q_w <- dummy_x[[pw.name]] ^ 2
+  tmp$s_q_w <- dummy_x[[pw.name]]^2
 
 
   # compute sum of weights per cluster

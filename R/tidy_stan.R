@@ -72,8 +72,6 @@
 #'
 #' @importFrom purrr map flatten_dbl map_dbl modify_if
 #' @importFrom dplyr bind_cols select mutate slice inner_join n_distinct
-#' @importFrom tidyselect starts_with contains
-#' @importFrom tibble add_column tibble has_name
 #' @importFrom stats mad formula
 #' @importFrom bayesplot rhat neff_ratio
 #' @importFrom sjmisc is_empty trim
@@ -87,8 +85,9 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
   # check arguments
   type <- match.arg(type)
 
-  # get data frame
+  # get data frame and family info
   mod.dat <- as.data.frame(x)
+  faminfo <- model_family(x)
 
   # for brmsfit models, we need to remove some columns here to
   # match data rows later
@@ -110,10 +109,9 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
   }
 
   nr <- nr[keep]
-  ratio <- data.frame(
+  ratio <- data_frame(
     term = names(nr),
-    ratio = nr,
-    stringsAsFactors = FALSE
+    ratio = nr
   )
 
 
@@ -127,10 +125,9 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
   }
 
   rh <- rh[keep]
-  rhat <- data.frame(
+  rhat <- data_frame(
     term = names(rh),
-    rhat = rh,
-    stringsAsFactors = FALSE
+    rhat = rh
   )
 
   if (inherits(x, "brmsfit")) {
@@ -143,7 +140,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
 
   est <- purrr::map_dbl(mod.dat, ~ sjstats::typical_value(.x, fun = typical))
 
-  out <- tibble::tibble(
+  out <- data_frame(
     term = names(est),
     estimate = est,
     std.error = purrr::map_dbl(mod.dat, stats::mad)
@@ -182,7 +179,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
 
   if (type == "random" || type == "all") {
 
-    out <- tibble::add_column(out, random.effect = "", .before = 1)
+    out <- add_cols(out, random.effect = "", .after = -1)
 
     # find random intercepts
 
@@ -282,23 +279,39 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
 
     # did we really had random effects?
 
-    if (tibble::has_name(out, "random.effect") &&
+    if (obj_has_name(out, "random.effect") &&
         all(sjmisc::is_empty(out$random.effect, first.only = FALSE)))
       out <- dplyr::select(out, -.data$random.effect)
   }
 
 
+  # categorical model?
+
+  if (inherits(x, "brmsfit") && faminfo$is_categorical) {
+
+    # terms of categorical models are prefixed with "mu"
+
+    if (length(string_starts_with(pattern = "b_mu", x = out$term)) == nrow(out)) {
+      out$term <- substr(out$term, 5, max(nchar(out$term)))
+      # create "response-level" variable
+      out <- add_cols(out, response.level = "", .after = -1)
+      out$response.level <- gsub("(.*)\\_(.*)", "\\1", out$term)
+      out$term <- gsub("(.*)\\_(.*)", "\\2", out$term)
+    }
+  }
+
+
   # multivariate-response model?
 
-  if (inherits(x, "brmsfit") && !is.null(stats::formula(x)$responses)) {
+  if (inherits(x, "brmsfit") && faminfo$is_multivariate) {
 
     # get response variables
 
     responses <- stats::formula(x)$responses
 
     # also clean prepared data frame
-    resp.sigma1 <- tidyselect::starts_with("sigma_", vars = out$term)
-    resp.sigma2 <- tidyselect::starts_with("b_sigma_", vars = out$term)
+    resp.sigma1 <- string_starts_with(pattern = "sigma_", x = out$term)
+    resp.sigma2 <- string_starts_with(pattern = "b_sigma_", x = out$term)
 
     resp.sigma <- c(resp.sigma1, resp.sigma2)
 
@@ -308,12 +321,12 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
 
     # create "response-level" variable
 
-    out <- tibble::add_column(out, response = "", .before = 1)
+    out <- add_cols(out, response = "", .after = -1)
 
     # check if multivariate response model also has random effects
     # we need to clean names for the random effects as well here
 
-    if (tibble::has_name(out, "random.effect")) {
+    if (obj_has_name(out, "random.effect")) {
       re <- which(!sjmisc::is_empty(sjmisc::trim(out$random.effect), first.only = FALSE))
     } else {
       re <- NULL
@@ -323,7 +336,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
     # and remove response name from term name
 
     for (i in responses) {
-      m <- tidyselect::contains(i, vars = out$term)
+      m <- string_contains(pattern = i, x = out$term)
       out$response[intersect(which(out$response == ""), m)] <- i
       out$term <- gsub(sprintf("b_%s_", i), "", out$term, fixed = TRUE)
       out$term <- gsub(sprintf("s_%s_", i), "", out$term, fixed = TRUE)
@@ -347,7 +360,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
 
     # create "response-level" variable
 
-    out <- tibble::add_column(out, response = "", .before = 1)
+    out <- add_cols(out, response = "", .after = -1)
 
 
     # copy name of response into new character variable
@@ -355,7 +368,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
 
     for (i in 1:length(responses)) {
       pattern <- paste0(resp.names[i], "|")
-      m <- tidyselect::starts_with(pattern, vars = out$term)
+      m <- string_starts_with(pattern = pattern, x = out$term)
       out$response[intersect(which(out$response == ""), m)] <- responses[i]
       out$term <- gsub(pattern, "", out$term, fixed = TRUE)
     }
@@ -379,9 +392,8 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
 }
 
 
-#' @importFrom tidyselect starts_with ends_with
+#' @importFrom purrr map_dbl
 #' @importFrom dplyr slice
-#' @importFrom tibble as_tibble
 #' @importFrom sjmisc is_empty
 remove_effects_from_stan <- function(out, type, is.brms) {
 
@@ -393,13 +405,18 @@ remove_effects_from_stan <- function(out, type, is.brms) {
 
   # remove certain terms like log-posterior etc. from output
 
-  keep <-  which(!(out$term %in% c("lp__", "log-posterior", "mean_PPD")))
+  keep <- seq_len(length(out$term))
+
+  for (.x in c("^(?!lp__)", "^(?!log-posterior)", "^(?!mean_PPD)")) {
+    keep <- intersect(keep, grep(.x, out$term, perl = TRUE))
+  }
+
   out <- dplyr::slice(out, !! keep)
 
 
   # if user wants all terms, return data here
 
-  if (type == "all") return(tibble::as_tibble(out))
+  if (type == "all") return(out)
 
 
   # check if we need to remove random or fixed effects
@@ -407,15 +424,15 @@ remove_effects_from_stan <- function(out, type, is.brms) {
 
   alt.term.names <- make.names(out$term)
 
-  re <- tidyselect::starts_with("b[", vars = out$term)
-  re.s <- tidyselect::starts_with("Sigma[", vars = out$term)
+  re <- string_starts_with(pattern = "b[", x = out$term)
+  re.s <- string_starts_with(pattern = "Sigma[", x = out$term)
   re.i1 <- intersect(
-    tidyselect::starts_with("r_", vars = out$term),
-    tidyselect::ends_with(".", vars = out$term)
+    string_starts_with(pattern = "r_", x = out$term),
+    string_ends_with(pattern = ".", x = out$term)
   )
   re.i2 <- intersect(
-    tidyselect::starts_with("r_", vars = alt.term.names),
-    tidyselect::ends_with(".", vars = alt.term.names)
+    string_starts_with(pattern = "r_", x = alt.term.names),
+    string_ends_with(pattern = ".", x = alt.term.names)
   )
 
   removers <- unique(c(re, re.s, re.i1, re.i2))
@@ -431,11 +448,10 @@ remove_effects_from_stan <- function(out, type, is.brms) {
   }
 
 
-  tibble::as_tibble(out)
+  out
 }
 
 
-#' @importFrom tidyselect starts_with ends_with
 #' @importFrom dplyr slice
 #' @importFrom sjmisc is_empty
 brms_clean <- function(out) {
@@ -443,12 +459,12 @@ brms_clean <- function(out) {
   # brmsfit-objects also include sd and cor for mixed
   # effecs models, so remove these here
 
-  if (tibble::has_name(out, "term")) {
-    re.sd <- tidyselect::starts_with("sd_", vars = out$term)
-    re.cor <- tidyselect::starts_with("cor_", vars = out$term)
-    re.s <- tidyselect::starts_with("Sigma[", vars = out$term)
-    lp <- tidyselect::starts_with("lp__", vars = out$term)
-    priors <- tidyselect::starts_with("prior_", vars = out$term)
+  if (obj_has_name(out, "term")) {
+    re.sd <- string_starts_with(pattern = "sd_", x = out$term)
+    re.cor <- string_starts_with(pattern = "cor_", x = out$term)
+    re.s <- string_starts_with(pattern = "Sigma[", x = out$term)
+    lp <- string_starts_with(pattern = "lp__", x = out$term)
+    priors <- string_starts_with(pattern = "prior_", x = out$term)
 
     removers <- unique(c(re.sd, re.cor, re.s, lp, priors))
 
@@ -460,11 +476,11 @@ brms_clean <- function(out) {
   # we may have transformed data frame, where columns
   # need to be removed
 
-  re.sd <- tidyselect::starts_with("sd_", vars = colnames(out))
-  re.cor <- tidyselect::starts_with("cor_", vars = colnames(out))
-  re.s <- tidyselect::starts_with("Sigma[", vars = colnames(out))
-  lp <- tidyselect::starts_with("lp__", vars = colnames(out))
-  priors <- tidyselect::starts_with("prior_", vars = colnames(out))
+  re.sd <- string_starts_with(pattern = "sd_", x = colnames(out))
+  re.cor <- string_starts_with(pattern = "cor_", x = colnames(out))
+  re.s <- string_starts_with(pattern = "Sigma[", x = colnames(out))
+  lp <- string_starts_with(pattern = "lp__", x = colnames(out))
+  priors <- string_starts_with(pattern = "prior_", x = colnames(out))
 
   removers <- unique(c(re.sd, re.cor, re.s, lp, priors))
 

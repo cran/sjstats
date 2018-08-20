@@ -8,8 +8,8 @@
 \alias{mic}
 \title{Check internal consistency of a test or questionnaire}
 \usage{
-reliab_test(x, scale.items = FALSE, digits = 3, out = c("txt", "viewer",
-  "browser"))
+reliab_test(x, scale.items = FALSE, digits = 3, out = c("txt",
+  "viewer", "browser"))
 
 split_half(x, digits = 3)
 
@@ -87,8 +87,14 @@ These function compute various measures of internal consistencies
              A value closer to 1 indicates greater internal consistency.
            }
            \item{\code{cronb()}}{
-             The Cronbach's Alpha value for \code{x}.
-             A value closer to 1 indicates greater internal consistency.
+             The Cronbach's Alpha value for \code{x}. A value closer to 1
+             indicates greater internal consistency, where usually following
+             rule of thumb is applied to interprete the results:
+             \ifelse{html}{\out{&alpha;}}{\eqn{\alpha}{alpha}} < 0.5 is unacceptable,
+             0.5 < \ifelse{html}{\out{&alpha;}}{\eqn{\alpha}{alpha}} < 0.6 is poor,
+             0.6 < \ifelse{html}{\out{&alpha;}}{\eqn{\alpha}{alpha}} < 0.7 is questionable,
+             0.7 < \ifelse{html}{\out{&alpha;}}{\eqn{\alpha}{alpha}} < 0.8 is acceptable,
+             and everything > 0.8 is good or excellent.
            }
            \item{\code{mic()}}{
              This function calculates a mean inter-item-correlation, i.e.
@@ -108,7 +114,7 @@ These function compute various measures of internal consistencies
              \cite{(Piedmont 2014)}
            }
            \item{\code{difficulty()}}{
-             This function calculates the irem difficutly, which should
+             This function calculates the item difficutly, which should
              range between 0.2 and 0.8. Lower values are a signal for
              more difficult items, while higher values close to one
              are a sign for easier items. The ideal value for item difficulty

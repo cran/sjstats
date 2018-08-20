@@ -62,7 +62,7 @@ std_beta <- function(fit, ...) {
 
 #' @importFrom stats sd coef qnorm
 #' @importFrom lme4 fixef getME
-#' @importFrom tibble tibble
+#' @importFrom dplyr slice
 #' @rdname std_beta
 #' @export
 std_beta.merMod <- function(fit, ci.lvl = .95, ...) {
@@ -77,19 +77,19 @@ std_beta.merMod <- function(fit, ci.lvl = .95, ...) {
   se.fixef <- stats::coef(summary(fit))[, "Std. Error"]
   se <- se.fixef * sdx / sdy
 
-  tibble::tibble(
+  data_frame(
     term = names(lme4::fixef(fit)),
     std.estimate = sc,
     std.error = se,
     conf.low = sc - stats::qnorm(ci) * se,
     conf.high = sc + stats::qnorm(ci) * se
-  )
+  ) %>%
+    dplyr::slice(-1)
 
 }
 
 
 #' @importFrom stats model.matrix coef terms qnorm sd
-#' @importFrom tibble tibble as_tibble
 #' @importFrom sjlabelled as_numeric
 #' @importFrom purrr map_if map_dbl
 #' @rdname std_beta
@@ -115,16 +115,10 @@ std_beta_helper <- function(fit, type, ci.lvl, se, ...) {
   has_intercept <- !is.null(tmp_i) & tmp_i == 1
 
   if (type == "std2") {
-    # is package available?
-    if (!requireNamespace("arm", quietly = TRUE)) {
-      stop("Package `arm` needed for computing this type of standardized estimates. Please install it.", call. = FALSE)
-    }
-    # get standardized estimates
-    b <- stats::coef(arm::standardize(fit))
-  } else {
-    # get coefficients
-    b <- stats::coef(fit)
+    fit <- std2(fit)
   }
+
+  b <- stats::coef(fit)
 
   # remove intercept?
   if (has_intercept) b <- b[-1]
@@ -133,7 +127,7 @@ std_beta_helper <- function(fit, type, ci.lvl, se, ...) {
     # stand. estimates need to be in variabel "beta"
     beta <- b
     # get standardized se
-    beta.se <- summary(arm::standardize(fit))$coefficients[, 2]
+    beta.se <- summary(fit)$coefficients[, 2]
     # remove intercept?
     if (has_intercept) beta.se <- beta.se[-1]
   } else {
@@ -145,7 +139,7 @@ std_beta_helper <- function(fit, type, ci.lvl, se, ...) {
     # convert factor to numeric, else sd throws a warning
     fit.data <- fit.data %>%
       purrr::map_if(is.factor, ~sjlabelled::as_numeric(.x, keep.labels = F)) %>%
-      tibble::as_tibble()
+      as.data.frame()
 
     # get standard deviations for predictors
     sx <- purrr::map_dbl(fit.data, ~ stats::sd(.x, na.rm = TRUE))
@@ -161,7 +155,7 @@ std_beta_helper <- function(fit, type, ci.lvl, se, ...) {
   }
 
   # return result
-  tibble::tibble(
+  data_frame(
     term = names(b),
     std.estimate = beta,
     std.error = beta.se,
@@ -187,3 +181,41 @@ std_beta.stanreg <- function(fit, ...) {
   )
 }
 
+
+#' @importFrom dplyr n_distinct
+#' @importFrom sjlabelled as_numeric
+#' @importFrom sjmisc std
+#' @importFrom stats weights
+std2 <- function(x) {
+  form <- stats::formula(x)
+  data <- model_frame(x)
+  terms <- pred_vars(x)
+  resp <- resp_var(x)
+
+  newdata <- purrr::map(colnames(data), function(.x) {
+    v <- data[[.x]]
+
+    if (.x %in% terms) {
+      if (dplyr::n_distinct(v, na.rm = TRUE) == 2) {
+        v <- sjlabelled::as_numeric(v)
+        v <- v - mean(v, na.rm = T)
+      } else if (is.numeric(v) && .x != "(weights)") {
+        v <- sjmisc::std(v, robust = "2sd")
+      }
+    }
+
+    v
+  })
+
+  newdata <- as.data.frame(newdata)
+  colnames(newdata) <- colnames(data)
+
+  w <- stats::weights(x)
+  newdata <- newdata[, c(resp, terms)]
+  if (!is.null(w)) {
+    newdata <- cbind(newdata, w)
+    lm(form, data = newdata, weights = w)
+  } else {
+    lm(form, data = newdata)
+  }
+}

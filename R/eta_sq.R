@@ -45,7 +45,6 @@
 #'
 #' anova_stats(car::Anova(fit, type = 2))
 #'
-#' @importFrom tibble tibble
 #' @export
 eta_sq <- function(model, partial = FALSE, ci.lvl = NULL, n = 1000) {
 
@@ -57,8 +56,8 @@ eta_sq <- function(model, partial = FALSE, ci.lvl = NULL, n = 1000) {
 
   es <- aov_stat(model, type = type)
 
-  x <- tibble::tibble(
-    term = names(es),
+  x <- data_frame(
+    term = var_names(names(es)),
     es = es
   )
 
@@ -86,6 +85,8 @@ eta_sq <- function(model, partial = FALSE, ci.lvl = NULL, n = 1000) {
 
   if (!is.null(attr(es, "stratum"))) x$stratum <- attr(es, "stratum")[1:nrow(x)]
 
+  class(x) <- c("sj_anova_stat", class(x))
+
   x
 }
 
@@ -93,7 +94,6 @@ eta_sq <- function(model, partial = FALSE, ci.lvl = NULL, n = 1000) {
 
 #' @rdname eta_sq
 #' @importFrom dplyr bind_cols mutate
-#' @importFrom tibble tibble
 #' @export
 omega_sq <- function(model, partial = FALSE, ci.lvl = NULL, n = 1000) {
 
@@ -105,8 +105,8 @@ omega_sq <- function(model, partial = FALSE, ci.lvl = NULL, n = 1000) {
 
   es <- aov_stat(model, type = type)
 
-  x <- tibble::tibble(
-    term = names(es),
+  x <- data_frame(
+    term = var_names(names(es)),
     es = es
   )
 
@@ -135,6 +135,8 @@ omega_sq <- function(model, partial = FALSE, ci.lvl = NULL, n = 1000) {
 
   if (!is.null(attr(es, "stratum"))) x$stratum <- attr(es, "stratum")[1:nrow(x)]
 
+  class(x) <- c("sj_anova_stat", class(x))
+
   x
 }
 
@@ -144,16 +146,15 @@ omega_sq <- function(model, partial = FALSE, ci.lvl = NULL, n = 1000) {
 cohens_f <- function(model) {
   es <- aov_stat(model, type = "cohens.f")
 
-  tibble::tibble(
-    term = names(es),
+  data_frame(
+    term = var_names(names(es)),
     cohens.f = es
   )
 }
 
 
 
-#' @importFrom tibble tibble add_row add_column
-#' @importFrom sjmisc add_columns
+#' @importFrom sjmisc add_columns round_num
 #' @importFrom broom tidy
 #' @importFrom stats anova
 #' @importFrom pwr pwr.f2.test
@@ -173,8 +174,10 @@ anova_stats <- function(model, digits = 3) {
   cohens.f <- sqrt(partial.etasq / (1 - partial.etasq))
 
   # bind as data frame
-  as <- tibble::tibble(etasq, partial.etasq, omegasq, partial.omegasq, cohens.f) %>%
-    tibble::add_row(etasq = NA, partial.etasq = NA, omegasq = NA, partial.omegasq = NA, cohens.f = NA) %>%
+  as <- dplyr::bind_rows(
+    data.frame(etasq, partial.etasq, omegasq, partial.omegasq, cohens.f),
+    data.frame(etasq = NA, partial.etasq = NA, omegasq = NA, partial.omegasq = NA, cohens.f = NA)
+  ) %>%
     sjmisc::add_columns(aov.sum)
 
   # get nr of terms
@@ -182,32 +185,30 @@ anova_stats <- function(model, digits = 3) {
 
   # finally, compute power
   power <- c(
-    pwr::pwr.f2.test(u = as$df[1:nt], v = as$df[nrow(as)], f2 = as$cohens.f[1:nt] ^ 2)[["power"]],
+    pwr::pwr.f2.test(u = as$df[1:nt], v = as$df[nrow(as)], f2 = as$cohens.f[1:nt]^2)[["power"]],
     NA
   )
 
-  tibble::add_column(as, power = power) %>%
-    purrr::map_if(is.numeric, ~ round(.x, digits = digits)) %>%
-    tibble::as_tibble()
+  add_cols(as, power = power) %>%
+    sjmisc::round_num(digits = digits) %>%
+    as.data.frame()
 }
 
 
 
-#' @importFrom tibble has_name add_column
 #' @importFrom dplyr mutate
 #' @importFrom rlang .data
 aov_stat <- function(model, type) {
   aov.sum <- aov_stat_summary(model)
   aov.res <- aov_stat_core(aov.sum, type)
 
-  if (tibble::has_name(aov.sum, "stratum"))
+  if (obj_has_name(aov.sum, "stratum"))
     attr(aov.res, "stratum") <- aov.sum[["stratum"]]
 
   aov.res
 }
 
 
-#' @importFrom tibble add_row has_name add_column
 #' @importFrom stats anova residuals
 #' @importFrom broom tidy
 aov_stat_summary <- function(model) {
@@ -225,13 +226,15 @@ aov_stat_summary <- function(model) {
   # for mixed models, add information on residuals
   if (mm) {
     res <- stats::residuals(ori.model)
-    aov.sum <- tibble::add_row(
+    aov.sum <- dplyr::bind_rows(
       aov.sum,
-      term = "Residuals",
-      df = length(res) - sum(aov.sum[["df"]]),
-      sumsq = sum(res ^ 2, na.rm = TRUE),
-      meansq = mse(ori.model),
-      statistic = NA
+      data_frame(
+        term = "Residuals",
+        df = length(res) - sum(aov.sum[["df"]]),
+        sumsq = sum(res^2, na.rm = TRUE),
+        meansq = mse(ori.model),
+        statistic = NA
+      )
     )
   }
 
@@ -241,8 +244,10 @@ aov_stat_summary <- function(model) {
     colnames(aov.sum) <- c("term", "df", "sumsq", "meansq", "statistic", "p.value")
 
   # for car::Anova, the meansq-column might be missing, so add it manually
-  if (!tibble::has_name(aov.sum, "meansq"))
-    aov.sum <- tibble::add_column(aov.sum, meansq = aov.sum$sumsq / aov.sum$df, .after = "sumsq")
+  if (!obj_has_name(aov.sum, "meansq"))
+    aov.sum <- add_cols(aov.sum, meansq = aov.sum$sumsq / aov.sum$df, .after = "sumsq")
+
+  aov.sum$term <- var_names(aov.sum$term)
 
   aov.sum
 }
@@ -298,7 +303,6 @@ aov_stat_core <- function(aov.sum, type) {
 }
 
 
-#' @importFrom tibble tibble
 #' @importFrom purrr map_df
 omega_sq_ci <- function(aov.sum, ci.lvl = .95) {
   rows <- nrow(aov.sum) - 1
@@ -325,7 +329,7 @@ omega_sq_ci <- function(aov.sum, ci.lvl = .95) {
         ci.low <- ci.high <- NA
       }
 
-      tibble::tibble(
+      data.frame(
         conf.low = ci.low,
         conf.high = ci.high
       )
@@ -334,7 +338,6 @@ omega_sq_ci <- function(aov.sum, ci.lvl = .95) {
 }
 
 
-#' @importFrom tibble tibble
 #' @importFrom purrr map_df
 peta_sq_ci <- function(aov.sum, ci.lvl = .95) {
   rows <- nrow(aov.sum) - 1
@@ -354,12 +357,12 @@ peta_sq_ci <- function(aov.sum, ci.lvl = .95) {
           conf.level = ci.lvl
         )
 
-        tibble::tibble(
+        data.frame(
           conf.low = ci$LL,
           conf.high = ci$UL
         )
       } else {
-        tibble::tibble(
+        data.frame(
           conf.low = NA,
           conf.high = NA
         )
@@ -372,14 +375,13 @@ peta_sq_ci <- function(aov.sum, ci.lvl = .95) {
 #' @importFrom broom tidy
 #' @importFrom purrr map map_df
 #' @importFrom dplyr bind_cols mutate case_when pull
-#' @importFrom tibble tibble
 #' @importFrom stats anova formula aov
 #' @importFrom sjmisc rotate_df
 es_boot_fun <- function(model, type, ci.lvl, n) {
 
   es <- aov_stat(model = model, type = type)
 
-  x <- tibble::tibble(
+  x <- data_frame(
     term = var_names(names(es)),
     es = es
   )
@@ -439,7 +441,7 @@ es_boot_fun <- function(model, type, ci.lvl, n) {
   }
 
 
-  x <- dplyr::bind_cols(x, es[, -1])
+  x <- dplyr::bind_cols(x, es[1:nrow(x), -1])
 
   colnames(x)[2] <- dplyr::case_when(
     type == "eta" ~ "etasq",

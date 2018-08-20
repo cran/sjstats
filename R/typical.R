@@ -17,6 +17,9 @@
 #'        vector to apply other different functions to numeric and categorical
 #'        \code{x}, where factors are first converted to numeric vectors, e.g.
 #'        \code{fun = c(numeric = "median", factor = "mean")}. See 'Examples'.
+#' @param weight.by Name of variable in \code{x} that indicated the vector of
+#'   weights that will be applied to weight all observations. Default is
+#'   \code{NULL}, so no weights are used.
 #' @param ... Further arguments, passed down to \code{fun}.
 #'
 #' @inheritParams grpmean
@@ -63,6 +66,13 @@
 #'
 #' @export
 typical_value <- function(x, fun = "mean", weight.by = NULL, ...) {
+
+  ## TODO activate later
+
+  # if (!missing(weight.by)) {
+  #   # message("Argument `weight.by` is deprecated. Please use `weights`.")
+  #   weights <- weight.by
+  # }
 
   # check if we have named vectors and find the requested function
   # for special functions for factors, convert to numeric first

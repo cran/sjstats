@@ -16,11 +16,11 @@ resp_var(x)
 
 resp_val(x)
 
-link_inverse(x, multi.resp = FALSE)
+link_inverse(x, multi.resp = FALSE, mv = FALSE)
 
 model_frame(x, fe.only = TRUE)
 
-model_family(x, multi.resp = FALSE)
+model_family(x, multi.resp = FALSE, mv = FALSE)
 
 var_names(x)
 }
@@ -28,7 +28,7 @@ var_names(x)
 \item{x}{A fitted model; for \code{var_names()}, \code{x} may also be a
 character vector.}
 
-\item{multi.resp}{Logical, if \code{TRUE} and model is a multivariate response
+\item{mv, multi.resp}{Logical, if \code{TRUE} and model is a multivariate response
 model from a \code{brmsfit} object or of class \code{stanmvreg}, then a
 list of values (one for each regression) is returned.}
 
@@ -64,6 +64,7 @@ Several functions to retrieve information from model objects,
      \item \code{is_logit}: model has logit link
      \item \code{is_linear}: family is gaussian
      \item \code{is_ordinal}: family is ordinal or cumulative link
+     \item \code{is_categorical}: family is categorical link
      \item \code{is_zeroinf}: model has zero-inflation component
      \item \code{is_multivariate}: model is a multivariate response model (currently only works for \emph{brmsfit} objects)
      \item \code{link.fun}: the link-function

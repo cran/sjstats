@@ -20,7 +20,7 @@ mcse.stanmvreg <- function(x, type = c("fixed", "random", "all"), ...) {
   type <- match.arg(type)
 
   s <- summary(x)
-  dat <- tibble::tibble(
+  dat <- data_frame(
     term = rownames(s),
     mcse = s[, "mcse"]
   )
@@ -44,24 +44,29 @@ mcse.stanreg <- function(x, type = c("fixed", "random", "all"), ...) {
 
 
 #' @importFrom purrr map_dbl
-#' @importFrom tibble as_tibble
 #' @importFrom dplyr pull
 mcse_helper <- function(x, type) {
-  dat <- tibble::as_tibble(x)
+  dat <- as.data.frame(x)
   if (inherits(x, "brmsfit")) dat <- brms_clean(dat)
 
   # get standard deviations from posterior samples
   stddev <- purrr::map_dbl(dat, sd)
 
   # remove certain terms
-  keep <-  which(!(names(stddev) %in% c("lp__", "log-posterior", "mean_PPD")))
+  keep <- seq_len(length(names(stddev)))
+
+  for (.x in c("^(?!lp__)", "^(?!log-posterior)", "^(?!mean_PPD)")) {
+    keep <- intersect(keep, grep(.x, names(stddev), perl = TRUE))
+  }
+
   stddev <- stddev[keep]
+
 
   # get effective sample sizes
   ess <- dplyr::pull(n_eff(x, type = "all"), "n_eff")
 
   # compute mcse
-  dat <- tibble::tibble(
+  dat <- data_frame(
     term = colnames(dat),
     mcse = stddev / sqrt(ess)
   )

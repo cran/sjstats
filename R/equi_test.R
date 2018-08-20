@@ -48,7 +48,6 @@ equi_test.data.frame <- function(x, rope, eff_size, out = c("txt", "viewer", "br
 
 #' @importFrom purrr map_df
 #' @importFrom sjmisc add_columns var_rename is_empty
-#' @importFrom tibble add_column
 #' @importFrom dplyr case_when select pull
 #' @importFrom stats sd
 #' @importFrom bayesplot neff_ratio
@@ -64,7 +63,7 @@ equi_test_worker <- function(x, rope, eff_size, out, fm, ...) {
   }
 
 
-  dat <- as.data.frame(x)
+  dat <- as.data.frame(x, stringsAsFactors = FALSE)
   if (missing(eff_size)) eff_size <- .1
 
   if (!is.null(fm)) {
@@ -96,7 +95,7 @@ equi_test_worker <- function(x, rope, eff_size, out, fm, ...) {
     dplyr::select(-1) %>%
     sjmisc::add_columns(.rope) %>%
     dplyr::select(-3) %>%
-    tibble::add_column(decision = result, .after = 1) %>%
+    add_cols(decision = result, .after = 1) %>%
     sjmisc::var_rename(rope = "inside.rope")
 
   # indicate parameters with critical number of effective samples
@@ -138,7 +137,6 @@ equi_test_worker <- function(x, rope, eff_size, out, fm, ...) {
 #' @importFrom purrr map2_df
 #' @importFrom tidyr gather
 #' @importFrom sjlabelled as_factor get_dv_labels
-#' @importFrom tidyselect contains
 plot_sj_equi_test <- function(x, model, ...) {
 
   if (!requireNamespace("ggplot2", quietly = TRUE) && !requireNamespace("ggridges", quietly = TRUE)) {
@@ -146,14 +144,18 @@ plot_sj_equi_test <- function(x, model, ...) {
     return(x)
   }
 
-  remove <- c(1, tidyselect::contains("sigma", ignore.case = TRUE, vars = x$term))
+  remove <- c(1, string_contains("sigma", x$term))
+
+  # if we have intercept-only models, keep at least the intercept
+  if (length(remove) == nrow(x)) remove <- remove[-1]
+
   x <- dplyr::slice(x, -!! remove)
 
   # remove indicator for insufficient sample chains
   x$term <- gsub(" (*)", "", x = x$term, fixed = TRUE)
 
   tmp <- model %>%
-    as.data.frame() %>%
+    as.data.frame(stringsAsFactors = FALSE) %>%
     dplyr::select(!! x$term) %>%
     purrr::map2_df(
       x$hdi.low,

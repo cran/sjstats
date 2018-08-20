@@ -9,7 +9,7 @@
 #'    character vector.
 #' @param fe.only Logical, if \code{TRUE} (default) and \code{x} is a mixed effects
 #'    model, returns the model frame for fixed effects only.
-#' @param multi.resp Logical, if \code{TRUE} and model is a multivariate response
+#' @param mv,multi.resp Logical, if \code{TRUE} and model is a multivariate response
 #'    model from a \code{brmsfit} object or of class \code{stanmvreg}, then a
 #'    list of values (one for each regression) is returned.
 #'
@@ -35,6 +35,7 @@
 #'      \item \code{is_logit}: model has logit link
 #'      \item \code{is_linear}: family is gaussian
 #'      \item \code{is_ordinal}: family is ordinal or cumulative link
+#'      \item \code{is_categorical}: family is categorical link
 #'      \item \code{is_zeroinf}: model has zero-inflation component
 #'      \item \code{is_multivariate}: model is a multivariate response model (currently only works for \emph{brmsfit} objects)
 #'      \item \code{link.fun}: the link-function
@@ -147,7 +148,9 @@ resp_val <- function(x) {
 #' @rdname pred_vars
 #' @importFrom stats family binomial gaussian make.link
 #' @export
-link_inverse <- function(x, multi.resp = FALSE) {
+link_inverse <- function(x, multi.resp = FALSE, mv = FALSE) {
+
+  if (!missing(multi.resp)) mv <- multi.resp
 
   # handle glmmTMB models
   if (inherits(x, "glmmTMB")) {
@@ -184,7 +187,7 @@ link_inverse <- function(x, multi.resp = FALSE) {
     il <- x@family@linkinv
   } else if (inherits(x, "stanmvreg")) {
     fam <- stats::family(x)
-    if (multi.resp) {
+    if (mv) {
       il <- purrr::map(fam, ~ .x$linkinv)
     } else {
       fam <- fam[[1]]
@@ -193,7 +196,7 @@ link_inverse <- function(x, multi.resp = FALSE) {
   } else if (inherits(x, "brmsfit")) {
     fam <- stats::family(x)
     if (!is.null(stats::formula(x)$response)) {
-      if (multi.resp) {
+      if (mv) {
         il <- purrr::map(fam, ~ brms_link_inverse(.x))
       } else {
         fam <- fam[[1]]
@@ -243,7 +246,6 @@ brms_link_inverse <- function(fam) {
 #' @importFrom prediction find_data
 #' @importFrom purrr map_lgl map reduce
 #' @importFrom dplyr select bind_cols full_join
-#' @importFrom tibble as_tibble
 #' @export
 model_frame <- function(x, fe.only = TRUE) {
   # we may store model weights here later
@@ -312,7 +314,7 @@ model_frame <- function(x, fe.only = TRUE) {
       # to vectors only for the matrix-columns
       fitfram_matrix <- dplyr::select(fitfram, which(mc))
       fitfram_nonmatrix <- dplyr::select(fitfram, -which(mc))
-      fitfram_matrix <- dplyr::bind_cols(purrr::map(fitfram_matrix, ~ tibble::as_tibble(.x)))
+      fitfram_matrix <- dplyr::bind_cols(purrr::map(fitfram_matrix, ~ as.data.frame(.x, stringsAsFactors = FALSE)))
       fitfram <- dplyr::bind_cols(fitfram_nonmatrix, fitfram_matrix)
     } else {
 
@@ -340,7 +342,7 @@ model_frame <- function(x, fe.only = TRUE) {
 
       # check model weights
 
-      if ("(weights)" %in% needed.vars && !tibble::has_name(md, "(weights)")) {
+      if ("(weights)" %in% needed.vars && !obj_has_name(md, "(weights)")) {
         needed.vars <- needed.vars[-which(needed.vars == "(weights)")]
         mw <- fitfram[["(weights)"]]
       }
@@ -369,11 +371,12 @@ model_frame <- function(x, fe.only = TRUE) {
 #' @rdname pred_vars
 #' @importFrom sjmisc str_contains is_empty
 #' @importFrom stats family formula
-#' @importFrom tidyselect starts_with
 #' @export
-model_family <- function(x, multi.resp = FALSE) {
+model_family <- function(x, multi.resp = FALSE, mv = FALSE) {
   zero.inf <- FALSE
   multi.var <- FALSE
+
+  if (!missing(multi.resp)) mv <- multi.resp
 
   # for gam-components from gamm4, add class attributes, so family
   # function works correctly
@@ -391,7 +394,7 @@ model_family <- function(x, multi.resp = FALSE) {
     fitfam <- faminfo@vfamily[1]
     logit.link <- sjmisc::str_contains(faminfo@blurb, "logit")
     link.fun <- faminfo@blurb[3]
-    if (!sjmisc::is_empty(tidyselect::starts_with("logit(", vars = link.fun)))
+    if (!sjmisc::is_empty(string_starts_with(pattern = "logit(", x = link.fun)))
       link.fun <- "logit"
   } else if (inherits(x, c("zeroinfl", "hurdle"))) {
     fitfam <- "negative binomial"
@@ -419,16 +422,16 @@ model_family <- function(x, multi.resp = FALSE) {
     # we just take the information from the first model
     if (inherits(x, "brmsfit") && !is.null(stats::formula(x)$response)) {
       multi.var <- TRUE
-      if (!multi.resp) faminfo <- faminfo[[1]]
+      if (!mv) faminfo <- faminfo[[1]]
     }
 
     if (inherits(x, "stanmvreg")) {
       multi.var <- TRUE
-      if (!multi.resp) faminfo <- faminfo[[1]]
+      if (!mv) faminfo <- faminfo[[1]]
     }
 
 
-    if (multi.resp && multi.var) {
+    if (mv && multi.var) {
       return(purrr::map(faminfo, ~ make_family(
         x,
         .x$family,
@@ -456,12 +459,13 @@ make_family <- function(x, fitfam, zero.inf, logit.link, multi.var, link.fun) {
     sjmisc::str_contains(fitfam, "binomial", ignore.case = TRUE)
 
   poisson_fam <-
-    fitfam %in% c("poisson", "quasipoisson") |
+    fitfam %in% c("poisson", "quasipoisson", "genpois") |
     sjmisc::str_contains(fitfam, "poisson", ignore.case = TRUE)
 
   neg_bin_fam <-
     sjmisc::str_contains(fitfam, "negative binomial", ignore.case = T) |
     sjmisc::str_contains(fitfam, "nbinom", ignore.case = TRUE) |
+    sjmisc::str_contains(fitfam, "genpois", ignore.case = TRUE) |
     sjmisc::str_contains(fitfam, "negbinomial", ignore.case = TRUE) |
     sjmisc::str_contains(fitfam, "neg_binomial", ignore.case = TRUE)
 
@@ -473,6 +477,8 @@ make_family <- function(x, fitfam, zero.inf, logit.link, multi.var, link.fun) {
     inherits(x, c("polr", "clm", "clmm", "multinom")) |
     fitfam %in% c("cumulative", "cratio", "sratio", "acat")
 
+  is.categorical <- fitfam == "categorical"
+
   list(
     is_bin = binom_fam & !neg_bin_fam,
     is_pois = poisson_fam | neg_bin_fam,
@@ -481,6 +487,7 @@ make_family <- function(x, fitfam, zero.inf, logit.link, multi.var, link.fun) {
     is_linear = linear_model,
     is_zeroinf = zero.inf,
     is_ordinal = is.ordinal,
+    is_categorical = is.categorical,
     is_multivariate = multi.var,
     link.fun = link.fun,
     family = fitfam

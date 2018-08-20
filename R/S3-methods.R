@@ -9,7 +9,6 @@ model.matrix.gls <- function(object, ...) {
 }
 
 
-#' @importFrom tibble tibble
 #' @importFrom stats coef vcov pnorm
 #' @importFrom dplyr case_when
 #' @export
@@ -48,7 +47,7 @@ tidy_svyglm.nb <- function(x, digits = 4, v_se = c("robust", "model")) {
   est <- stats::coef(x)
   se <- sqrt(diag(stats::vcov(x, stderr = v_se)))
 
-  tibble::tibble(
+  data_frame(
     term = substring(names(stats::coef(x)), 5),
     estimate = round(est, digits),
     irr = round(exp(est), digits),
@@ -62,12 +61,10 @@ tidy_svyglm.nb <- function(x, digits = 4, v_se = c("robust", "model")) {
 
 
 #' @importFrom dplyr select
-#' @importFrom tibble as_tibble
-#' @importFrom tidyselect one_of
 #' @export
 model.frame.svyglm.nb <- function(formula, ...) {
   pred <- attr(formula, "nb.terms", exact = T)
-  tibble::as_tibble(dplyr::select(formula$design$variables, tidyselect::one_of(pred)))
+  dplyr::select(formula$design$variables, string_one_of(pattern = pred, x = colnames(formula$design$variables)))
 }
 
 
@@ -181,6 +178,27 @@ deviance.svyglm.nb <- function(object, ...) {
 #' @importFrom purrr map_chr map2_chr
 #' @export
 print.sj_r2 <- function(x, digits = 3, ...) {
+  cat("\nR-Squared for Generalized Linear Mixed Model\n\n")
+  print_icc_and_r2(x, digits, ...)
+}
+
+
+#' @importFrom purrr map_chr map2_chr
+#' @export
+print.sj_icc <- function(x, digits = 4, ...) {
+  cat("\nIntra-Class Correlation Coefficient for Generalized Linear Mixed Model\n\n")
+  print_icc_and_r2(x, digits, ...)
+}
+
+
+print_icc_and_r2 <- function(x, digits, ...) {
+  # print model information
+  cat(crayon::blue(
+    sprintf("Family : %s (%s)\nFormula: %s\n\n",
+            attr(x, "family", exact = T),
+            attr(x, "link", exact = T),
+            paste(as.character(attr(x, "formula"))[c(2, 1, 3)], collapse = " ")
+    )))
 
   labels <- purrr::map_chr(x, ~ names(.x))
   width <- max(nchar(labels))
@@ -191,19 +209,21 @@ print.sj_r2 <- function(x, digits = 3, ...) {
   )
 
   cat(paste0(out, collapse = "\n"))
+  cat("\n\n")
 }
-
 
 
 #' @export
 print.sj_icc_merMod <- function(x, comp, ...) {
   # print model information
-  cat(sprintf("\n%s\n Family: %s (%s)\nFormula: %s\n\n",
-              attr(x, "model", exact = T),
-              attr(x, "family", exact = T),
-              attr(x, "link", exact = T),
-              paste(as.character(attr(x, "formula"))[c(2, 1, 3)], collapse = " ")))
+  cat(sprintf("\n%s\n\n", attr(x, "model", exact = T)))
 
+  cat(crayon::blue(
+    sprintf("Family : %s (%s)\nFormula: %s\n\n",
+            attr(x, "family", exact = T),
+            attr(x, "link", exact = T),
+            paste(as.character(attr(x, "formula"))[c(2, 1, 3)], collapse = " ")
+    )))
 
   if (!missing(comp) && !is.null(comp) && comp == "var") {
     # get parameters
@@ -261,7 +281,7 @@ print.sj_icc_merMod <- function(x, comp, ...) {
       infs <- sprintf("ICC (%s)", names(x[i]))
       # print info line, formatting all ICC values so they're
       # aligned properly
-      cat(sprintf("%*s: %f\n",
+      cat(sprintf("%*s: %.4f\n",
                   len + 8,
                   infs,
                   as.vector(x[i])))
@@ -272,10 +292,8 @@ print.sj_icc_merMod <- function(x, comp, ...) {
 
 #' @importFrom rlang .data
 #' @importFrom dplyr filter slice select
-#' @importFrom tidyselect starts_with contains
 #' @importFrom crayon blue cyan red
 #' @importFrom sjmisc var_rename trim
-#' @importFrom tibble has_name
 #' @export
 print.tidy_stan <- function(x, ...) {
 
@@ -284,10 +302,13 @@ print.tidy_stan <- function(x, ...) {
   # check if data has certain terms, so we know if we print
   # zero inflated or multivariate response models
 
-  zi <- tidyselect::starts_with("b_zi_", vars = x$term)
-  resp.cor <- tidyselect::starts_with("rescor__", vars = x$term)
-  ran.eff <- tibble::has_name(x, "random.effect")
-  multi.resp <- tibble::has_name(x, "response")
+  zi <- string_starts_with(pattern = "b_zi_", x = x$term)
+  resp.cor <- string_starts_with(pattern = "rescor__", x = x$term)
+  ran.eff <- obj_has_name(x, "random.effect")
+  multi.resp <- obj_has_name(x, "response")
+  cumulative <- obj_has_name(x, "response.level")
+
+  if (cumulative) x <- sjmisc::var_rename(x, response.level = "response")
 
   x$term <- gsub("b_", "", x$term, fixed = TRUE)
 
@@ -302,7 +323,7 @@ print.tidy_stan <- function(x, ...) {
     # from zero-inlfated model are correctly handled here
 
     if (ran.eff) {
-      zi <- union(zi, tidyselect::contains("__zi", vars = x$term))
+      zi <- union(zi, string_contains(pattern = "__zi", x = x$term))
     }
 
     x.zi <- dplyr::slice(x, !! zi)
@@ -344,7 +365,7 @@ print.tidy_stan <- function(x, ...) {
 
     # print multivariate response models ----
 
-  } else if (!sjmisc::is_empty(resp.cor) || multi.resp) {
+  } else if (!sjmisc::is_empty(resp.cor) || multi.resp || cumulative) {
 
     # get the residual correlation information from data
     x.cor <- dplyr::slice(x, !! resp.cor)
@@ -355,13 +376,15 @@ print.tidy_stan <- function(x, ...) {
 
     # first, print summary for each response model
     responses <- unique(x$response)
+    resp.string <- ""
+    if (cumulative) resp.string <- "-level"
 
     for (resp in responses) {
 
       if (ran.eff) {
         print_stan_mv_re(x, resp)
       } else {
-        cat(crayon::blue(sprintf("## Response: %s\n\n", crayon::red(resp))))
+        cat(crayon::blue(sprintf("## Response%s: %s\n\n", resp.string, crayon::red(resp))))
 
         xr <- x %>%
           dplyr::filter(.data$response == !! resp) %>%
@@ -415,7 +438,6 @@ print.tidy_stan <- function(x, ...) {
 #' @importFrom sjmisc is_empty
 #' @importFrom crayon blue red
 #' @importFrom dplyr slice select filter mutate
-#' @importFrom tidyselect contains
 print_stan_ranef <- function(x, zeroinf = FALSE) {
   # find fixed effects - is type = "all"
   fe <- which(x$random.effect == "")
@@ -450,7 +472,7 @@ print_stan_ranef <- function(x, zeroinf = FALSE) {
   re <- unique(x$random.effect)
 
   # remove random effects from zero inflated model
-  re.zi <- tidyselect::contains("__zi", vars = re)
+  re.zi <- string_contains(pattern = "__zi", x = re)
   if (!sjmisc::is_empty(re.zi)) re <- re[-re.zi]
 
   for (r in re) {
@@ -476,10 +498,9 @@ print_stan_ranef <- function(x, zeroinf = FALSE) {
 
 
 #' @importFrom sjmisc is_empty
-#' @importFrom tidyselect starts_with
 trim_hdi <- function(x) {
   cn <- colnames(x)
-  hdi.cols <- tidyselect::starts_with("HDI", vars = cn)
+  hdi.cols <- string_starts_with(pattern = "HDI", x = cn)
 
   if (!sjmisc::is_empty(hdi.cols)) {
     x <- x %>%
@@ -505,7 +526,6 @@ trim_hdi <- function(x) {
 #' @importFrom sjmisc is_empty
 #' @importFrom crayon blue red
 #' @importFrom dplyr slice select filter mutate
-#' @importFrom tidyselect contains
 print_stan_mv_re <- function(x, resp) {
   # find fixed effects - is type = "all"
   fe <- which(x$random.effect == "")
@@ -560,7 +580,6 @@ print_stan_mv_re <- function(x, resp) {
 #' @importFrom sjmisc is_empty
 #' @importFrom crayon blue red
 #' @importFrom dplyr slice select filter mutate
-#' @importFrom tidyselect contains
 print_stan_zeroinf_ranef <- function(x) {
   # find fixed effects - is type = "all"
   fe <- which(x$random.effect == "")
@@ -592,7 +611,7 @@ print_stan_zeroinf_ranef <- function(x) {
   re <- unique(x$random.effect)
 
   # remove random effects from zero inflated model
-  re.zi <- tidyselect::contains("__zi", vars = re)
+  re.zi <- string_contains(pattern = "__zi", x = re)
 
   if (!sjmisc::is_empty(re.zi)) {
 
@@ -628,7 +647,6 @@ clean_term_name <- function(x) {
 }
 
 
-#' @importFrom tidyselect starts_with
 #' @importFrom sjmisc remove_empty_cols
 #' @importFrom crayon cyan blue red magenta green silver
 #' @importFrom dplyr case_when
@@ -743,7 +761,6 @@ print.sj_icc_brms <- function(x, digits = 2, ...) {
 }
 
 
-#' @importFrom tidyselect starts_with
 #' @importFrom sjmisc remove_empty_cols
 #' @importFrom crayon cyan blue red magenta green silver
 #' @importFrom dplyr case_when
@@ -1318,11 +1335,11 @@ print.sj_grpmeans <- function(x, ...) {
 print.sj_revar <- function(x, ...) {
   # get parameters
   xn <- names(x)
-  tau.00 <- x[str_ends_with(xn, "tau.00")]
-  tau.01 <- x[str_ends_with(xn, "tau.01")]
-  tau.11 <- x[str_ends_with(xn, "tau.11")]
-  rho.01 <- x[str_ends_with(xn, "rho.01")]
-  sigma_2 <- x[str_ends_with(xn, "sigma_2")]
+  tau.00 <- x[string_ends_with("tau.00", xn)]
+  tau.01 <- x[string_ends_with("tau.01", xn)]
+  tau.11 <- x[string_ends_with("tau.11", xn)]
+  rho.01 <- x[string_ends_with("rho.01", xn)]
+  sigma_2 <- x[string_ends_with("sigma_2", xn)]
 
   # print within-group-variance sigma^2
   tmp <- sprintf("%.3f", sigma_2)
@@ -1386,7 +1403,6 @@ print.sj_revar <- function(x, ...) {
 #' @importFrom sjmisc rotate_df
 #' @importFrom dplyr case_when
 #' @importFrom purrr map_df
-#' @importFrom tibble add_column
 #' @export
 print.sj_pca_rotate <- function(x, cutoff = .1, ...) {
 
@@ -1401,7 +1417,7 @@ print.sj_pca_rotate <- function(x, cutoff = .1, ...) {
       TRUE ~ as.character(.x)
     )) %>%
     as.data.frame() %>%
-    tibble::add_column(variable = rn, .before = 1)
+    add_cols(variable = rn, .after = -1)
 
   xs <- xs %>%
     round(3) %>%
@@ -1545,7 +1561,7 @@ get_hdi_data <- function(x, digits) {
   cn <- colnames(x)
   prob <- attr(x, "prob", exact = TRUE)
 
-  hdi.cols <- tidyselect::starts_with("hdi.", vars = cn)
+  hdi.cols <- string_starts_with(pattern = "hdi.", x = cn)
 
   # convert all to character, with fixed fractional part
   x <- x %>%
@@ -1563,7 +1579,7 @@ get_hdi_data <- function(x, digits) {
     ml1 <- max(nchar(x[[i]]))
     ml2 <- max(nchar(x[[i + 1]]))
 
-    tmp <- data.frame(hdi = sprintf("[%*s %*s]", ml1, x[[i]], ml2, x[[i + 1]]))
+    tmp <- data_frame(hdi = sprintf("[%*s %*s]", ml1, x[[i]], ml2, x[[i + 1]]))
 
     if (ci_pos[i] < 0) {
       if (!is.null(prob))
@@ -1777,4 +1793,72 @@ print.sj_item_diff <- function(x, ...) {
 
   for (i in 1:length(items))
     cat(sprintf("  %*s      %.2f   %.2f\n", spaces, items[i], x[i], ideal[i]))
+}
+
+
+#' @importFrom crayon blue cyan
+#' @export
+print.sj_ttest <- function(x, ...) {
+  cat(crayon::blue(sprintf("\n%s (%s)\n", x$method, x$alternative)))
+
+  group <- attr(x, "group.name", exact = TRUE)
+  xn <- attr(x, "x.name", exact = TRUE)
+  yn <- attr(x, "y.name", exact = TRUE)
+
+  if (!is.null(group))
+    verbs <- c("of", "by")
+  else
+    verbs <- c("between", "and")
+
+  st <- sprintf("# t=%.2f  df=%i  p-value=%.3f\n\n", x$statistic, as.integer(x$df), x$p.value)
+
+  if (!is.null(yn)) {
+    cat(crayon::cyan(sprintf("\n# comparison %s %s %s %s\n", verbs[1], xn, verbs[2], yn)))
+  }
+
+  cat(crayon::cyan(st))
+
+
+  if (!is.null(yn)) {
+      if (!is.null(group)) {
+      l1 <- sprintf("mean in group %s", group[1])
+      l2 <- sprintf("mean in group %s", group[2])
+    } else {
+      l1 <- sprintf("mean of %s", xn)
+      l2 <- sprintf("mean of %s", yn)
+    }
+
+    l3 <- "difference of mean"
+
+    slen <- max(nchar(c(l1, l2, l3)))
+
+    cat(sprintf("  %s: %.3f\n", format(l1, width = slen), x$estimate[1]))
+    cat(sprintf("  %s: %.3f\n", format(l2, width = slen), x$estimate[2]))
+    cat(sprintf("  %s: %.3f [%.3f  %.3f]\n", format(l3, width = slen), x$estimate[1] - x$estimate[2], x$ci[1], x$ci[2]))
+  } else {
+    cat(sprintf("  mean of %s: %.3f [%.3f  %.3f]\n", xn, x$estimate[1], x$ci[1], x$ci[2]))
+  }
+
+  cat("\n")
+}
+
+
+#' @importFrom crayon blue cyan
+#' @export
+print.sj_wmwu <- function(x, ...) {
+  cat(crayon::blue(sprintf("\n%s (%s)\n", x$method, x$alternative)))
+
+  group <- attr(x, "group.name", exact = TRUE)
+  xn <- attr(x, "x.name", exact = TRUE)
+
+  cat(crayon::cyan(sprintf("\n# comparison of %s by %s\n", xn, group)))
+  cat(crayon::cyan(sprintf("# Chisq=%.2f  df=%i  p-value=%.3f\n\n", x$statistic, as.integer(x$parameter), x$p.value)))
+  cat(sprintf("  difference in mean rank score: %.3f\n\n", x$estimate))
+}
+
+
+#' @importFrom sjmisc round_num
+#' @export
+print.sj_anova_stat <- function(x, digits = 3, ...) {
+  print.data.frame(sjmisc::round_num(x, digits), ..., row.names = TRUE)
 }

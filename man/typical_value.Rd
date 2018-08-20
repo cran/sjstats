@@ -23,7 +23,7 @@ vector to apply other different functions to numeric and categorical
 \code{fun = c(numeric = "median", factor = "mean")}. See 'Examples'.}
 
 \item{weight.by}{Name of variable in \code{x} that indicated the vector of
-weights that will be applied to weight all  observations. Default is
+weights that will be applied to weight all observations. Default is
 \code{NULL}, so no weights are used.}
 
 \item{...}{Further arguments, passed down to \code{fun}.}
