@@ -75,16 +75,11 @@ grpmean <- function(x, dv, grp, weights = NULL, digits = 2, out = c("txt", "view
 
   # weights need extra checking, might be NULL
   if (!missing(weights)) {
-    .weights <- rlang::quo_name(rlang::enquo(weights))
+    .weights <- try(rlang::quo_name(rlang::enquo(weights)), silent = TRUE)
+    if (inherits(.weights, "try-error")) .weights <- NULL
 
-    w.string <- tryCatch(
-      {
-        eval(weights)
-      },
-      error = function(x) { NULL },
-      warning = function(x) { NULL },
-      finally = function(x) { NULL }
-    )
+    w.string <- try(eval(weights), silent = TRUE)
+    if (!inherits(w.string, "try-error") && is.character(w.string)) .weights <- w.string
 
     if (!is.null(w.string) && is.character(w.string)) .weights <- w.string
     if (sjmisc::is_empty(.weights) || .weights == "NULL") .weights <- NULL
@@ -318,9 +313,13 @@ get_title_part <- function(x, grps, level, i) {
   # get values from value labels
   vals <- sjlabelled::get_values(x[[var.name]])
   # if we have no value labels, get values directly
-  if (is.null(vals)) vals <- unique(x[[var.name]])
-  # find position of value labels for current group
-  lab.pos <- which(vals == grps[[var.name]][i])
+  if (is.null(vals)) {
+    vals <- unique(x[[var.name]])
+    lab.pos <- i
+  } else {
+    # find position of value labels for current group
+    lab.pos <- which(vals == grps[[var.name]][i])
+  }
 
   # get variable and value labels
   t1 <- sjlabelled::get_label(x[[var.name]], def.value = var.name)

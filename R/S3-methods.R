@@ -1159,8 +1159,27 @@ print.sj_mwu <- function(x, ...) {
     } else {
       p.string <- "="
     }
-    cat(sprintf("  U = %.3f, W = %.3f, p %s %.3f, Z = %.3f\n  effect-size r = %.3f\n  rank-mean(%i) = %.2f\n  rank-mean(%i) = %.2f\n\n",
-                .dat[i, "u"], .dat[i, "w"], p.string, pval, .dat[i, "z"], .dat[i, "r"], .dat[i, "grp1"], .dat[i, "rank.mean.grp1"], .dat[i, "grp2"], .dat[i, "rank.mean.grp2"]))
+
+    cat(sprintf(
+      "  U = %.3f, W = %.3f, p %s %.3f, Z = %.3f\n",
+      .dat[i, "u"], .dat[i, "w"], p.string, pval, .dat[i, "z"]
+    ))
+
+    string_es <- "effect-size r"
+    string_r <- sprintf("%.3f", .dat[i, "r"])
+    string_group1 <- sprintf("rank-mean(%i)", .dat[i, "grp1"])
+    string_group2 <- sprintf("rank-mean(%i)", .dat[i, "grp2"])
+    string_rm1 <- sprintf("%.2f", .dat[i, "rank.mean.grp1"])
+    string_rm2 <- sprintf("%.2f", .dat[i, "rank.mean.grp2"])
+
+    space1 <- max(nchar(c(string_es, string_group1, string_group2)))
+    space2 <- max(nchar(c(string_r, string_rm1, string_rm2)))
+
+    cat(
+      sprintf("  %*s = %*s\n", space1, string_es, space2 + 1, string_r),
+      sprintf(" %*s = %*s\n", space1, string_group1, space2, string_rm1),
+      sprintf(" %*s = %*s\n\n", space1, string_group2, space2, string_rm2)
+    )
   }
 
   # if we have more than 2 groups, also perfom kruskal-wallis-test
@@ -1215,7 +1234,7 @@ print.sj_zcf <- function(x, ...) {
 
 #' @importFrom crayon blue
 #' @export
-print.sj_ovderdisp <- function(x, ...) {
+print.sj_overdisp <- function(x, ...) {
   cat(crayon::blue("\n# Overdispersion test\n\n"))
   cat(sprintf("       dispersion ratio = %.4f\n", x$ratio))
   cat(sprintf("  Pearson's Chi-Squared = %.4f\n", x$chisq))
@@ -1239,10 +1258,7 @@ print.sj_outliers <- function(x, ...) {
 #' @export
 print.sj_xtab_stat <- function(x, ...) {
   # get length of method name, to align output
-  l <- nchar(x$method)
-
-  # is method shorter than p-value?
-  if (l < 7) l <- 7
+  l <- max(nchar(c(x$method, x$stat.name, "p-value")))
 
   # headline
   cat(crayon::blue("\n# Measure of Association for Contingency Tables\n"))
@@ -1854,6 +1870,22 @@ print.sj_wmwu <- function(x, ...) {
   cat(crayon::cyan(sprintf("\n# comparison of %s by %s\n", xn, group)))
   cat(crayon::cyan(sprintf("# Chisq=%.2f  df=%i  p-value=%.3f\n\n", x$statistic, as.integer(x$parameter), x$p.value)))
   cat(sprintf("  difference in mean rank score: %.3f\n\n", x$estimate))
+}
+
+
+#' @importFrom crayon blue cyan
+#' @export
+print.sj_wcor <- function(x, ...) {
+  cat(crayon::blue(sprintf("\nWeighted %s\n\n", x$method)))
+
+  if (!is.null(x$ci)) {
+    cilvl <- sprintf("%.2i%%", as.integer(100 * x$ci.lvl))
+    cat(sprintf("  estimate [%s CI]: %.3f [%.3f %.3f]\n", cilvl, x$estimate, x$ci[1], x$ci[2]))
+    cat(sprintf("            p-value: %.3f\n\n", x$p.value))
+  } else {
+    cat(sprintf("  estimate: %.3f\n", x$estimate))
+    cat(sprintf("   p-value: %.3f\n\n", x$p.value))
+  }
 }
 
 

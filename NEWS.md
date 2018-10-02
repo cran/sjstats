@@ -1,3 +1,24 @@
+# sjstats 0.17.1
+
+## New functions
+
+* `wtd_chisqtest()` to compute a weighted Chi-squared test.
+* `wtd_median()` to compute the weighted median of variables.
+* `wtd_cor()` to compute weighted correlation coefficients of variables.
+
+## Changes to functions
+
+* `mediation()` can now cope with models from different families, e.g. if the moderator or outcome is binary, while the treatment-effect is continuous.
+* `model_frame()`, `link_inverse()`, `pred_vars()`, `resp_var()`, `resp_val()`, `r2()` and `model_family()` now support `clm2`-objects from package **ordinal**.
+* `anova_stats()` gives a more informative message for non-supported models or ANOVA-options.
+
+## Bug fixes
+
+* Fixed issue with `model_family()` and `link_inverse()` for models fitted with `pscl::hurdle()` or `pscl::zeroinfl()`.
+* Fixed issue with wrong title in `grpmean()` for grouped data frames, when grouping variable was an unlabelled factor.
+* Fix issue with `model_frame()` for **coxph**-models with polynomial or spline-terms.
+* Fix issue with `mediation()` for logical variables.
+
 # sjstats 0.17.0
 
 ## General

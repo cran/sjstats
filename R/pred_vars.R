@@ -83,7 +83,10 @@
 #' @export
 pred_vars <- function(x) {
 
-  fm <- stats::formula(x)
+  if (inherits(x, "clm2"))
+    fm <- attr(x$location, "terms", exact = TRUE)
+  else
+    fm <- stats::formula(x)
 
   if (inherits(x, "brmsfit")) {
     if (!is.null(fm$responses)) {
@@ -102,7 +105,7 @@ pred_vars <- function(x) {
     av <- all.vars(fm[[3L]])
 
   if (length(av) == 1 && av == ".")
-    av <- all.vars(stats::terms(x))
+    av <- all.vars(stats::terms(x)[[3L]])
 
   av
 }
@@ -125,6 +128,8 @@ resp_var <- function(x) {
     }
   } else if (inherits(x, "stanmvreg")) {
     purrr::map_chr(stats::formula(x), ~ deparse(.x[[2L]]))
+  } else if (inherits(x, "clm2")) {
+    all.vars(attr(x$location, "terms", exact = TRUE)[[2L]])
   } else
     deparse(stats::formula(x)[[2L]])
 }
@@ -175,10 +180,10 @@ link_inverse <- function(x, multi.resp = FALSE, mv = FALSE) {
   # do we have glm? if so, get link family. make exceptions
   # for specific models that don't have family function
 
-  if (inherits(x, c("truncreg", "coxph"))) {
+  if (inherits(x, c("truncreg", "coxph", "coxme"))) {
     il <- NULL
-  } else if (inherits(x, c("hurdle", "zeroinfl"))) {
-    il <- x$linkinv
+  } else if (inherits(x, c("zeroinfl", "hurdle"))) {
+    il <- stats::make.link("log")$linkinv
   } else if (inherits(x, c("lme", "plm", "gls", "lm", "lmRob")) && !inherits(x, "glm")) {
     il <- stats::gaussian(link = "identity")$linkinv
   } else if (inherits(x, "betareg")) {
@@ -211,6 +216,15 @@ link_inverse <- function(x, multi.resp = FALSE, mv = FALSE) {
     il <- stats::make.link(link)$linkinv
   } else if (inherits(x, c("clm", "clmm"))) {
     il <- stats::make.link(x$link)$linkinv
+  } else if (inherits(x, "clm2")) {
+    il <- switch(
+      x$link,
+      logistic = ,
+      probit = stats::make.link("logit")$linkinv,
+      cloglog = ,
+      loglog = stats::make.link("log")$linkinv,
+      stats::make.link("logit")$linkinv
+    )
   } else if (inherits(x, c("lrm", "logistf", "multinom", "Zelig-relogit"))) {
     # "lrm"-object from pkg "rms" have no family method
     # so we construct a logistic-regression-family-object
@@ -243,7 +257,6 @@ brms_link_inverse <- function(fam) {
 
 #' @rdname pred_vars
 #' @importFrom stats model.frame formula getCall na.omit
-#' @importFrom prediction find_data
 #' @importFrom purrr map_lgl map reduce
 #' @importFrom dplyr select bind_cols full_join
 #' @export
@@ -251,31 +264,46 @@ model_frame <- function(x, fe.only = TRUE) {
   # we may store model weights here later
   mw <- NULL
 
-  if (inherits(x, "stanmvreg"))
-    fitfram <- suppressMessages(
-      purrr::reduce(stats::model.frame(x), ~ dplyr::full_join(.x, .y))
-    )
-  else if (inherits(x, c("merMod", "lmerMod", "glmerMod", "nlmerMod", "merModLmerTest")))
-    fitfram <- stats::model.frame(x, fixed.only = fe.only)
-  else if (inherits(x, "lme"))
-    fitfram <- x$data
-  else if (inherits(x, c("vgam", "gee", "gls")))
-    fitfram <- prediction::find_data(x)
-  else if (inherits(x, "Zelig-relogit"))
-    fitfram <- get_zelig_relogit_frame(x)
-  else if (inherits(x, "vglm")) {
-    if (!length(x@model)) {
-      env <- environment(x@terms$terms)
-      if (is.null(env)) env <- parent.frame()
-      fcall <- x@call
-      fcall$method <- "model.frame"
-      fcall$smart <- FALSE
-      fitfram <- eval(fcall, env, parent.frame())
-    } else {
-      fitfram <- x@model
-    }
-  } else
-    fitfram <- stats::model.frame(x)
+  tryCatch(
+    {
+      if (inherits(x, "stanmvreg"))
+        fitfram <- suppressMessages(
+          purrr::reduce(stats::model.frame(x), ~ dplyr::full_join(.x, .y))
+        )
+      else if (inherits(x, "clm2"))
+        fitfram <- x$location
+      else if (inherits(x, c("merMod", "lmerMod", "glmerMod", "nlmerMod", "merModLmerTest")))
+        fitfram <- stats::model.frame(x, fixed.only = fe.only)
+      else if (inherits(x, "lme"))
+        fitfram <- x$data
+      else if (inherits(x, "vgam"))
+        fitfram <- get(x@misc$dataname, envir = parent.frame())
+      else if (inherits(x, c("gee", "gls")))
+        fitfram <- eval(x$call$data, envir = parent.frame())
+      else if (inherits(x, "Zelig-relogit"))
+        fitfram <- get_zelig_relogit_frame(x)
+      else if (inherits(x, "vglm")) {
+        if (!length(x@model)) {
+          env <- environment(x@terms$terms)
+          if (is.null(env)) env <- parent.frame()
+          fcall <- x@call
+          fcall$method <- "model.frame"
+          fcall$smart <- FALSE
+          fitfram <- eval(fcall, env, parent.frame())
+        } else {
+          fitfram <- x@model
+        }
+      } else
+        fitfram <- stats::model.frame(x)
+    },
+    error = function(x) { fitfram <- NULL }
+  )
+
+
+  if (is.null(fitfram)) {
+    warning("Could not get model frame.", call. = F)
+    return(NULL)
+  }
 
 
   # clean 1-dimensional matrices
@@ -318,6 +346,10 @@ model_frame <- function(x, fe.only = TRUE) {
       fitfram <- dplyr::bind_cols(fitfram_nonmatrix, fitfram_matrix)
     } else {
 
+      # fix NA in column names
+
+      if (any(is.na(colnames(md)))) colnames(md) <- make.names(colnames(md))
+
       # get "matrix" terms and "normal" predictors, but exclude
       # response variable(s)
 
@@ -348,7 +380,11 @@ model_frame <- function(x, fe.only = TRUE) {
       }
 
 
-      fitfram <- stats::na.omit(dplyr::select(md, !! needed.vars))
+      if (inherits(x, "coxph")) {
+        fitfram <- md
+      } else {
+        fitfram <- stats::na.omit(dplyr::select(md, !! needed.vars))
+      }
 
       # add back model weights, if any
       if (!is.null(mw)) fitfram$`(weights)` <- mw
@@ -397,22 +433,30 @@ model_family <- function(x, multi.resp = FALSE, mv = FALSE) {
     if (!sjmisc::is_empty(string_starts_with(pattern = "logit(", x = link.fun)))
       link.fun <- "logit"
   } else if (inherits(x, c("zeroinfl", "hurdle"))) {
-    fitfam <- "negative binomial"
+    if (is.list(x$dist))
+      dist <- x$dist[[1]]
+    else
+      dist <- x$dist
+    fitfam <- switch(
+      dist,
+      poisson = "poisson",
+      negbin = "negative binomial",
+      "poisson"
+    )
     logit.link <- FALSE
-    link.fun <- NULL
+    link.fun <- "log"
     zero.inf <- TRUE
   } else if (inherits(x, "betareg")) {
     fitfam <- "beta"
     logit.link <- x$link$mean$name == "logit"
     link.fun <- x$link$mean$linkfun
-  } else if (inherits(x, "coxph")) {
+  } else if (inherits(x, c("coxph", "coxme"))) {
     fitfam <- "survival"
     logit.link <- TRUE
     link.fun <- NULL
   } else {
-    # "lrm"-object from pkg "rms" have no family method
-    # so we construct a logistic-regression-family-object
-    if (inherits(x, c("lrm", "polr", "logistf", "clmm", "clm", "multinom", "Zelig-relogit")))
+    # here we have no family method, so we construct a logistic-regression-family-object
+    if (inherits(x, c("lrm", "polr", "logistf", "clmm", "clm", "clm2", "multinom", "Zelig-relogit")))
       faminfo <- stats::binomial(link = "logit")
     else
       # get family info
@@ -474,7 +518,7 @@ make_family <- function(x, fitfam, zero.inf, logit.link, multi.var, link.fun) {
   zero.inf <- zero.inf | sjmisc::str_contains(fitfam, "zero_inflated", ignore.case = T)
 
   is.ordinal <-
-    inherits(x, c("polr", "clm", "clmm", "multinom")) |
+    inherits(x, c("polr", "clm", "clm2", "clmm", "multinom")) |
     fitfam %in% c("cumulative", "cratio", "sratio", "acat")
 
   is.categorical <- fitfam == "categorical"
@@ -522,8 +566,9 @@ get_vn_helper <- function(x) {
   # for gam-smoothers/loess, remove s()- and lo()-function in column name
   # for survival, remove strata(), and so on...
   pattern <- c(
-    "as.factor", "offset", "log", "lag", "diff", "lo", "bs", "ns", "t2", "te",
-    "ti", "mi", "gp", "pspline", "poly", "strata", "scale", "s"
+    "as.factor", "factor", "offset", "log", "lag", "diff", "lo", "bs", "ns",
+    "t2", "te", "ti", "tt", "mi", "gp", "pspline", "poly", "strata", "scale",
+    "interaction", "s", "I"
   )
 
   # do we have a "log()" pattern here? if yes, get capture region
@@ -532,11 +577,15 @@ get_vn_helper <- function(x) {
     for (j in 1:length(pattern)) {
       if (pattern[j] == "offset") {
         x[i] <- sjmisc::trim(unique(sub("^offset\\(([^-+ )]*).*", "\\1", x[i])))
+      } else if (pattern[j] == "I") {
+        x[i] <- sjmisc::trim(unique(sub("I\\((\\w*).*", "\\1", x[i])))
       } else {
         p <- paste0("^", pattern[j], "\\(([^,)]*).*")
         x[i] <- unique(sub(p, "\\1", x[i]))
       }
     }
-    x[i]
+    # for coxme-models, remove random-effect things...
+    sjmisc::trim(sub("^(.*)\\|(.*)", "\\2", x[i]))
+    # x[i]
   })
 }
