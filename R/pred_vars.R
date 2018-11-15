@@ -3,7 +3,7 @@
 #'
 #' @description Several functions to retrieve information from model objects,
 #'    like variable names, link-inverse function, model frame,
-#'    model_family etc., in a tidy and consistent way.
+#'    model family etc., in a tidy and consistent way.
 #'
 #' @param x A fitted model; for \code{var_names()}, \code{x} may also be a
 #'    character vector.
@@ -16,6 +16,8 @@
 #' @return For \code{pred_vars()} and \code{resp_var()}, the name(s) of the
 #'    response or predictor variables from \code{x} as character vector.
 #'    \code{resp_val()} returns the values from \code{x}'s response vector.
+#'    \code{re_grp_var()} returns the group factor of random effects in
+#'    mixed models, or \code{NULL} if \code{x} has no such random effects term.
 #'    \code{link_inverse()} returns, if known, the inverse link function from
 #'    \code{x}; else \code{NULL} for those models where the inverse link function
 #'    can't be identified. \code{model_frame()} is similar to \code{model.frame()},
@@ -78,6 +80,12 @@
 #' head(model.frame(m))
 #' head(model_frame(m))
 #'
+#' # get random effects grouping factor from mixed models
+#' library(lme4)
+#' data(sleepstudy)
+#' m <- lmer(Reaction ~ Days + (1 + Days | Subject), data = sleepstudy)
+#' re_grp_var(m)
+#'
 #' @importFrom purrr flatten_chr map
 #' @importFrom stats formula terms
 #' @export
@@ -87,6 +95,12 @@ pred_vars <- function(x) {
     fm <- attr(x$location, "terms", exact = TRUE)
   else
     fm <- stats::formula(x)
+
+
+  if (inherits(x, "gam") && is.list(fm)) {
+    fm <- fm[[1]]
+  }
+
 
   if (inherits(x, "brmsfit")) {
     if (!is.null(fm$responses)) {
@@ -130,8 +144,27 @@ resp_var <- function(x) {
     purrr::map_chr(stats::formula(x), ~ deparse(.x[[2L]]))
   } else if (inherits(x, "clm2")) {
     all.vars(attr(x$location, "terms", exact = TRUE)[[2L]])
+  } else if (inherits(x, "gam") && is.list(stats::formula(x))) {
+    deparse(stats::formula(x)[[1]][[2L]])
   } else
     deparse(stats::formula(x)[[2L]])
+}
+
+
+
+#' @rdname pred_vars
+#' @importFrom purrr map_chr
+#' @importFrom lme4 findbars
+#' @importFrom stats formula
+#' @importFrom sjmisc trim
+#' @export
+re_grp_var <- function(x) {
+  tryCatch({
+    re <- purrr::map_chr(lme4::findbars(stats::formula(x)), deparse)
+    sjmisc::trim(substring(re, regexpr(pattern = "\\|", re) + 1))
+  },
+  error = function(x) { NULL }
+  )
 }
 
 
@@ -306,6 +339,18 @@ model_frame <- function(x, fe.only = TRUE) {
   }
 
 
+  # do we have an offset, not specified in the formula?
+
+  if ("(offset)" %in% colnames(fitfram)) {
+    if (obj_has_name(x, "call")) {
+      if (obj_has_name(x$call, "offset")) {
+        offcol <- which(colnames(fitfram) == "(offset)")
+        colnames(fitfram)[offcol] <- var_names(deparse(x$call$offset))
+      }
+    }
+  }
+
+
   # clean 1-dimensional matrices
 
   fitfram <- purrr::modify_if(fitfram, is.matrix, function(x) {
@@ -392,6 +437,11 @@ model_frame <- function(x, fe.only = TRUE) {
 
   }
 
+  # check if we have monotonic variables, included in formula
+  # with "mo()"? If yes, remove from model frame
+  mos_eisly <- grepl(pattern = "^mo\\(([^,)]*).*", x = colnames(fitfram))
+  if (any(mos_eisly)) fitfram <- fitfram[!mos_eisly]
+
   # clean variable names
   cvn <- get_vn_helper(colnames(fitfram))
 
@@ -454,6 +504,12 @@ model_family <- function(x, multi.resp = FALSE, mv = FALSE) {
     fitfam <- "survival"
     logit.link <- TRUE
     link.fun <- NULL
+  } else if (inherits(x, "glmmTMB")) {
+    faminfo <- stats::family(x)
+    fitfam <- faminfo$family
+    logit.link <- faminfo$link == "logit"
+    link.fun <- faminfo$link
+    zero.inf <- !sjmisc::is_empty(lme4::fixef(x)$zi)
   } else {
     # here we have no family method, so we construct a logistic-regression-family-object
     if (inherits(x, c("lrm", "polr", "logistf", "clmm", "clm", "clm2", "multinom", "Zelig-relogit")))
@@ -503,7 +559,7 @@ make_family <- function(x, fitfam, zero.inf, logit.link, multi.var, link.fun) {
     sjmisc::str_contains(fitfam, "binomial", ignore.case = TRUE)
 
   poisson_fam <-
-    fitfam %in% c("poisson", "quasipoisson", "genpois") |
+    fitfam %in% c("poisson", "quasipoisson", "genpois", "ziplss") |
     sjmisc::str_contains(fitfam, "poisson", ignore.case = TRUE)
 
   neg_bin_fam <-
@@ -515,7 +571,7 @@ make_family <- function(x, fitfam, zero.inf, logit.link, multi.var, link.fun) {
 
   linear_model <- !binom_fam & !poisson_fam & !neg_bin_fam & !logit.link
 
-  zero.inf <- zero.inf | sjmisc::str_contains(fitfam, "zero_inflated", ignore.case = T)
+  zero.inf <- zero.inf | fitfam == "ziplss" | sjmisc::str_contains(fitfam, "zero_inflated", ignore.case = T)
 
   is.ordinal <-
     inherits(x, c("polr", "clm", "clm2", "clmm", "multinom")) |
@@ -567,7 +623,7 @@ get_vn_helper <- function(x) {
   # for survival, remove strata(), and so on...
   pattern <- c(
     "as.factor", "factor", "offset", "log", "lag", "diff", "lo", "bs", "ns",
-    "t2", "te", "ti", "tt", "mi", "gp", "pspline", "poly", "strata", "scale",
+    "t2", "te", "ti", "tt", "mi", "mo", "gp", "pspline", "poly", "strata", "scale",
     "interaction", "s", "I"
   )
 

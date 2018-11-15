@@ -15,7 +15,11 @@
 #'   \code{NULL}, so no weights are used.
 #' @param digits Numeric, amount of digits after decimal point when rounding
 #'   estimates and values.
-#' @param weight.by Deprecated.
+#' @param file Destination file, if the output should be saved as file.
+#'   Only used when \code{out} is not \code{"txt"}.
+#' @param encoding Character vector, indicating the charset encoding used
+#'   for variable and value labels. Default is \code{"UTF-8"}. Only used
+#'   when \code{out} is not \code{"txt"}.
 #'
 #' @inheritParams hdi
 #'
@@ -53,20 +57,20 @@
 #' @importFrom sjmisc to_value is_empty
 #' @importFrom rlang enquo .data quo_name
 #' @export
-grpmean <- function(x, dv, grp, weights = NULL, digits = 2, out = c("txt", "viewer", "browser"), weight.by) {
+grpmean <- function(x,
+                    dv,
+                    grp,
+                    weights = NULL,
+                    digits = 2,
+                    out = c("txt", "viewer", "browser"),
+                    encoding = "UTF-8",
+                    file = NULL) {
 
   out <- match.arg(out)
 
   if (out != "txt" && !requireNamespace("sjPlot", quietly = TRUE)) {
     message("Package `sjPlot` needs to be loaded to print HTML tables.")
     out <- "txt"
-  }
-
-  ## TODO remove deprecated argument later
-
-  if (!missing(weight.by)) {
-    message("Argument `weight.by` is deprecated. Please use `weights`.")
-    weights <- weight.by
   }
 
   # create quosures
@@ -79,9 +83,8 @@ grpmean <- function(x, dv, grp, weights = NULL, digits = 2, out = c("txt", "view
     if (inherits(.weights, "try-error")) .weights <- NULL
 
     w.string <- try(eval(weights), silent = TRUE)
-    if (!inherits(w.string, "try-error") && is.character(w.string)) .weights <- w.string
+    if (!inherits(w.string, "try-error") && !is.null(w.string) && is.character(w.string)) .weights <- w.string
 
-    if (!is.null(w.string) && is.character(w.string)) .weights <- w.string
     if (sjmisc::is_empty(.weights) || .weights == "NULL") .weights <- NULL
   } else
     .weights <- NULL
@@ -163,13 +166,15 @@ grpmean <- function(x, dv, grp, weights = NULL, digits = 2, out = c("txt", "view
 
   # save how to print output
   attr(dataframes, "print") <- out
+  attr(dataframes, "encoding") <- encoding
+  attr(dataframes, "file") <- file
 
   dataframes
 }
 
 
 #' @importFrom stats pf lm weighted.mean na.omit sd
-#' @importFrom sjmisc to_value
+#' @importFrom sjmisc to_value add_variables
 #' @importFrom emmeans emmeans contrast
 #' @importFrom dplyr pull select n_distinct
 #' @importFrom purrr map_chr
@@ -259,7 +264,7 @@ grpmean_helper <- function(x, dv, grp, weight.by, digits, value.labels, varCount
 
 
   # add row labels
-  dat <- add_cols(
+  dat <- sjmisc::add_variables(
     dat,
     term = c(unname(value.labels), "Total"),
     .after = -1

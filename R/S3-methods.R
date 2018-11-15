@@ -186,7 +186,7 @@ print.sj_r2 <- function(x, digits = 3, ...) {
 #' @importFrom purrr map_chr map2_chr
 #' @export
 print.sj_icc <- function(x, digits = 4, ...) {
-  cat("\nIntra-Class Correlation Coefficient for Generalized Linear Mixed Model\n\n")
+  cat("\nIntraclass Correlation Coefficient for Generalized Linear Mixed Model\n\n")
   print_icc_and_r2(x, digits, ...)
 }
 
@@ -216,7 +216,7 @@ print_icc_and_r2 <- function(x, digits, ...) {
 #' @export
 print.sj_icc_merMod <- function(x, comp, ...) {
   # print model information
-  cat(sprintf("\n%s\n\n", attr(x, "model", exact = T)))
+  cat(sprintf("\nIntraclass Correlation Coefficient for %s\n\n", attr(x, "model", exact = T)))
 
   cat(crayon::blue(
     sprintf("Family : %s (%s)\nFormula: %s\n\n",
@@ -287,6 +287,8 @@ print.sj_icc_merMod <- function(x, comp, ...) {
                   as.vector(x[i])))
     }
   }
+
+  cat("\n")
 }
 
 
@@ -310,10 +312,19 @@ print.tidy_stan <- function(x, ...) {
 
   if (cumulative) x <- sjmisc::var_rename(x, response.level = "response")
 
-  x$term <- gsub("b_", "", x$term, fixed = TRUE)
+  x$term <- gsub("^b_", "", x$term)
+  x$term <- gsub(pattern = "^bsp_mo", replacement = "", x = x$term)
+  simplex <- string_starts_with(pattern = "simo_mo", x = x$term)
+  x$term <- gsub(
+    pattern = "^simo_mo(.*)(\\.)(.*)(\\.)",
+    replacement = "\\1 \\[\\3\\]",
+    x = x$term
+  )
+  x$simplex <- ""
+  if (!sjmisc::is_empty(simplex))
+    x$simplex[simplex] <- "simplex"
 
   x <- get_hdi_data(x, digits = as.numeric(attr(x, "digits")))
-
 
   # print zero-inflated models ----
 
@@ -338,28 +349,52 @@ print.tidy_stan <- function(x, ...) {
     if (ran.eff) {
       print_stan_ranef(x, zeroinf = TRUE)
     } else {
+      simplex <- which(x$simplex == "simplex")
+
+      if (!sjmisc::is_empty(simplex)) {
+        x.sp <- dplyr::slice(x, !! simplex)
+        x <- dplyr::slice(x, -!! simplex)
+      } else
+        x.sp <- NULL
+
       cat(crayon::blue("## Conditional Model:\n\n"))
       x <- trim_hdi(x)
       colnames(x)[1] <- ""
 
       x %>%
+        dplyr::select(-.data$simplex) %>%
         as.data.frame() %>%
         print(..., row.names = FALSE)
       cat("\n")
+
+      if (!is.null(x.sp))
+        print_stan_simplex(x.sp)
     }
 
 
     if (ran.eff) {
       print_stan_zeroinf_ranef(x.zi)
     } else {
+      simplex <- which(x$simplex == "simplex")
+
+      if (!sjmisc::is_empty(simplex)) {
+        x.sp <- dplyr::slice(x.zi, !! simplex)
+        x.zi <- dplyr::slice(x.zi, -!! simplex)
+      } else
+        x.sp <- NULL
+
       cat(crayon::blue("## Zero-Inflated Model:\n\n"))
       x.zi <- trim_hdi(x.zi)
       colnames(x.zi)[1] <- ""
 
       x.zi %>%
+        dplyr::select(-.data$simplex) %>%
         as.data.frame() %>%
         print(..., row.names = FALSE)
       cat("\n")
+
+      if (!is.null(x.sp))
+        print_stan_simplex(x.sp)
     }
 
 
@@ -388,7 +423,7 @@ print.tidy_stan <- function(x, ...) {
 
         xr <- x %>%
           dplyr::filter(.data$response == !! resp) %>%
-          dplyr::select(-1) %>%
+          dplyr::select(-1, -.data$simplex) %>%
           dplyr::mutate(term = clean_term_name(.data$term)) %>%
           trim_hdi() %>%
           as.data.frame()
@@ -412,7 +447,7 @@ print.tidy_stan <- function(x, ...) {
       cat(crayon::cyan(sprintf("## Residual Correlations\n\n", resp)))
 
       x.cor <- x.cor %>%
-        dplyr::select(-1) %>%
+        dplyr::select(-1, -.data$simplex) %>%
         sjmisc::var_rename(term = "correlation") %>%
         trim_hdi() %>%
         as.data.frame()
@@ -427,11 +462,43 @@ print.tidy_stan <- function(x, ...) {
     print_stan_ranef(x)
 
   } else {
+
+    simplex <- which(x$simplex == "simplex")
+
+    if (!sjmisc::is_empty(simplex)) {
+      x.sp <- dplyr::slice(x, !! simplex)
+      x <- dplyr::slice(x, -!! simplex)
+    } else
+      x.sp <- NULL
+
     colnames(x)[1] <- ""
     x %>%
+      dplyr::select(-.data$simplex) %>%
       as.data.frame() %>%
       print(..., row.names = FALSE)
+
+    if (!is.null(x.sp)) {
+      cat("\n")
+      print_stan_simplex(x.sp, ...)
+    }
   }
+}
+
+
+print_stan_simplex <- function(x, ...) {
+  cat(crayon::blue("## Simplex Parameters:\n\n"))
+  x <- trim_hdi(x)
+
+  if (colnames(x)[1] != "term")
+    x <- dplyr::select(x, -1)
+
+  colnames(x)[1] <- ""
+
+  x %>%
+    dplyr::select(-.data$simplex) %>%
+    as.data.frame() %>%
+    print(..., row.names = FALSE)
+  cat("\n")
 }
 
 
@@ -439,7 +506,7 @@ print.tidy_stan <- function(x, ...) {
 #' @importFrom crayon blue red
 #' @importFrom dplyr slice select filter mutate
 print_stan_ranef <- function(x, zeroinf = FALSE) {
-  # find fixed effects - is type = "all"
+  # find fixed effects - if type = "all"
   fe <- which(x$random.effect == "")
 
   if (!sjmisc::is_empty(fe)) {
@@ -455,17 +522,29 @@ print_stan_ranef <- function(x, zeroinf = FALSE) {
 
     x.fe <- dplyr::slice(x, !! fe)
     x <- dplyr::slice(x, -!! fe)
+
+    simplex <- which(x.fe$simplex == "simplex")
+
+    if (!sjmisc::is_empty(simplex)) {
+      x.sp <- dplyr::slice(x.fe, !! simplex)
+      x.fe <- dplyr::slice(x.fe, -!! simplex)
+    } else
+      x.sp <- NULL
+
     x.fe$term <- clean_term_name(x.fe$term)
     x.fe <- trim_hdi(x.fe)
 
     colnames(x.fe)[2] <- ""
 
     x.fe %>%
-      dplyr::select(-1) %>%
+      dplyr::select(-1, -.data$simplex) %>%
       as.data.frame() %>%
       print(row.names = FALSE)
 
     cat("\n")
+
+    if (!is.null(x.sp))
+      print_stan_simplex(x.sp)
   }
 
   # iterate all random effects
@@ -484,7 +563,7 @@ print_stan_ranef <- function(x, zeroinf = FALSE) {
 
     xr <- x %>%
       dplyr::filter(.data$random.effect == !! r) %>%
-      dplyr::select(-1) %>%
+      dplyr::select(-1, -.data$simplex) %>%
       dplyr::mutate(term = clean_term_name(.data$term)) %>%
       trim_hdi() %>%
       as.data.frame()
@@ -539,7 +618,7 @@ print_stan_mv_re <- function(x, resp) {
 
     xr <- x.fe %>%
       dplyr::filter(.data$response == !! resp) %>%
-      dplyr::select(-1:-2) %>%
+      dplyr::select(-1:-2, -.data$simplex) %>%
       dplyr::mutate(term = clean_term_name(.data$term)) %>%
       trim_hdi() %>%
       as.data.frame()
@@ -600,7 +679,7 @@ print_stan_zeroinf_ranef <- function(x) {
     colnames(x.fe)[2] <- ""
 
     x.fe %>%
-      dplyr::select(-1) %>%
+      dplyr::select(-1, -.data$simplex) %>%
       as.data.frame() %>%
       print(row.names = FALSE)
 
@@ -626,7 +705,7 @@ print_stan_zeroinf_ranef <- function(x) {
 
       xr <- x %>%
         dplyr::filter(.data$random.effect == !! r) %>%
-        dplyr::select(-1) %>%
+        dplyr::select(-1, -.data$simplex) %>%
         dplyr::mutate(term = clean_term_name(.data$term)) %>%
         trim_hdi() %>%
         as.data.frame()
@@ -1347,6 +1426,30 @@ print.sj_grpmeans <- function(x, ...) {
 }
 
 
+#' @importFrom crayon blue cyan
+#' @export
+print.sj_revar_adjust <- function(x, ...) {
+  cat("\nVariance Components of Mixed Models\n\n")
+  cat(crayon::blue(sprintf("Family : %s (%s)\nFormula: %s\n\n", x$family, x$link, deparse(x$formula))))
+
+  vals <- c(
+    sprintf("%.3f", x$var.fixef),
+    sprintf("%.3f", x$var.ranef),
+    sprintf("%.3f", x$var.disp),
+    sprintf("%.3f", x$var.dist),
+    sprintf("%.3f", x$var.resid)
+  )
+
+  vals <- format(vals, justify = "right")
+
+  cat(sprintf("         fixed: %s\n", vals[1]))
+  cat(sprintf("        random: %s\n", vals[2]))
+  cat(sprintf("      residual: %s\n", vals[5]))
+  cat(crayon::cyan(sprintf("    dispersion: %s\n", vals[3])))
+  cat(crayon::cyan(sprintf("  distribution: %s\n\n", vals[4])))
+}
+
+
 #' @export
 print.sj_revar <- function(x, ...) {
   # get parameters
@@ -1433,7 +1536,7 @@ print.sj_pca_rotate <- function(x, cutoff = .1, ...) {
       TRUE ~ as.character(.x)
     )) %>%
     as.data.frame() %>%
-    add_cols(variable = rn, .after = -1)
+    sjmisc::add_variables(variable = rn, .after = -1)
 
   xs <- xs %>%
     round(3) %>%

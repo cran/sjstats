@@ -138,6 +138,17 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
   se <- mcse(x, type = type)
   se <- se[se$term %in% out.hdi$term, ]
 
+
+  # transform estimate, if requested
+
+  if (!is.null(trans)) {
+    trans <- match.fun(trans)
+    all.cols <- sjmisc::seq_col(mod.dat)
+    simp.pars <- string_starts_with("simo_mo", colnames(mod.dat))
+    if (!sjmisc::is_empty(simp.pars)) all.cols <- all.cols[-simp.pars]
+    for (i in all.cols) mod.dat[[i]] <- trans(mod.dat[[i]])
+  }
+
   est <- purrr::map_dbl(mod.dat, ~ sjstats::typical_value(.x, fun = typical))
 
   out <- data_frame(
@@ -163,14 +174,6 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
     )
 
 
-  # transform estimate, if requested
-
-  if (!is.null(trans)) {
-    trans <- match.fun(trans)
-    out$estimate <- trans(out$estimate)
-  }
-
-
   # check if we need to remove random or fixed effects
   out <- remove_effects_from_stan(out, type, is.brms = inherits(x, "brmsfit"))
 
@@ -179,7 +182,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
 
   if (type == "random" || type == "all") {
 
-    out <- add_cols(out, random.effect = "", .after = -1)
+    out <- sjmisc::add_variables(out, random.effect = "", .after = -1)
 
     # find random intercepts
 
@@ -294,7 +297,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
     if (length(string_starts_with(pattern = "b_mu", x = out$term)) == nrow(out)) {
       out$term <- substr(out$term, 5, max(nchar(out$term)))
       # create "response-level" variable
-      out <- add_cols(out, response.level = "", .after = -1)
+      out <- sjmisc::add_variables(out, response.level = "", .after = -1)
       out$response.level <- gsub("(.*)\\_(.*)", "\\1", out$term)
       out$term <- gsub("(.*)\\_(.*)", "\\2", out$term)
     }
@@ -321,7 +324,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
 
     # create "response-level" variable
 
-    out <- add_cols(out, response = "", .after = -1)
+    out <- sjmisc::add_variables(out, response = "", .after = -1)
 
     # check if multivariate response model also has random effects
     # we need to clean names for the random effects as well here
@@ -360,7 +363,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
 
     # create "response-level" variable
 
-    out <- add_cols(out, response = "", .after = -1)
+    out <- sjmisc::add_variables(out, response = "", .after = -1)
 
 
     # copy name of response into new character variable

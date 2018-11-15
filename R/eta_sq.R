@@ -189,7 +189,7 @@ anova_stats <- function(model, digits = 3) {
     NA
   )
 
-  add_cols(as, power = power) %>%
+  sjmisc::add_variables(as, power = power) %>%
     sjmisc::round_num(digits = digits) %>%
     as.data.frame()
 }
@@ -251,7 +251,7 @@ aov_stat_summary <- function(model) {
 
   # for car::Anova, the meansq-column might be missing, so add it manually
   if (!obj_has_name(aov.sum, "meansq"))
-    aov.sum <- add_cols(aov.sum, meansq = aov.sum$sumsq / aov.sum$df, .after = "sumsq")
+    aov.sum <- sjmisc::add_variables(aov.sum, meansq = aov.sum$sumsq / aov.sum$df, .after = "sumsq")
 
   aov.sum$term <- var_names(aov.sum$term)
 
@@ -384,6 +384,16 @@ peta_sq_ci <- function(aov.sum, ci.lvl = .95) {
 #' @importFrom stats anova formula aov
 #' @importFrom sjmisc rotate_df
 es_boot_fun <- function(model, type, ci.lvl, n) {
+
+  if (inherits(model, "anova") || is.data.frame(model)) {
+    if (type == "pomega")
+      stop("Objects of class `anova` or `data.frame` not supported for partial Omega squared statistics.", call. = FALSE)
+    else if (type == "eta")
+      stop("Objects of class `anova` or `data.frame` not supported for Eta squared statistics.", call. = FALSE)
+    else
+      stop("Objects of class `anova` or `data.frame` not supported.", call. = FALSE)
+  }
+
 
   es <- aov_stat(model = model, type = type)
 

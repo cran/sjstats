@@ -15,15 +15,13 @@
 #'   to calculate the ICC for this group-level. Only applies if \code{ppd = TRUE}.
 #' @param typical Character vector, naming the function that will be used as
 #'   measure of central tendency for the ICC. The default is "mean". See
-#'   \code{typical_value} for options.
+#'   \link{typical_value} for options.
 #' @param ppd Logical, if \code{TRUE}, variance decomposition is based on the
 #'   posterior predictive distribution, which is the correct way for Bayesian
 #'   non-Gaussian models.
-#' @param adjusted Logical, if \code{TRUE}, the adjusted (and conditional) ICC
-#'   is calculated, which reflects the uncertainty of all random effects (see
-#'   'Details'). \strong{Note} that if \code{adjusted = TRUE}, \strong{no}
-#'   additional information on the variance components is returned.
-#'
+#' @param adjusted Logical, if \code{TRUE}, the adjusted (and
+#'   conditional) ICC is calculated, which reflects the uncertainty of all
+#'   random effects (see 'Details').
 #'
 #' @inheritParams hdi
 #'
@@ -39,6 +37,7 @@
 #'    \item Goldstein H, Browne W, Rasbash J. 2010. Partitioning Variation in Multilevel Models. Understanding Statistics, 1:4, 223-231 (\doi{10.1207/S15328031US0104_02})
 #'    \item Grace-Martion K. The Intraclass Correlation Coefficient in Mixed Models, \href{http://www.theanalysisfactor.com/the-intraclass-correlation-coefficient-in-mixed-models/}{web}
 #'    \item Hox J. 2002. Multilevel analysis: techniques and applications. Mahwah, NJ: Erlbaum
+#'    \item Johnson PC, O'Hara RB. 2014. Extension of Nakagawa & Schielzeth's R2GLMM to random slopes models. Methods Ecol Evol, 5: 944-946. (\doi{10.1111/2041-210X.12225})
 #'    \item Nakagawa S, Johnson P, Schielzeth H (2017) The coefficient of determination R2 and intra-class correlation coefficient from generalized linear mixed-effects models revisted and expanded. J. R. Soc. Interface 14. \doi{10.1098/rsif.2017.0213}
 #'    \item Rabe-Hesketh S, Skrondal A. 2012. Multilevel and longitudinal modeling using Stata. 3rd ed. College Station, Tex: Stata Press Publication
 #'    \item Raudenbush SW, Bryk AS. 2002. Hierarchical linear models: applications and data analysis methods. 2nd ed. Thousand Oaks: Sage Publications
@@ -99,6 +98,11 @@
 #'    nonetheless, but it is usually no meaningful summary of the
 #'    proportion of variances.
 #'    \cr \cr
+#'    To get a meaningful ICC also for models with random slopes, use \code{adjusted = TRUE}.
+#'    The adjusted ICC used the mean random effect variance, which is based
+#'    on the random effect variances for each value of the random slope
+#'    (see \cite{Johnson et al. 2014}).
+#'    \cr \cr
 #'    \strong{ICC for models with multiple or nested random effects}
 #'    \cr \cr
 #'    \strong{Caution:} By default, for three-level-models, depending on the
@@ -115,7 +119,8 @@
 #'    The latter also takes the fixed effects variances into account (see
 #'    \cite{Nakagawa et al. 2017}). If random effects are not nested and not
 #'    cross-classified, the adjusted (\code{adjusted = TRUE}) and unadjusted
-#'    (\code{adjusted = FALSE}) ICC are identical.
+#'    (\code{adjusted = FALSE}) ICC are identical. \code{adjust = TRUE} returns
+#'    a meaningful ICC for models with random slopes.
 #'    \cr \cr
 #'    \strong{ICC for specific group-levels}
 #'    \cr \cr
@@ -160,9 +165,10 @@
 #' icc(fit0)
 #'
 #' # note: ICC for random-slope-intercept model usually not
-#' # meaningful - see 'Note'.
+#' # meaningful, unless you use "adjusted = TRUE" - see 'Note'.
 #' fit1 <- lmer(Reaction ~ Days + (Days | Subject), sleepstudy)
 #' icc(fit1)
+#' icc(fit1, adjusted = TRUE)
 #'
 #' sleepstudy$mygrp <- sample(1:45, size = 180, replace = TRUE)
 #' fit2 <- lmer(Reaction ~ Days + (1 | mygrp) + (1 | Subject), sleepstudy)
@@ -217,8 +223,15 @@ icc <- function(x, ...) {
 #' @export
 icc.merMod <- function(x, adjusted = FALSE, ...) {
 
+  add.args <- lapply(match.call(expand.dots = F)$`...`, function(x) x)
+
+  if (obj_has_name(add.args, "type"))
+    type <- add.args[["type"]]
+  else
+    type <- "icc"
+
   # compute adjusted and conditional ICC
-  if (adjusted) return(r2_mixedmodel(x, type = "icc"))
+  if (adjusted) return(r2_mixedmodel(x, type = type))
 
   # get family
   fitfam <- model_family(x)
@@ -241,42 +254,8 @@ icc.merMod <- function(x, adjusted = FALSE, ...) {
   # random slope-variances (tau 11)
   tau.11 <- unlist(lapply(reva, function(x) diag(x)[-1]))
 
-  # get residual standard deviation sigma
-  sig <- attr(reva, "sc")
-
-  # set default, if no residual variance is available
-
-  if (is.null(sig)) {
-    if (fitfam$is_bin)
-      sig <- sqrt((pi^2) / 3)
-    else
-      sig <- 1
-  }
-
-
-  # residual variances, i.e.
-  # within-cluster-variance (sigma^2)
-
-  if (fitfam$is_linear) {
-    # get residual standard deviation sigma
-    resid_var <- sig^2
-  } else if (fitfam$is_bin) {
-    # for logistic models, we use pi / 3
-    resid_var <- switch(
-      fitfam$link.fun,
-      logit = pi^2 / 3,
-      probit = 1,
-      badlink(fitfam$link.fun, fitfam$family)
-    )
-  } else {
-    resid_var <- switch(
-      fitfam$link.fun,
-      log = logVarDist(x, null_model(x), fitfam, sig),
-      sqrt = 0.25,
-      badlink(fitfam$link.fun, fitfam$family)
-    )
-  }
-
+  # residual variances, i.e. within-cluster-variance
+  resid_var <- get_residual_variance(x, var.cor = reva, fitfam, type = "ICC")
 
   # total variance, sum of random intercept and residual variances
   total_var <- sum(purrr::map_dbl(vars, ~ sum(.x)), resid_var)
@@ -314,7 +293,7 @@ icc.merMod <- function(x, adjusted = FALSE, ...) {
     rho.01 <- unlist(rho.01)
     tau.01 <- unlist(tau.01)
 
-    message("Caution! ICC for random-slope-intercept models usually not meaningful. See 'Note' in `?icc`.")
+    message("Caution! ICC for random-slope-intercept models usually not meaningful. Use `adjusted = TRUE` to use the mean random effect variance to calculate the ICC. See 'Note' in `?icc`.")
   }
 
   # name values
@@ -358,8 +337,15 @@ icc.merMod <- function(x, adjusted = FALSE, ...) {
 #' @export
 icc.glmmTMB <- function(x, adjusted = FALSE, ...) {
 
+  add.args <- lapply(match.call(expand.dots = F)$`...`, function(x) x)
+
+  if (obj_has_name(add.args, "type"))
+    type <- add.args[["type"]]
+  else
+    type <- "icc"
+
   # compute adjusted and conditional ICC
-  if (adjusted) return(r2_mixedmodel(x, type = "icc"))
+  if (adjusted) return(r2_mixedmodel(x, type = type))
 
   # get family
   fitfam <- model_family(x)
@@ -382,42 +368,8 @@ icc.glmmTMB <- function(x, adjusted = FALSE, ...) {
   # random slope-variances (tau 11)
   tau.11 <- unlist(lapply(reva, function(x) diag(x)[-1]))
 
-  # get residual standard deviation sigma
-  sig <- attr(reva, "sc")
-
-
-  # set default, if no residual variance is available
-
-  if (is.null(sig)) {
-    if (fitfam$is_bin)
-      sig <- sqrt((pi^2) / 3)
-    else
-      sig <- 1
-  }
-
-
-  # residual variances, i.e.
-  # within-cluster-variance (sigma^2)
-
-  if (fitfam$is_linear) {
-    resid_var <- sig^2
-  } else if (fitfam$is_bin) {
-    # for logistic models, we use pi / 3
-    resid_var <- switch(
-      fitfam$link.fun,
-      logit = pi^2 / 3,
-      probit = 1,
-      badlink(fitfam$link.fun, fitfam$family)
-    )
-  } else {
-    resid_var <- switch(
-      fitfam$link.fun,
-      log = logVarDist(x, null_model(x), fitfam, sig),
-      sqrt = 0.25,
-      badlink(fitfam$link.fun, fitfam$family)
-    )
-  }
-
+  # residual variances, i.e. within-cluster-variance
+  resid_var <- get_residual_variance(x, var.cor = reva, fitfam, type = "ICC")
 
   # total variance, sum of random intercept and residual variances
   total_var <- sum(purrr::map_dbl(vars, ~ sum(.x)), resid_var)
@@ -455,7 +407,7 @@ icc.glmmTMB <- function(x, adjusted = FALSE, ...) {
     rho.01 <- unlist(rho.01)
     tau.01 <- unlist(tau.01)
 
-    message("Caution! ICC for random-slope-intercept models usually not meaningful. See 'Note' in `?icc`.")
+    message("Caution! ICC for random-slope-intercept models usually not meaningful. Use `adjusted = TRUE` to use the mean random effect variance to calculate the ICC. See 'Note' in `?icc`.")
   }
 
   # name values
@@ -805,15 +757,23 @@ icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
 #'                objects are supported.
 #'
 #' @param x Fitted mixed effects model (of class \code{merMod}, \code{glmmTMB},
-#'          \code{stanreg} or \code{brmsfit}). \code{get_re_var()} also accepts
-#'           an object of class \code{icc.lme4}, as returned by the
-#'           \code{\link{icc}} function.
+#'   \code{stanreg} or \code{brmsfit}). \code{get_re_var()} also accepts
+#'   an object of class \code{icc.lme4}, as returned by the
+#'   \code{\link{icc}} function.
 #' @param comp Name of the variance component to be returned. See 'Details'.
+#' @param adjusted Logical, if \code{TRUE}, returns the variance of the fixed
+#'   and random effects as well as of the additive dispersion and
+#'   distribution-specific variance, which are used to calculate the
+#'   adjusted and conditional \code{\link{r2}} and \code{\link{icc}}.
 #'
 #' @return \code{get_re_var()} returns the value of the requested variance component,
 #'           \code{re_var()} returns all random effects variances.
 #'
-#' @references Aguinis H, Gottfredson RK, Culpepper SA. 2013. Best-Practice Recommendations for Estimating Cross-Level Interaction Effects Using Multilevel Modeling. Journal of Management 39(6): 1490–1528 (\doi{10.1177/0149206313478188})
+#' @references \itemize{
+#'    \item Aguinis H, Gottfredson RK, Culpepper SA. 2013. Best-Practice Recommendations for Estimating Cross-Level Interaction Effects Using Multilevel Modeling. Journal of Management 39(6): 1490–1528 (\doi{10.1177/0149206313478188})
+#'    \item Johnson PC, O'Hara RB. 2014. Extension of Nakagawa & Schielzeth's R2GLMM to random slopes models. Methods Ecol Evol, 5: 944-946. (\doi{10.1111/2041-210X.12225})
+#'    \item Nakagawa S, Johnson P, Schielzeth H (2017) The coefficient of determination R2 and intra-class correlation coefficient from generalized linear mixed-effects models revisted and expanded. J. R. Soc. Interface 14. \doi{10.1098/rsif.2017.0213}
+#'  }
 #'
 #' @details The random effect variances indicate the between- and within-group
 #'         variances as well as random-slope variance and random-slope-intercept
@@ -831,6 +791,18 @@ icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
 #'         direct effects) affect the between-group-variance. Cross-level
 #'         interaction effects are group-level factors that explain the
 #'         variance in random slopes (Aguinis et al. 2013).
+#'         \cr \cr
+#'         If \code{adjusted = TRUE}, the variance of the fixed and random
+#'         effects as well as of the additive dispersion and
+#'         distribution-specific variance are returned (see \cite{Johnson et al. 2014}
+#'         and \cite{Nakagawa et al. 2017}):
+#'         \describe{
+#'          \item{\code{"fixed"}}{variance attributable to the fixed effects}
+#'          \item{\code{"random"}}{variance of random effects}
+#'          \item{\code{"dispersion"}}{variance due to additive dispersion}
+#'          \item{\code{"distribution"}}{distribution-specific variance}
+#'          \item{\code{"residual"}}{sum of dispersion and distribution}
+#'         }
 #'
 #' @seealso \code{\link{icc}}
 #'
@@ -840,6 +812,7 @@ icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
 #'
 #' # all random effect variance components
 #' re_var(fit1)
+#' re_var(fit1, adjusted = TRUE)
 #'
 #' # just the rand. slope-intercept covariance
 #' get_re_var(fit1, "tau.01")
@@ -852,20 +825,40 @@ icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
 #' @importFrom purrr map map2 flatten_dbl flatten_chr
 #' @importFrom sjmisc trim
 #' @export
-re_var <- function(x) {
-  # iterate all attributes and return them as vector
-  rv <- c("sigma_2", "tau.00", "tau.11", "tau.01", "rho.01")
+re_var <- function(x, adjusted = FALSE) {
 
-  # compute icc
-  icc_ <- suppressMessages(icc(x))
+  if (adjusted) {
 
-  rv_ <- purrr::map(rv, ~ attr(icc_, .x, exact = TRUE))
-  rn <- purrr::map2(1:length(rv_), rv, ~ sjmisc::trim(paste(names(rv_[[.x]]), .y, sep = "_")))
-  rv_ <- purrr::flatten_dbl(rv_)
+    rv <- r2(x)
 
-  names(rv_) <- purrr::flatten_chr(rn)[1:length(rv_)]
+    rv_ <- list(
+      var.fixef = attr(rv, "var.fixef", exact = TRUE),
+      var.ranef = attr(rv, "var.ranef", exact = TRUE),
+      var.disp = attr(rv, "var.disp", exact = TRUE),
+      var.dist = attr(rv, "var.dist", exact = TRUE),
+      var.resid = attr(rv, "var.resid", exact = TRUE),
+      formula = attr(rv, "formula", exact = TRUE),
+      family = attr(rv, "family", exact = TRUE),
+      link = attr(rv, "link", exact = TRUE)
+    )
 
-  class(rv_) <- c("sj_revar", class(rv_))
+    class(rv_) <- c("sj_revar_adjust", class(rv_))
+
+  } else {
+    # iterate all attributes and return them as vector
+    rv <- c("sigma_2", "tau.00", "tau.11", "tau.01", "rho.01")
+
+    # compute icc
+    icc_ <- suppressMessages(icc(x))
+
+    rv_ <- purrr::map(rv, ~ attr(icc_, .x, exact = TRUE))
+    rn <- purrr::map2(1:length(rv_), rv, ~ sjmisc::trim(paste(names(rv_[[.x]]), .y, sep = "_")))
+    rv_ <- purrr::flatten_dbl(rv_)
+
+    names(rv_) <- purrr::flatten_chr(rn)[1:length(rv_)]
+
+    class(rv_) <- c("sj_revar", class(rv_))
+  }
 
   rv_
 }
