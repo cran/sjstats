@@ -1135,7 +1135,11 @@ print.sj_resample <- function(x, ...) {
 
 #' @export
 print.sj_se_icc <- function(x, ...) {
-  cat("Standard Error of ICC\n")
+  if (x$adjusted)
+    cat("Standard Error of adjusted ICC\n")
+  else
+    cat("Standard Error of ICC\n")
+
   cat(sprintf("      Model: %s\n", x$result$model[[1]]))
 
   for (i in 1:nrow(x$result)) {
@@ -1430,7 +1434,7 @@ print.sj_grpmeans <- function(x, ...) {
 #' @export
 print.sj_revar_adjust <- function(x, ...) {
   cat("\nVariance Components of Mixed Models\n\n")
-  cat(crayon::blue(sprintf("Family : %s (%s)\nFormula: %s\n\n", x$family, x$link, deparse(x$formula))))
+  cat(crayon::blue(sprintf("Family : %s (%s)\nFormula: %s\n\n", x$family, x$link, deparse(x$formula, width.cutoff = 500))))
 
   vals <- c(
     sprintf("%.3f", x$var.fixef),
@@ -1996,4 +2000,28 @@ print.sj_wcor <- function(x, ...) {
 #' @export
 print.sj_anova_stat <- function(x, digits = 3, ...) {
   print.data.frame(sjmisc::round_num(x, digits), ..., row.names = TRUE)
+}
+
+
+#' @export
+getME.brmsfit <- function(object, name, ...) {
+  rv <- NULL
+  if (name == "X") {
+    rv <- as.matrix(cbind(1, model_frame(object)[pred_vars(object, fe.only = T)]))
+    colnames(rv)[1] = "Intercept"
+  }
+  rv
+}
+
+
+#' @export
+getME.stanreg <- function(object, name, ...) {
+  if (!requireNamespace("rstanarm", quietly = TRUE))
+    stop("Package `rstanarm` needed for this function to work. Please install it.", call. = FALSE)
+
+  rv <- NULL
+  if (name == "X") {
+    rv <- rstanarm::get_x(object)
+  }
+  rv
 }

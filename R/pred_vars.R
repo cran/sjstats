@@ -7,24 +7,42 @@
 #'
 #' @param x A fitted model; for \code{var_names()}, \code{x} may also be a
 #'    character vector.
-#' @param fe.only Logical, if \code{TRUE} (default) and \code{x} is a mixed effects
-#'    model, returns the model frame for fixed effects only.
+#' @param fe.only Logical, if \code{TRUE} and \code{x} is a mixed effects
+#'    model, \code{model_frame()} returns the model frame for fixed effects only,
+#'    and \code{pred_vars()} returns only fixed effects terms. Note that the default
+#'    for \code{model_frame()} is \code{fe.only = TRUE}, while for \code{pred_vars()}
+#'    the default is \code{fe.only = FALSE}.
 #' @param mv,multi.resp Logical, if \code{TRUE} and model is a multivariate response
 #'    model from a \code{brmsfit} object or of class \code{stanmvreg}, then a
 #'    list of values (one for each regression) is returned.
+#' @param combine Logical, if \code{TRUE} and the response is a matrix-column,
+#'    the name of the response matches the notation in formula, and would for
+#'    instance also contain patterns like \code{"cbind(...)"}. Else, the original
+#'    variable names from the matrix-column are returned. See 'Examples'.
+#' @param disp Logical, if \code{TRUE} and model is of class \code{glmmTMB} and
+#'    has a dispersion-formula, the variable(s) used in the dispersion-formula
+#'    are also returned.
 #'
 #' @return For \code{pred_vars()} and \code{resp_var()}, the name(s) of the
 #'    response or predictor variables from \code{x} as character vector.
 #'    \code{resp_val()} returns the values from \code{x}'s response vector.
 #'    \code{re_grp_var()} returns the group factor of random effects in
-#'    mixed models, or \code{NULL} if \code{x} has no such random effects term.
+#'    mixed models, or \code{NULL} if \code{x} has no such random effects term
+#'    (\code{grp_var()} is an alias for \code{re_grp_var()}).
+#'    \cr \cr
 #'    \code{link_inverse()} returns, if known, the inverse link function from
 #'    \code{x}; else \code{NULL} for those models where the inverse link function
-#'    can't be identified. \code{model_frame()} is similar to \code{model.frame()},
+#'    can't be identified.
+#'    \cr \cr
+#'    \code{model_frame()} is similar to \code{model.frame()},
 #'    but should also work for model objects that don't have a S3-generic for
-#'    \code{model.frame()}. \code{var_names()} returns the "cleaned" variable
+#'    \code{model.frame()}.
+#'    \cr \cr
+#'    \code{var_names()} returns the "cleaned" variable
 #'    names, i.e. things like \code{s()} for splines or \code{log()} are
-#'    removed. \code{model_family()} returns a list with information about the
+#'    removed.
+#'    \cr \cr
+#'    \code{model_family()} returns a list with information about the
 #'    model family (see 'Details').
 #'
 #' @details \code{model_family()} returns a list with information about the
@@ -40,15 +58,20 @@
 #'      \item \code{is_categorical}: family is categorical link
 #'      \item \code{is_zeroinf}: model has zero-inflation component
 #'      \item \code{is_multivariate}: model is a multivariate response model (currently only works for \emph{brmsfit} objects)
+#'      \item \code{is_trial}: model response contains additional information about the trials
 #'      \item \code{link.fun}: the link-function
 #'      \item \code{family}: the family-object
 #'    }
 #'    \code{model_frame()} slighty differs from \code{model.frame()}, especially
-#'    for spline terms. Where \code{model.frame()} returns a matrix for splines,
+#'    for spline terms and matrix-variables created with \code{cbind()} (for example
+#'    in binomial models, where the response is a combination of successes and
+#'    trials) . Where \code{model.frame()} returns a matrix for splines,
 #'    \code{model_frame()} returns the data of the original variable and uses
 #'    the same column name as in the \code{data}-argument from the model-function.
 #'    This makes it easier, for instance, to get data that should be used as new
-#'    data in \code{predict()}. See 'Examples'.
+#'    data in \code{predict()}. For matrix-variables created with \code{cbind()},
+#'    \code{model_frame()} returns the original variable as matrix and
+#'    \emph{additionally} each column as own variable. See 'Examples'.
 #'
 #' @examples
 #' data(efc)
@@ -76,9 +99,19 @@
 #'
 #' # model.frame and model_frame behave slightly different
 #' library(splines)
-#' m <- lm(neg_c_7 ~ e42dep + ns(c160age), data = efc)
+#' m <- lm(neg_c_7 ~ e42dep + ns(c160age, knots = 2), data = efc)
 #' head(model.frame(m))
 #' head(model_frame(m))
+#'
+#' library(lme4)
+#' data(cbpp)
+#' cbpp$trials <- cbpp$size - cbpp$incidence
+#' m <- glm(cbind(incidence, trials) ~ period, data = cbpp, family = binomial)
+#' head(model.frame(m))
+#' head(model_frame(m))
+#'
+#' resp_var(m, combine = TRUE)
+#' resp_var(m, combine = FALSE)
 #'
 #' # get random effects grouping factor from mixed models
 #' library(lme4)
@@ -86,10 +119,26 @@
 #' m <- lmer(Reaction ~ Days + (1 + Days | Subject), data = sleepstudy)
 #' re_grp_var(m)
 #'
+#' # get model predictors, with and w/o dispersion formula
+#' \dontrun{
+#' library(glmmTMB)
+#' data("Salamanders")
+#' m <- glmmTMB(
+#'   count ~ spp + cover + mined + poly(DOP, 3) + (1 | site),
+#'   ziformula = ~spp + mined,
+#'   dispformula = ~DOY,
+#'   data = Salamanders,
+#'   family = nbinom2
+#' )
+#'
+#' pred_vars(m)
+#' pred_vars(m, fe.only = TRUE)
+#' pred_vars(m, disp = TRUE)}
+#'
 #' @importFrom purrr flatten_chr map
 #' @importFrom stats formula terms
 #' @export
-pred_vars <- function(x) {
+pred_vars <- function(x, fe.only = FALSE, disp = FALSE) {
 
   if (inherits(x, "clm2"))
     fm <- attr(x$location, "terms", exact = TRUE)
@@ -115,11 +164,38 @@ pred_vars <- function(x) {
       purrr::map(~ all.vars(.x[[3L]])) %>%
       purrr::flatten_chr() %>%
       unique()
+  } else if (inherits(x, "felm")) {
+    av <- all.vars(fm[[2L]])
   } else
     av <- all.vars(fm[[3L]])
 
   if (length(av) == 1 && av == ".")
     av <- all.vars(stats::terms(x)[[3L]])
+
+
+  # remove random effects from formula
+
+  if (fe.only) {
+    re <- re_grp_var(x)
+    if (!sjmisc::is_empty(re)) {
+      re <- unique(sjmisc::trim(unlist(strsplit(re, ":", fixed = TRUE))))
+      pos <- match(re, av)
+      av <- av[-pos]
+    }
+  }
+
+
+  # for glmmtmb, check dispersion formula
+
+  if (isTRUE(disp) && inherits(x, "glmmTMB")) {
+    dp <- tryCatch(
+      {all.vars(x$modelInfo$allForm$dispformula[[2L]])},
+      error = function(x) { NULL}
+    )
+
+    if (!is.null(dp)) av <- c(av, dp)
+  }
+
 
   av
 }
@@ -127,27 +203,50 @@ pred_vars <- function(x) {
 
 #' @importFrom purrr map_chr
 #' @importFrom stats formula
+#' @importFrom sjmisc is_empty trim
 #' @rdname pred_vars
 #' @export
-resp_var <- function(x) {
+resp_var <- function(x, combine = TRUE) {
   if (inherits(x, "brmsfit")) {
     if (is.null(stats::formula(x)$responses)) {
-      deparse(stats::formula(x)$formula[[2L]])
+      rv <- deparse(stats::formula(x)$formula[[2L]])
+      # check for brms Additional Response Information
+      if (!sjmisc::is_empty(string_contains("|", rv))) {
+        r1 <- sjmisc::trim(sub("(.*)\\|(.*)", "\\1", rv))
+        r2 <- sjmisc::trim(sub("(.*)\\|(.*)\\(([^,)]*).*", "\\3", rv))
+        rv <- c(r1, r2)
+      }
     } else {
-      purrr::map_chr(
+      rv <- purrr::map_chr(
         x$formula$forms,
         ~ stats::formula(.x)[[2L]] %>% all.vars()
       )
       # stats::formula(x)$responses
     }
   } else if (inherits(x, "stanmvreg")) {
-    purrr::map_chr(stats::formula(x), ~ deparse(.x[[2L]]))
+    rv <- purrr::map_chr(stats::formula(x), ~ deparse(.x[[2L]]))
+  } else if (inherits(x, "felm")) {
+    rv <- x$lhs
   } else if (inherits(x, "clm2")) {
-    all.vars(attr(x$location, "terms", exact = TRUE)[[2L]])
+    rv <- all.vars(attr(x$location, "terms", exact = TRUE)[[2L]])
+  } else if (inherits(x, "aovlist")) {
+    rv <- all.vars(attr(x, "terms")[[2L]])
   } else if (inherits(x, "gam") && is.list(stats::formula(x))) {
-    deparse(stats::formula(x)[[1]][[2L]])
+    rv <- deparse(stats::formula(x)[[1]][[2L]])
   } else
-    deparse(stats::formula(x)[[2L]])
+    rv <- deparse(stats::formula(x)[[2L]])
+
+  if (!combine && grepl("cbind\\((.*)\\)", rv) && !inherits(x, "brmsfit")) {
+    rv <- sub("cbind\\(([^,].*)([\\)].*)" ,"\\1", rv) %>%
+      strsplit(split  = ",", fixed = TRUE) %>%
+      unlist() %>%
+      sjmisc::trim()
+
+    if (!sjmisc::is_empty(string_contains("-", rv[2])))
+      rv[2] <- sjmisc::trim(sub("(.*)(\\-)(.*)", "\\1", rv[2]))
+  }
+
+  rv
 }
 
 
@@ -160,7 +259,13 @@ resp_var <- function(x) {
 #' @export
 re_grp_var <- function(x) {
   tryCatch({
-    re <- purrr::map_chr(lme4::findbars(stats::formula(x)), deparse)
+
+    if (inherits(x, "brmsfit"))
+      f <- stats::formula(x)[[1]]
+    else
+      f <- stats::formula(x)
+
+    re <- purrr::map_chr(lme4::findbars(f), deparse)
     sjmisc::trim(substring(re, regexpr(pattern = "\\|", re) + 1))
   },
   error = function(x) { NULL }
@@ -169,16 +274,35 @@ re_grp_var <- function(x) {
 
 
 #' @rdname pred_vars
+#' @export
+grp_var <- function(x) {
+  re_grp_var(x)
+}
+
+
+#' @rdname pred_vars
 #' @importFrom nlme getResponse
 #' @export
 resp_val <- function(x) {
+
+  rn <- resp_var(x, combine = FALSE)
+
   if (inherits(x, c("lme", "gls")))
     as.vector(nlme::getResponse(x))
-  else if (inherits(x, "brmsfit") && !is.null(stats::formula(x)$responses))
+  else if (inherits(x, "brmsfit")) {
+    rv <- model_frame(x)[, var_names(resp_var(x))]
+    rc <- ncol(rv)
+    if (!is.null(stats::formula(x)$responses) || !is.null(rc))
+      as.vector(rv)
+    else
+      rv
+  } else if (inherits(x, "stanmvreg"))
     as.vector(model_frame(x)[, var_names(resp_var(x))])
-  else if (inherits(x, "stanmvreg"))
-    as.vector(model_frame(x)[, var_names(resp_var(x))])
-  else
+  else if (length(rn) > 1) {
+    rv <- as.data.frame(model_frame(x)[[var_names(resp_var(x))]])
+    colnames(rv) <- rn
+    rv
+  } else
     as.vector(model_frame(x)[[var_names(resp_var(x))]])
 }
 
@@ -215,9 +339,11 @@ link_inverse <- function(x, multi.resp = FALSE, mv = FALSE) {
 
   if (inherits(x, c("truncreg", "coxph", "coxme"))) {
     il <- NULL
-  } else if (inherits(x, c("zeroinfl", "hurdle"))) {
+  } else if (inherits(x, c("zeroinfl", "hurdle", "zerotrunc"))) {
     il <- stats::make.link("log")$linkinv
-  } else if (inherits(x, c("lme", "plm", "gls", "lm", "lmRob")) && !inherits(x, "glm")) {
+  } else if (inherits(x, "glmmPQL")) {
+    il <- x$family$linkinv
+  } else if (inherits(x, c("lme", "plm", "lm_robust", "felm", "gls", "lm", "lmRob")) && !inherits(x, "glm")) {
     il <- stats::gaussian(link = "identity")$linkinv
   } else if (inherits(x, "betareg")) {
     il <- x$link$mean$linkinv
@@ -292,6 +418,7 @@ brms_link_inverse <- function(fam) {
 #' @importFrom stats model.frame formula getCall na.omit
 #' @importFrom purrr map_lgl map reduce
 #' @importFrom dplyr select bind_cols full_join
+#' @importFrom sjmisc add_columns
 #' @export
 model_frame <- function(x, fe.only = TRUE) {
   # we may store model weights here later
@@ -354,7 +481,7 @@ model_frame <- function(x, fe.only = TRUE) {
   # clean 1-dimensional matrices
 
   fitfram <- purrr::modify_if(fitfram, is.matrix, function(x) {
-    if (dim(x)[2] == 1)
+    if (dim(x)[2] == 1 && !inherits(x, c("ns", "bs")))
       as.vector(x)
     else
       x
@@ -368,8 +495,19 @@ model_frame <- function(x, fe.only = TRUE) {
 
   # don't change response value, if it's a matrix
   # bound with cbind()
+  rn <- resp_var(x, combine = TRUE)
+  trials.data <- NULL
 
-  if (mc[1] && resp_var(x) == colnames(fitfram)[1]) mc[1] <- FALSE
+  if (mc[1] && rn == colnames(fitfram)[1]) {
+    mc[1] <- FALSE
+    tryCatch(
+      {
+        trials.data <- as.data.frame(fitfram[[1]])
+        colnames(trials.data) <- resp_var(x, combine = FALSE)
+      },
+      error = function(x) { NULL }
+    )
+  }
 
 
   # if we have any matrix columns, we remove them from original
@@ -378,7 +516,12 @@ model_frame <- function(x, fe.only = TRUE) {
 
   if (any(mc)) {
     # try to get model data from environment
-    md <- eval(stats::getCall(x)$data, environment(stats::formula(x)))
+    md <- tryCatch(
+      {
+        eval(stats::getCall(x)$data, environment(stats::formula(x)))
+      },
+      error = function(x) { NULL }
+    )
 
     # if data not found in environment, reduce matrix variables into regular vectors
     if (is.null(md)) {
@@ -450,13 +593,61 @@ model_frame <- function(x, fe.only = TRUE) {
   if (!sjmisc::is_empty(dupes)) cvn[dupes] <- sprintf("%s.%s", cvn[dupes], 1:length(dupes))
 
   colnames(fitfram) <- cvn
+
+  # add back possible trials-data
+  if (!is.null(trials.data)) {
+    new.cols <- setdiff(colnames(trials.data), colnames(fitfram))
+    if (!sjmisc::is_empty(new.cols)) fitfram <- cbind(fitfram, trials.data[, new.cols, drop = FALSE])
+  }
+
+
+  # for glmmtmb, check dispersion and zi-formula
+  # and add variables to model frame
+
+  if (inherits(x, "glmmTMB")) {
+    disp <- tryCatch(
+      {all.vars(x$modelInfo$allForm$dispformula[[2L]])},
+      error = function(x) { NULL}
+    )
+
+    if (!is.null(disp)) {
+      fitfram <- tryCatch(
+        {
+          eval(x$call$data, envir = parent.frame()) %>%
+            dplyr::select(!! disp) %>%
+            sjmisc::add_columns(fitfram, replace = TRUE)
+        },
+        error = function(x) { fitfram }
+      )
+    }
+
+
+    zi <- tryCatch(
+      {all.vars(x$modelInfo$allForm$ziformula[[2L]])},
+      error = function(x) { NULL}
+    )
+
+    if (!is.null(zi)) {
+      fitfram <- tryCatch(
+        {
+          eval(x$call$data, envir = parent.frame()) %>%
+            dplyr::select(!! zi) %>%
+            sjmisc::add_columns(fitfram, replace = TRUE)
+        },
+        error = function(x) { fitfram }
+      )
+    }
+  }
+
+
   fitfram
 }
 
 
 #' @rdname pred_vars
 #' @importFrom sjmisc str_contains is_empty
-#' @importFrom stats family formula
+#' @importFrom stats family formula gaussian binomial
+#' @importFrom lme4 fixef
 #' @export
 model_family <- function(x, multi.resp = FALSE, mv = FALSE) {
   zero.inf <- FALSE
@@ -471,7 +662,12 @@ model_family <- function(x, multi.resp = FALSE, mv = FALSE) {
 
   # do we have glm? if so, get link family. make exceptions
   # for specific models that don't have family function
-  if (inherits(x, c("lme", "plm", "gls", "truncreg", "lmRob"))) {
+  if (inherits(x, "glmmPQL")) {
+    faminfo <- x$family
+    fitfam <- faminfo$family
+    logit.link <- faminfo$link == "logit"
+    link.fun <- faminfo$link
+  } else if (inherits(x, c("lme", "plm", "gls", "truncreg", "lmRob"))) {
     fitfam <- "gaussian"
     logit.link <- FALSE
     link.fun <- "identity"
@@ -482,7 +678,7 @@ model_family <- function(x, multi.resp = FALSE, mv = FALSE) {
     link.fun <- faminfo@blurb[3]
     if (!sjmisc::is_empty(string_starts_with(pattern = "logit(", x = link.fun)))
       link.fun <- "logit"
-  } else if (inherits(x, c("zeroinfl", "hurdle"))) {
+  } else if (inherits(x, c("zeroinfl", "hurdle", "zerotrunc"))) {
     if (is.list(x$dist))
       dist <- x$dist[[1]]
     else
@@ -496,6 +692,11 @@ model_family <- function(x, multi.resp = FALSE, mv = FALSE) {
     logit.link <- FALSE
     link.fun <- "log"
     zero.inf <- TRUE
+  } else if (inherits(x, c("lm_robust", "felm"))) {
+    faminfo <- stats::gaussian(link = "identity")
+    fitfam <- faminfo$family
+    logit.link <- faminfo$link == "logit"
+    link.fun <- faminfo$link
   } else if (inherits(x, "betareg")) {
     fitfam <- "beta"
     logit.link <- x$link$mean$name == "logit"
@@ -579,6 +780,32 @@ make_family <- function(x, fitfam, zero.inf, logit.link, multi.var, link.fun) {
 
   is.categorical <- fitfam == "categorical"
 
+
+  # check if we have binomial models with trials instead of binary outcome
+
+  is.trial <- FALSE
+
+  if (inherits(x, "brmsfit") && is.null(stats::formula(x)$responses)) {
+    tryCatch(
+      {
+        rv <- deparse(stats::formula(x)$formula[[2L]])
+        is.trial <- sjmisc::trim(sub("(.*)\\|(.*)\\(([^,)]*).*", "\\2", rv)) %in% c("trials", "resp_trials")
+      },
+      error = function(x) { NULL }
+    )
+  }
+
+  if (binom_fam && !inherits(x, "brmsfit")) {
+    tryCatch(
+      {
+        rv <- deparse(stats::formula(x)[[2L]])
+        is.trial <- grepl("cbind\\((.*)\\)", rv)
+      },
+      error = function(x) { NULL }
+    )
+  }
+
+
   list(
     is_bin = binom_fam & !neg_bin_fam,
     is_pois = poisson_fam | neg_bin_fam,
@@ -589,6 +816,7 @@ make_family <- function(x, fitfam, zero.inf, logit.link, multi.var, link.fun) {
     is_ordinal = is.ordinal,
     is_categorical = is.categorical,
     is_multivariate = multi.var,
+    is_trial = is.trial,
     link.fun = link.fun,
     family = fitfam
   )
@@ -622,7 +850,7 @@ get_vn_helper <- function(x) {
   # for gam-smoothers/loess, remove s()- and lo()-function in column name
   # for survival, remove strata(), and so on...
   pattern <- c(
-    "as.factor", "factor", "offset", "log", "lag", "diff", "lo", "bs", "ns",
+    "as.factor", "factor", "offset", "log-log", "log", "lag", "diff", "lo", "bs", "ns",
     "t2", "te", "ti", "tt", "mi", "mo", "gp", "pspline", "poly", "strata", "scale",
     "interaction", "s", "I"
   )
@@ -635,6 +863,8 @@ get_vn_helper <- function(x) {
         x[i] <- sjmisc::trim(unique(sub("^offset\\(([^-+ )]*).*", "\\1", x[i])))
       } else if (pattern[j] == "I") {
         x[i] <- sjmisc::trim(unique(sub("I\\((\\w*).*", "\\1", x[i])))
+      } else if (pattern[j] == "log-log") {
+        x[i] <- sjmisc::trim(unique(sub("^log\\(log\\(([^,)]*)).*", "\\1", x[i])))
       } else {
         p <- paste0("^", pattern[j], "\\(([^,)]*).*")
         x[i] <- unique(sub(p, "\\1", x[i]))

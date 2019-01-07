@@ -15,10 +15,10 @@ icc(x, ...)
 \method{icc}{glmmTMB}(x, adjusted = FALSE, ...)
 
 \method{icc}{stanreg}(x, re.form = NULL, typical = "mean",
-  prob = 0.89, ppd = FALSE, ...)
+  prob = 0.89, ppd = FALSE, adjusted = FALSE, ...)
 
 \method{icc}{brmsfit}(x, re.form = NULL, typical = "mean",
-  prob = 0.89, ppd = FALSE, ...)
+  prob = 0.89, ppd = FALSE, adjusted = FALSE, ...)
 }
 \arguments{
 \item{x}{Fitted mixed effects model (of class \code{merMod}, \code{glmmTMB},
@@ -28,7 +28,8 @@ icc(x, ...)
 
 \item{adjusted}{Logical, if \code{TRUE}, the adjusted (and
 conditional) ICC is calculated, which reflects the uncertainty of all
-random effects (see 'Details').}
+random effects (see 'Details'). For Bayesian models, if \code{ppd = TRUE},
+\code{adjusted} will be ignored.}
 
 \item{re.form}{Formula containing group-level effects to be considered in
 the prediction. If \code{NULL} (default), include all group-level effects.
@@ -44,7 +45,11 @@ the credible interval that is to be estimated. See \code{\link{hdi}}.}
 
 \item{ppd}{Logical, if \code{TRUE}, variance decomposition is based on the
 posterior predictive distribution, which is the correct way for Bayesian
-non-Gaussian models.}
+non-Gaussian models. By default, \code{ppd} is set to \code{TRUE} for
+non-Gaussian models.If \code{adjusted = TRUE} and \code{ppd = FALSE},
+variance decomposition is approximated following the suggestion by
+\cite{Nakagawa et al. 2017} (see 'Details'), however, this is currently
+only implemented for Gaussian models.}
 }
 \value{
 A numeric vector with all random intercept intraclass-correlation-coefficients.
@@ -62,12 +67,15 @@ This function calculates the intraclass-correlation
    \code{stanreg} and \code{\link[brms]{brmsfit}} objects are supported.
 }
 \details{
-The ICC is calculated by dividing the between-group-variance (random
+The "simple" ICC (with both \code{ppd} and \code{adjusted} set to
+   \code{FALSE}) is calculated by dividing the between-group-variance (random
    intercept variance) by the total variance (i.e. sum of between-group-variance
    and within-group (residual) variance). \cr \cr
    The calculation of the ICC for generalized linear mixed models with binary outcome is based on
    \cite{Wu et al. (2012)}. For other distributions (negative binomial, poisson, ...),
-   calculation is based on \cite{Nakagawa et al. 2017}.
+   calculation is based on \cite{Nakagawa et al. 2017}, \strong{however}, for
+   non-Gaussian models it is recommended to compute the adjusted ICC (with
+   \code{adjusted = TRUE}, see below).
    \cr \cr
    \strong{ICC for unconditional and conditional models}
    \cr \cr
@@ -90,7 +98,7 @@ The ICC is calculated by dividing the between-group-variance (random
    proportion of variances.
    \cr \cr
    To get a meaningful ICC also for models with random slopes, use \code{adjusted = TRUE}.
-   The adjusted ICC used the mean random effect variance, which is based
+   The adjusted ICC uses the mean random effect variance, which is based
    on the random effect variances for each value of the random slope
    (see \cite{Johnson et al. 2014}).
    \cr \cr
@@ -100,7 +108,7 @@ The ICC is calculated by dividing the between-group-variance (random
    nested structure of the model, or for models with multiple random effects,
    \code{icc()} only reports the proportion of variance explained for each
    grouping level. Use \code{adjusted = TRUE} to calculate the adjusted and
-   conditional ICC.
+   conditional ICC, which condition on \emph{all random effects}.
    \cr \cr
    \strong{Adjusted and conditional ICC}
    \cr \cr
@@ -111,7 +119,8 @@ The ICC is calculated by dividing the between-group-variance (random
    \cite{Nakagawa et al. 2017}). If random effects are not nested and not
    cross-classified, the adjusted (\code{adjusted = TRUE}) and unadjusted
    (\code{adjusted = FALSE}) ICC are identical. \code{adjust = TRUE} returns
-   a meaningful ICC for models with random slopes.
+   a meaningful ICC for models with random slopes. Furthermore, the adjusted
+   ICC is recommended for models with other distributions than Gaussian.
    \cr \cr
    \strong{ICC for specific group-levels}
    \cr \cr
@@ -214,6 +223,9 @@ if (requireNamespace("brms", quietly = TRUE)) {
 
   # show 50\% interval
   icc(m, prob = .5)
+
+  # adjusted ICC, 89\% interval
+  icc(m, adjusted = TRUE)
 
   # variances based on posterior predictive distribution
   icc(m, ppd = TRUE)

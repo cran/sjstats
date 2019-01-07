@@ -155,7 +155,6 @@ cohens_f <- function(model) {
 
 
 #' @importFrom sjmisc add_columns round_num
-#' @importFrom broom tidy
 #' @importFrom stats anova
 #' @importFrom pwr pwr.f2.test
 #' @rdname eta_sq
@@ -218,7 +217,8 @@ aov_stat_summary <- function(model) {
 
   # check that model inherits from correct class
   # else, try to coerce to anova table
-  if (!inherits(model, c("aov", "anova", "anova.rms", "aovlist"))) model <- stats::anova(model)
+  if (!inherits(model, c("Gam", "aov", "anova", "anova.rms", "aovlist")))
+    model <- stats::anova(model)
 
   # get summary table
   aov.sum <- as.data.frame(broom::tidy(model))
@@ -253,7 +253,8 @@ aov_stat_summary <- function(model) {
   if (!obj_has_name(aov.sum, "meansq"))
     aov.sum <- sjmisc::add_variables(aov.sum, meansq = aov.sum$sumsq / aov.sum$df, .after = "sumsq")
 
-  aov.sum$term <- var_names(aov.sum$term)
+  if (!inherits(model, "Gam"))
+    aov.sum$term <- var_names(aov.sum$term)
 
   aov.sum
 }
@@ -378,7 +379,6 @@ peta_sq_ci <- function(aov.sum, ci.lvl = .95) {
 }
 
 
-#' @importFrom broom tidy
 #' @importFrom purrr map map_df
 #' @importFrom dplyr bind_cols mutate case_when pull
 #' @importFrom stats anova formula aov
@@ -428,7 +428,7 @@ es_boot_fun <- function(model, type, ci.lvl, n) {
       )) %>%
       dplyr::pull(2) %>%
       purrr::map_df(~ .x) %>%
-      boot_ci()
+      boot_ci(ci.lvl = ci.lvl)
 
   } else {
 
@@ -453,11 +453,11 @@ es_boot_fun <- function(model, type, ci.lvl, n) {
       )) %>%
       dplyr::pull(2) %>%
       purrr::map_df(~ .x) %>%
-      boot_ci()
+      boot_ci(ci.lvl = ci.lvl)
   }
 
 
-  x <- dplyr::bind_cols(x, es[1:nrow(x), -1])
+  x <- dplyr::bind_cols(x, es[1:nrow(x), -1, drop = FALSE])
 
   colnames(x)[2] <- dplyr::case_when(
     type == "eta" ~ "etasq",

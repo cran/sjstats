@@ -49,7 +49,9 @@
 #'          \cr \cr
 #'          For mixed models (from \pkg{lme4} or \pkg{glmmTMB}) marginal and
 #'          conditional r-squared values are calculated, based on
-#'          \cite{Nakagawa et al. 2017}.
+#'          \cite{Nakagawa et al. 2017}. The distributional variance
+#'          (or observation-level variance) is based on lognormal approximation,
+#'          \code{log(1+var(x)/mu^2)}.
 #'          \cr \cr
 #'          For \code{lme}-models, an r-squared approximation by computing the
 #'          correlation between the fitted and observed values, as suggested by
@@ -173,7 +175,7 @@ r2.glmmTMB <- function(x, ...) {
   if (!requireNamespace("glmmTMB", quietly = TRUE))
     stop("Package `glmmTMB` needed for this function to work. Please install it.", call. = FALSE)
 
-  r2_mixedmodel(x, type = "r2")
+  r2_mixedmodel(x, type = "r2", obj.name = deparse(substitute(x)))
 }
 
 
@@ -258,7 +260,7 @@ r2.merMod <- function(x, ...) {
   if (!requireNamespace("lme4", quietly = TRUE))
     stop("Package `lme4` needed for this function to work. Please install it.", call. = FALSE)
 
-  r2_mixedmodel(x, type = "r2")
+  r2_mixedmodel(x, type = "r2", obj.name = deparse(substitute(x)))
 }
 
 
@@ -454,7 +456,7 @@ r2linmix <- function(x, n) {
 
 #' @importFrom lme4 fixef getME VarCorr ranef findbars
 #' @importFrom stats family nobs var formula reformulate
-r2_mixedmodel <- function(x, type = NULL) {
+r2_mixedmodel <- function(x, type = NULL, obj.name = NULL) {
 
   if (is.null(type) || type == "r2") {
     ws <- "r2()"
@@ -483,6 +485,40 @@ r2_mixedmodel <- function(x, type = NULL) {
     vc = lme4::VarCorr(x),
     re = lme4::ranef(x)
   )
+
+  # fix brms structure
+
+  if (inherits(x, "brmsfit")) {
+    vals$beta <- vals$beta[, 1]
+
+    vals$re <- lapply(vals$re, function(r) {
+      dim.ranef <- dim(r)
+      dim.names <- dimnames(r)[[3]]
+      v.re <- purrr::map(1:dim.ranef[3], ~ r[1:dim.ranef[1], 1, .x])
+      names(v.re) <- dim.names
+      as.data.frame(v.re)
+    })
+
+    sc <- vals$vc$residual__$sd[1]
+
+    if (obj_has_name(vals$vc, "residual__"))
+      vals$vc <- vals$vc[-which(names(vals$vc) == "residual__")]
+
+    vals$vc <- purrr::map(vals$vc, function(.x) {
+      if (obj_has_name(.x, "cov")) {
+        d <- dim(.x$cov)
+        .x <- .x$cov[1:d[1], 1, ]
+      } else if (obj_has_name(.x, "sd")) {
+        .x <- .x$sd[1, 1, drop = FALSE]^2
+        attr(.x, "dimnames") <- list("Intercept", "Intercept")
+      }
+      .x
+    })
+    attr(vals$vc, "sc") <- sc
+
+    if (faminfo$is_zeroinf)
+      warning(sprintf("%s ignores effects of zero-inflation.", ws), call. = FALSE)
+  }
 
 
   # for glmmTMB, use conditional component of model only,
@@ -602,7 +638,12 @@ r2_mixedmodel <- function(x, type = NULL) {
 
   attr(var.measure, "family") <- faminfo$family
   attr(var.measure, "link") <- faminfo$link.fun
-  attr(var.measure, "formula") <- stats::formula(x)
+  attr(var.measure, "formula") <- if (inherits(x, "brmsfit")) stats::formula(x)[[1]] else stats::formula(x)
+
+  # finally, save name of fitted model object. May be needed for
+  # the 'se()' function, which accesses the global environment
+
+  attr(var.measure, ".obj.name") <- obj.name
 
   var.measure
 }

@@ -18,10 +18,15 @@
 #'   \link{typical_value} for options.
 #' @param ppd Logical, if \code{TRUE}, variance decomposition is based on the
 #'   posterior predictive distribution, which is the correct way for Bayesian
-#'   non-Gaussian models.
+#'   non-Gaussian models. By default, \code{ppd} is set to \code{TRUE} for
+#'   non-Gaussian models.If \code{adjusted = TRUE} and \code{ppd = FALSE},
+#'   variance decomposition is approximated following the suggestion by
+#'   \cite{Nakagawa et al. 2017} (see 'Details'), however, this is currently
+#'   only implemented for Gaussian models.
 #' @param adjusted Logical, if \code{TRUE}, the adjusted (and
 #'   conditional) ICC is calculated, which reflects the uncertainty of all
-#'   random effects (see 'Details').
+#'   random effects (see 'Details'). For Bayesian models, if \code{ppd = TRUE},
+#'   \code{adjusted} will be ignored.
 #'
 #' @inheritParams hdi
 #'
@@ -71,12 +76,15 @@
 #'     \item Random-Intercept-Slope-correlation: rho.01
 #'   }
 #'
-#' @details The ICC is calculated by dividing the between-group-variance (random
+#' @details The "simple" ICC (with both \code{ppd} and \code{adjusted} set to
+#'    \code{FALSE}) is calculated by dividing the between-group-variance (random
 #'    intercept variance) by the total variance (i.e. sum of between-group-variance
 #'    and within-group (residual) variance). \cr \cr
 #'    The calculation of the ICC for generalized linear mixed models with binary outcome is based on
 #'    \cite{Wu et al. (2012)}. For other distributions (negative binomial, poisson, ...),
-#'    calculation is based on \cite{Nakagawa et al. 2017}.
+#'    calculation is based on \cite{Nakagawa et al. 2017}, \strong{however}, for
+#'    non-Gaussian models it is recommended to compute the adjusted ICC (with
+#'    \code{adjusted = TRUE}, see below).
 #'    \cr \cr
 #'    \strong{ICC for unconditional and conditional models}
 #'    \cr \cr
@@ -99,7 +107,7 @@
 #'    proportion of variances.
 #'    \cr \cr
 #'    To get a meaningful ICC also for models with random slopes, use \code{adjusted = TRUE}.
-#'    The adjusted ICC used the mean random effect variance, which is based
+#'    The adjusted ICC uses the mean random effect variance, which is based
 #'    on the random effect variances for each value of the random slope
 #'    (see \cite{Johnson et al. 2014}).
 #'    \cr \cr
@@ -109,7 +117,7 @@
 #'    nested structure of the model, or for models with multiple random effects,
 #'    \code{icc()} only reports the proportion of variance explained for each
 #'    grouping level. Use \code{adjusted = TRUE} to calculate the adjusted and
-#'    conditional ICC.
+#'    conditional ICC, which condition on \emph{all random effects}.
 #'    \cr \cr
 #'    \strong{Adjusted and conditional ICC}
 #'    \cr \cr
@@ -120,7 +128,8 @@
 #'    \cite{Nakagawa et al. 2017}). If random effects are not nested and not
 #'    cross-classified, the adjusted (\code{adjusted = TRUE}) and unadjusted
 #'    (\code{adjusted = FALSE}) ICC are identical. \code{adjust = TRUE} returns
-#'    a meaningful ICC for models with random slopes.
+#'    a meaningful ICC for models with random slopes. Furthermore, the adjusted
+#'    ICC is recommended for models with other distributions than Gaussian.
 #'    \cr \cr
 #'    \strong{ICC for specific group-levels}
 #'    \cr \cr
@@ -205,6 +214,9 @@
 #'   # show 50% interval
 #'   icc(m, prob = .5)
 #'
+#'   # adjusted ICC, 89% interval
+#'   icc(m, adjusted = TRUE)
+#'
 #'   # variances based on posterior predictive distribution
 #'   icc(m, ppd = TRUE)
 #' }}
@@ -231,7 +243,7 @@ icc.merMod <- function(x, adjusted = FALSE, ...) {
     type <- "icc"
 
   # compute adjusted and conditional ICC
-  if (adjusted) return(r2_mixedmodel(x, type = type))
+  if (adjusted) return(r2_mixedmodel(x, type = type, obj.name = deparse(substitute(x))))
 
   # get family
   fitfam <- model_family(x)
@@ -255,10 +267,10 @@ icc.merMod <- function(x, adjusted = FALSE, ...) {
   tau.11 <- unlist(lapply(reva, function(x) diag(x)[-1]))
 
   # residual variances, i.e. within-cluster-variance
-  resid_var <- get_residual_variance(x, var.cor = reva, fitfam, type = "ICC")
+  resid.var <- get_residual_variance(x, var.cor = reva, fitfam, type = "ICC")
 
   # total variance, sum of random intercept and residual variances
-  total_var <- sum(purrr::map_dbl(vars, ~ sum(.x)), resid_var)
+  total_var <- sum(purrr::map_dbl(vars, ~ sum(.x)), resid.var)
 
   # random intercept icc
   ri.icc <- tau.00 / total_var
@@ -315,7 +327,7 @@ icc.merMod <- function(x, adjusted = FALSE, ...) {
   attr(ri.icc, "tau.01") <- tau.01
   attr(ri.icc, "rho.01") <- rho.01
   attr(ri.icc, "tau.11") <- tau.11
-  attr(ri.icc, "sigma_2") <- resid_var
+  attr(ri.icc, "sigma_2") <- resid.var
   attr(ri.icc, "rnd.slope.model") <- any(has_rnd_slope)
 
 
@@ -345,7 +357,7 @@ icc.glmmTMB <- function(x, adjusted = FALSE, ...) {
     type <- "icc"
 
   # compute adjusted and conditional ICC
-  if (adjusted) return(r2_mixedmodel(x, type = type))
+  if (adjusted) return(r2_mixedmodel(x, type = type, obj.name = deparse(substitute(x))))
 
   # get family
   fitfam <- model_family(x)
@@ -369,10 +381,10 @@ icc.glmmTMB <- function(x, adjusted = FALSE, ...) {
   tau.11 <- unlist(lapply(reva, function(x) diag(x)[-1]))
 
   # residual variances, i.e. within-cluster-variance
-  resid_var <- get_residual_variance(x, var.cor = reva, fitfam, type = "ICC")
+  resid.var <- get_residual_variance(x, var.cor = reva, fitfam, type = "ICC")
 
   # total variance, sum of random intercept and residual variances
-  total_var <- sum(purrr::map_dbl(vars, ~ sum(.x)), resid_var)
+  total_var <- sum(purrr::map_dbl(vars, ~ sum(.x)), resid.var)
 
   # random intercept icc
   ri.icc <- tau.00 / total_var
@@ -426,7 +438,7 @@ icc.glmmTMB <- function(x, adjusted = FALSE, ...) {
   attr(ri.icc, "tau.01") <- tau.01
   attr(ri.icc, "rho.01") <- rho.01
   attr(ri.icc, "tau.11") <- tau.11
-  attr(ri.icc, "sigma_2") <- resid_var
+  attr(ri.icc, "sigma_2") <- resid.var
   attr(ri.icc, "rnd.slope.model") <- any(has_rnd_slope)
 
 
@@ -445,7 +457,7 @@ icc.glmmTMB <- function(x, adjusted = FALSE, ...) {
 #' @importFrom sjmisc row_sums is_empty
 #' @rdname icc
 #' @export
-icc.stanreg <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = FALSE, ...) {
+icc.stanreg <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = FALSE, adjusted = FALSE, ...) {
 
   if (!requireNamespace("rstanarm", quietly = TRUE))
     stop("Please install and load package `rstanarm` first.", call. = F)
@@ -454,6 +466,12 @@ icc.stanreg <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
   fitfam <- model_family(x)
   xdat <- as.data.frame(x)
 
+  if (missing(ppd) && missing(adjusted) && !fitfam$is_linear) {
+    #message("Variance decomposition is based on the posterior predictive distribution. Set `ppd = FALSE` to calculate \"classical\" ICC, and `adjusted = TRUE` for adjusted ICC.")
+    message("Variance decomposition for non-Gaussian models should be based on the posterior predictive distribution. To do this, set `ppd = TRUE`.")
+    ## TODO set ppd to FALSE by default later
+    # ppd <- TRUE
+  }
 
   if (ppd) {
 
@@ -466,18 +484,18 @@ icc.stanreg <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
     tau.00 <- apply(PPD_0, MARGIN = 1, FUN = stats::var)
 
     ri.icc <- tau.00 / total_var
-    resid_var <- total_var - tau.00
+    resid.var <- total_var - tau.00
 
     icc_ <- c(
       1 - typical_value(ri.icc, fun = typical),
       typical_value(tau.00, fun = typical),
-      typical_value(resid_var, fun = typical),
+      typical_value(resid.var, fun = typical),
       typical_value(total_var, fun = typical)
     )
 
     attr(icc_, "hdi.icc") <- rev(1 - hdi(ri.icc, prob = prob))
     attr(icc_, "hdi.tau.00") <- hdi(tau.00, prob = prob)
-    attr(icc_, "hdi.resid") <- hdi(resid_var, prob = prob)
+    attr(icc_, "hdi.resid") <- hdi(resid.var, prob = prob)
     attr(icc_, "hdi.total") <- hdi(total_var, prob = prob)
     attr(icc_, "re.form") <- re.form
     attr(icc_, "ranef") <- x$ranef$group[1]
@@ -486,6 +504,9 @@ icc.stanreg <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
     names(icc_) <- c("icc", "tau.00", "resid.var", "total.var")
     class(icc_) <- c("icc_ppd", class(icc_))
 
+  } else if (adjusted) {
+    # compute adjusted and conditional ICC
+    return(r2_mixedmodel(x, type = "ICC", obj.name = deparse(substitute(x))))
   } else {
 
     # random intercept-variances, i.e.
@@ -516,12 +537,21 @@ icc.stanreg <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
     # get residual standard deviation sigma
     sig <- xdat[["sigma"]]
 
+    # set default, if no residual variance is available
+    if (is.null(sig)) {
+      if (fitfam$is_bin)
+        sig <- sqrt((pi^2) / 3)
+      else
+        sig <- 1
+    }
+
     # residual variance
-    resid_var <- sig^2
+    resid.var <- sig^2
 
     # total variance, sum of random intercept and residual variances
     total_var <- sjmisc::row_sums(
-      cbind(tau.00, data.frame(resid_var)),
+      cbind(tau.00, data.frame(resid.var)),
+      n = 1,
       var = "total_var",
       append = FALSE
     )
@@ -545,8 +575,8 @@ icc.stanreg <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
       tau01s <- grep("^Sigma\\[(.*):[^\\(\\)](.*),\\(Intercept\\)\\]", colnames(xdat))
       tau.01 <- xdat[, tau01s, drop = FALSE]
 
-      tau.00.sums <- sjmisc::row_sums(tau.00, var = "t0sums")$t0sums
-      tau.11.sums <- sjmisc::row_sums(tau.11, var = "t1sums")$t1sums
+      tau.00.sums <- sjmisc::row_sums(tau.00, var = "t0sums", n = 1)$t0sums
+      tau.11.sums <- sjmisc::row_sums(tau.11, var = "t1sums", n = 1)$t1sums
 
       # get slope-intercept-correlations
       rho.01 <- tau.01 / sqrt(tau.00.sums * tau.11.sums)
@@ -567,8 +597,9 @@ icc.stanreg <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
     attr(icc_, "hdi.tau.00") <- purrr::map(tau.00, ~ hdi(.x, prob = prob))
     tau.00 <- purrr::map_dbl(tau.00, ~ typical_value(.x, fun = typical))
 
-    attr(icc_, "hdi.sigma_2") <- hdi(resid_var, prob = prob)
-    resid_var <- typical_value(resid_var, fun = typical)
+    if (length(resid.var) > 10)
+      attr(icc_, "hdi.sigma_2") <- hdi(resid.var, prob = prob)
+    resid.var <- typical_value(resid.var, fun = typical)
 
     if (!is.null(tau.11)) {
       attr(icc_, "hdi.tau.11") <- purrr::map(tau.11, ~ hdi(.x, prob = prob))
@@ -589,7 +620,7 @@ icc.stanreg <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
     attr(icc_, "tau.01") <- tau.01
     attr(icc_, "rho.01") <- rho.01
     attr(icc_, "tau.11") <- tau.11
-    attr(icc_, "sigma_2") <- resid_var
+    attr(icc_, "sigma_2") <- resid.var
     attr(icc_, "rnd.slope.model") <- any(has_rnd_slope)
     attr(icc_, "model") <- mt
 
@@ -613,13 +644,20 @@ icc.stanreg <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
 #' @importFrom sjmisc all_na
 #' @rdname icc
 #' @export
-icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = FALSE, ...) {
+icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = FALSE, adjusted = FALSE, ...) {
 
   if (!requireNamespace("brms", quietly = TRUE))
     stop("Please install and load package `brms` first.", call. = F)
 
   # get family
   fitfam <- model_family(x)
+
+  if (missing(ppd) && missing(adjusted) && !fitfam$is_linear) {
+    #message("Variance decomposition is based on the posterior predictive distribution. Set `ppd = FALSE` to calculate \"classical\" ICC, and `adjusted = TRUE` for adjusted ICC.")
+    message("Variance decomposition for non-Gaussian models should be based on the posterior predictive distribution. To do this, set `ppd = TRUE`.")
+    ## TODO set ppd to FALSE by default later
+    # ppd <- TRUE
+  }
 
 
   if (ppd) {
@@ -633,18 +671,18 @@ icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
     tau.00 <- apply(PPD_0, MARGIN = 1, FUN = stats::var)
 
     ri.icc <- tau.00 / total_var
-    resid_var <- total_var - tau.00
+    resid.var <- total_var - tau.00
 
     icc_ <- c(
       1 - typical_value(ri.icc, fun = typical),
       typical_value(tau.00, fun = typical),
-      typical_value(resid_var, fun = typical),
+      typical_value(resid.var, fun = typical),
       typical_value(total_var, fun = typical)
     )
 
     attr(icc_, "hdi.icc") <- rev(1 - hdi(ri.icc, prob = prob))
     attr(icc_, "hdi.tau.00") <- hdi(tau.00, prob = prob)
-    attr(icc_, "hdi.resid") <- hdi(resid_var, prob = prob)
+    attr(icc_, "hdi.resid") <- hdi(resid.var, prob = prob)
     attr(icc_, "hdi.total") <- hdi(total_var, prob = prob)
     attr(icc_, "prob") <- prob
     attr(icc_, "re.form") <- re.form
@@ -654,6 +692,9 @@ icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
     names(icc_) <- c("icc", "tau.00", "resid.var", "total.var")
     class(icc_) <- c("icc_ppd", class(icc_))
 
+  } else if (adjusted) {
+    # compute adjusted and conditional ICC
+    return(r2_mixedmodel(x, type = "ICC", obj.name = deparse(substitute(x))))
   } else {
 
     # get random effect variances for each sample of posterior
@@ -690,21 +731,21 @@ icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
     # residual variances, i.e.
     # within-cluster-variance (sigma^2)
 
-    resid_var <- sig^2
+    resid.var <- sig^2
 
 
     # total variance, sum of random intercept and residual variances
-    total_var <- apply(as.data.frame(vars), MARGIN = 1, FUN = sum) + resid_var
+    total_var <- apply(as.data.frame(vars), MARGIN = 1, FUN = sum) + resid.var
 
     # make sure residual variance has same length as other components
     # if not, just repeat the current value to match number of samples
-    if (length(resid_var) == 1) resid_var <- rep(resid_var, length(total_var))
+    if (length(resid.var) == 1) resid.var <- rep(resid.var, length(total_var))
 
     # random intercept icc
     ri.icc <- purrr::map(tau.00, ~ .x / total_var)
 
     # random slope-variances (tau 11)
-    tau.11 <- purrr::map_if(tau.11, is.null, ~ rep(NA, length(resid_var)))
+    tau.11 <- purrr::map_if(tau.11, is.null, ~ rep(NA, length(resid.var)))
 
     names(ri.icc) <- sprintf("icc_%s", names(ri.icc))
     names(tau.00) <- sprintf("tau.00_%s", names(tau.00))
@@ -716,8 +757,8 @@ icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
     attr(icc_, "hdi.icc") <- purrr::map(ri.icc, ~ hdi(.x, prob = prob))
     attr(icc_, "hdi.tau.00") <- purrr::map(tau.00, ~ hdi(.x, prob = prob))
 
-    attr(icc_, "sigma_2") <- typical_value(resid_var, fun = typical)
-    attr(icc_, "hdi.sigma_2") <- hdi(resid_var, prob = prob)
+    attr(icc_, "sigma_2") <- typical_value(resid.var, fun = typical)
+    attr(icc_, "hdi.sigma_2") <- hdi(resid.var, prob = prob)
 
     attr(icc_, "prob") <- prob
 
@@ -758,8 +799,7 @@ icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
 #'
 #' @param x Fitted mixed effects model (of class \code{merMod}, \code{glmmTMB},
 #'   \code{stanreg} or \code{brmsfit}). \code{get_re_var()} also accepts
-#'   an object of class \code{icc.lme4}, as returned by the
-#'   \code{\link{icc}} function.
+#'   an object returned by the \code{\link{icc}} function.
 #' @param comp Name of the variance component to be returned. See 'Details'.
 #' @param adjusted Logical, if \code{TRUE}, returns the variance of the fixed
 #'   and random effects as well as of the additive dispersion and
@@ -798,7 +838,7 @@ icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
 #'         and \cite{Nakagawa et al. 2017}):
 #'         \describe{
 #'          \item{\code{"fixed"}}{variance attributable to the fixed effects}
-#'          \item{\code{"random"}}{variance of random effects}
+#'          \item{\code{"random"}}{(mean) variance of random effects}
 #'          \item{\code{"dispersion"}}{variance due to additive dispersion}
 #'          \item{\code{"distribution"}}{distribution-specific variance}
 #'          \item{\code{"residual"}}{sum of dispersion and distribution}
@@ -829,7 +869,7 @@ re_var <- function(x, adjusted = FALSE) {
 
   if (adjusted) {
 
-    rv <- r2(x)
+    rv <- r2_mixedmodel(x)
 
     rv_ <- list(
       var.fixef = attr(rv, "var.fixef", exact = TRUE),
@@ -849,7 +889,7 @@ re_var <- function(x, adjusted = FALSE) {
     rv <- c("sigma_2", "tau.00", "tau.11", "tau.01", "rho.01")
 
     # compute icc
-    icc_ <- suppressMessages(icc(x))
+    icc_ <- suppressMessages(icc(x, ppd = FALSE))
 
     rv_ <- purrr::map(rv, ~ attr(icc_, .x, exact = TRUE))
     rn <- purrr::map2(1:length(rv_), rv, ~ sjmisc::trim(paste(names(rv_[[.x]]), .y, sep = "_")))
@@ -868,15 +908,15 @@ re_var <- function(x, adjusted = FALSE) {
 #' @export
 get_re_var <- function(x, comp = c("tau.00", "tau.01", "tau.11", "rho.01", "sigma_2")) {
   # check if we have a valid object
-  if (!inherits(x, "icc.lme4") && !is_merMod(x) && !inherits(x, c("glmmTMB", "brmsfit"))) {
-    stop("`x` must either be an object returned by the `icc` function, or a merMod-, glmmTMB- or brmsfit-object.", call. = F)
+  if (!inherits(x, c("sj_icc_merMod", "sj_icc_stanreg", "sj_icc_brms")) && !is_merMod(x) && !inherits(x, c("glmmTMB", "brmsfit"))) {
+    stop("`x` must either be an object returned by the `icc()` function, or a merMod-, glmmTMB- or brmsfit-object.", call. = F)
   }
 
   # check arguments
   comp <- match.arg(comp)
 
   # do we have a merMod object? If yes, get ICC and var components
-  if (is_merMod(x) || inherits(x, c("glmmTMB", "brmsfit"))) x <- suppressMessages(icc(x))
+  if (is_merMod(x) || inherits(x, c("glmmTMB", "brmsfit"))) x <- suppressMessages(icc(x, ppd = FALSE))
 
   # return results
   attr(x, comp, exact = TRUE)
