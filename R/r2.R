@@ -32,10 +32,10 @@
 #'
 #' @references \itemize{
 #'               \item \href{http://glmm.wikidot.com/faq}{DRAFT r-sig-mixed-models FAQ}
-#'               \item Bolker B et al. (2017): \href{http://bbolker.github.io/mixedmodels-misc/glmmFAQ.html}{GLMM FAQ.}
+#'               \item Bolker B et al. (2017): \href{http://bbolker.github.io/mixedmodels-misc/glmmFAQ.html}{GLMM FAQ}
 #'               \item Byrnes, J. 2008. Re: Coefficient of determination (R^2) when using lme() (\url{https://stat.ethz.ch/pipermail/r-sig-mixed-models/2008q2/000713.html})
-#'               \item Kwok OM, Underhill AT, Berry JW, Luo W, Elliott TR, Yoon M. 2008. Analyzing Longitudinal Data with Multilevel Models: An Example with Individuals Living with Lower Extremity Intra-Articular Fractures. Rehabilitation Psychology 53(3): 370–86. \doi{10.1037/a0012765}
-#'               \item Nakagawa S, Schielzeth H. 2013. A general and simple method for obtaining R2 from generalized linear mixed-effects models. Methods in Ecology and Evolution, 4(2):133–142. \doi{10.1111/j.2041-210x.2012.00261.x}
+#'               \item Kwok OM, Underhill AT, Berry JW, Luo W, Elliott TR, Yoon M. 2008. Analyzing Longitudinal Data with Multilevel Models: An Example with Individuals Living with Lower Extremity Intra-Articular Fractures. Rehabilitation Psychology 53(3): 370-86. \doi{10.1037/a0012765}
+#'               \item Nakagawa S, Schielzeth H. 2013. A general and simple method for obtaining R2 from generalized linear mixed-effects models. Methods in Ecology and Evolution, 4(2):133-142. \doi{10.1111/j.2041-210x.2012.00261.x}
 #'               \item Nakagawa S, Johnson P, Schielzeth H (2017) The coefficient of determination R2 and intra-class correlation coefficient from generalized linear mixed-effects models revisted and expanded. J. R. Soc. Interface 14. \doi{10.1098/rsif.2017.0213}
 #'               \item Rabe-Hesketh S, Skrondal A. 2012. Multilevel and longitudinal modeling using Stata. 3rd ed. College Station, Tex: Stata Press Publication
 #'               \item Raudenbush SW, Bryk AS. 2002. Hierarchical linear models: applications and data analysis methods. 2nd ed. Thousand Oaks: Sage Publications
@@ -256,6 +256,14 @@ r2.glm <- function(x, ...) {
 
 
 #' @export
+r2.mlogit <- function(x, ...) {
+  McFadden <- as.vector(summary(x)$mfR2)
+  names(McFadden) <- "McFadden R-squared"
+  structure(class = "sj_r2", list(McFadden = McFadden))
+}
+
+
+#' @export
 r2.merMod <- function(x, ...) {
   if (!requireNamespace("lme4", quietly = TRUE))
     stop("Package `lme4` needed for this function to work. Please install it.", call. = FALSE)
@@ -454,8 +462,7 @@ r2linmix <- function(x, n) {
 }
 
 
-#' @importFrom lme4 fixef getME VarCorr ranef findbars
-#' @importFrom stats family nobs var formula reformulate
+#' @importFrom insight find_formula model_info
 r2_mixedmodel <- function(x, type = NULL, obj.name = NULL) {
 
   if (is.null(type) || type == "r2") {
@@ -466,133 +473,17 @@ r2_mixedmodel <- function(x, type = NULL, obj.name = NULL) {
     ws2 <- "ICC"
   }
 
+  faminfo <- insight::model_info(x)
+  vars <- .compute_variances(x, name_fun = ws, name_full = ws2, faminfo = faminfo)
 
-
-  ## Code taken from GitGub-Repo of package glmmTMB
-  ## Author: Ben Bolker, who used an
-  ## cleaned-up/adapted version of Jon Lefcheck's code from SEMfit
-
-  faminfo <- model_family(x)
-
-  if (faminfo$family %in% c("truncated_nbinom1", "truncated_nbinom2", "tweedie")) {
-    warning(sprintf("Truncated negative binomial and tweedie families are currently not supported by `%s`.", ws), call. = F)
-    return(NULL)
+  if (length(vars) == 1 && is.na(vars)) {
+    return(NA)
   }
-
-  vals <- list(
-    beta = lme4::fixef(x),
-    X = lme4::getME(x, "X"),
-    vc = lme4::VarCorr(x),
-    re = lme4::ranef(x)
-  )
-
-  # fix brms structure
-
-  if (inherits(x, "brmsfit")) {
-    vals$beta <- vals$beta[, 1]
-
-    vals$re <- lapply(vals$re, function(r) {
-      dim.ranef <- dim(r)
-      dim.names <- dimnames(r)[[3]]
-      v.re <- purrr::map(1:dim.ranef[3], ~ r[1:dim.ranef[1], 1, .x])
-      names(v.re) <- dim.names
-      as.data.frame(v.re)
-    })
-
-    sc <- vals$vc$residual__$sd[1]
-
-    if (obj_has_name(vals$vc, "residual__"))
-      vals$vc <- vals$vc[-which(names(vals$vc) == "residual__")]
-
-    vals$vc <- purrr::map(vals$vc, function(.x) {
-      if (obj_has_name(.x, "cov")) {
-        d <- dim(.x$cov)
-        .x <- .x$cov[1:d[1], 1, ]
-      } else if (obj_has_name(.x, "sd")) {
-        .x <- .x$sd[1, 1, drop = FALSE]^2
-        attr(.x, "dimnames") <- list("Intercept", "Intercept")
-      }
-      .x
-    })
-    attr(vals$vc, "sc") <- sc
-
-    if (faminfo$is_zeroinf)
-      warning(sprintf("%s ignores effects of zero-inflation.", ws), call. = FALSE)
-  }
-
-
-  # for glmmTMB, use conditional component of model only,
-  # and tell user that zero-inflation is ignored
-
-  if (inherits(x,"glmmTMB")) {
-    vals <- lapply(vals, collapse_cond)
-
-    nullEnv <- function(x) {
-      environment(x) <- NULL
-      return(x)
-    }
-
-    if (!identical(nullEnv(x$modelInfo$allForm$ziformula), nullEnv(~0)))
-      warning(sprintf("%s ignores effects of zero-inflation.", ws), call. = FALSE)
-
-    dform <- nullEnv(x$modelInfo$allForm$dispformula)
-
-    if (!identical(dform,nullEnv(~1)) && (!identical(dform, nullEnv(~0))))
-      warning(sprintf("%s ignores effects of dispersion model.", ws), call. = FALSE)
-  }
-
-
-  # Test for non-zero random effects ((near) singularity)
-
-  if (is_singular(x)) {
-    warning(sprintf("Can't compute %s. Some variance components equal zero.\n  Solution: Respecify random structure!", ws2), call. = F)
-    return(NULL)
-  }
-
-
-  # Get variance of fixed effects: multiply coefs by design matrix
-
-  var.fixef <- get_fixef_variance(vals)
-
-
-  # Are random slopes present as fixed effects? Warn.
-
-  random.slopes <- if ("list" %in% class(vals$re)) {
-    # multiple RE
-    unique(c(sapply(vals$re, colnames)))
-  } else if (is.list(vals$re)) {
-    colnames(vals$re[[1]])
-  } else {
-    colnames(vals$re)
-  }
-
-  if (!all(random.slopes %in% names(vals$beta)))
-    warning(sprintf("Random slopes not present as fixed effects. This artificially inflates the conditional %s.\n  Solution: Respecify fixed structure!", ws2), call. = FALSE)
-
-
-  # Separate observation variance from variance of random effects
-
-  nr <- sapply(vals$re, nrow)
-  not.obs.terms <- names(nr[nr != stats::nobs(x)])
-  obs.terms <- names(nr[nr == stats::nobs(x)])
-
-
-  # Variance of random effects
-  var.ranef <- get_ranef_variance(not.obs.terms, x = x, vals = vals)
-
-  # Residual variance, which is defined as the variance due to
-  # additive dispersion and the distribution-specific variance (Johnson et al. 2014)
-
-  var.dist <- get_residual_variance(x, var.cor = vals$vc, faminfo, type = ws2)
-  var.disp <- get_disp_variance(x = x, vals = vals, faminfo = faminfo, obs.terms = obs.terms)
-
-  var.resid <- var.dist + var.disp
-
 
   # Calculate R2 values
 
-  rsq.marginal <- var.fixef / (var.fixef + var.ranef + var.resid)
-  rsq.conditional <- (var.fixef + var.ranef) / (var.fixef + var.ranef + var.resid)
+  rsq.marginal <- vars$var.fixef / (vars$var.fixef + vars$var.ranef + vars$var.resid)
+  rsq.conditional <- (vars$var.fixef + vars$var.ranef) / (vars$var.fixef + vars$var.ranef + vars$var.resid)
 
   names(rsq.marginal) <- "Marginal R2"
   names(rsq.conditional) <- "Conditional R2"
@@ -600,8 +491,8 @@ r2_mixedmodel <- function(x, type = NULL, obj.name = NULL) {
 
   # Calculate ICC values
 
-  icc.adjusted <- var.ranef / (var.ranef + var.resid)
-  icc.conditional <- var.ranef / (var.fixef + var.ranef + var.resid)
+  icc.adjusted <- vars$var.ranef / (vars$var.ranef + vars$var.resid)
+  icc.conditional <- vars$var.ranef / (vars$var.fixef + vars$var.ranef + vars$var.resid)
 
   names(icc.adjusted) <-    "Adjusted ICC"
   names(icc.conditional) <- "Conditional ICC"
@@ -630,15 +521,15 @@ r2_mixedmodel <- function(x, type = NULL, obj.name = NULL) {
 
   # save variance information
 
-  attr(var.measure, "var.fixef") <- var.fixef
-  attr(var.measure, "var.ranef") <- var.ranef
-  attr(var.measure, "var.disp") <- var.disp
-  attr(var.measure, "var.dist") <- var.dist
-  attr(var.measure, "var.resid") <- var.resid
+  attr(var.measure, "var.fixef") <- vars$var.fixef
+  attr(var.measure, "var.ranef") <- vars$var.ranef
+  attr(var.measure, "var.disp") <- vars$var.disp
+  attr(var.measure, "var.dist") <- vars$var.dist
+  attr(var.measure, "var.resid") <- vars$var.resid
 
   attr(var.measure, "family") <- faminfo$family
-  attr(var.measure, "link") <- faminfo$link.fun
-  attr(var.measure, "formula") <- if (inherits(x, "brmsfit")) stats::formula(x)[[1]] else stats::formula(x)
+  attr(var.measure, "link") <- faminfo$link_function
+  attr(var.measure, "formula") <- insight::find_formula(x)
 
   # finally, save name of fitted model object. May be needed for
   # the 'se()' function, which accesses the global environment

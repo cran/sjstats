@@ -15,7 +15,7 @@
 #'   to calculate the ICC for this group-level. Only applies if \code{ppd = TRUE}.
 #' @param typical Character vector, naming the function that will be used as
 #'   measure of central tendency for the ICC. The default is "mean". See
-#'   \link{typical_value} for options.
+#'   \code{\link[sjmisc]{typical_value}} for options.
 #' @param ppd Logical, if \code{TRUE}, variance decomposition is based on the
 #'   posterior predictive distribution, which is the correct way for Bayesian
 #'   non-Gaussian models. By default, \code{ppd} is set to \code{TRUE} for
@@ -38,7 +38,7 @@
 #'    is also  included as attribute.
 #'
 #' @references \itemize{
-#'    \item Aguinis H, Gottfredson RK, Culpepper SA. 2013. Best-Practice Recommendations for Estimating Cross-Level Interaction Effects Using Multilevel Modeling. Journal of Management 39(6): 1490–1528 (\doi{10.1177/0149206313478188})
+#'    \item Aguinis H, Gottfredson RK, Culpepper SA. 2013. Best-Practice Recommendations for Estimating Cross-Level Interaction Effects Using Multilevel Modeling. Journal of Management 39(6): 1490-1528 (\doi{10.1177/0149206313478188})
 #'    \item Goldstein H, Browne W, Rasbash J. 2010. Partitioning Variation in Multilevel Models. Understanding Statistics, 1:4, 223-231 (\doi{10.1207/S15328031US0104_02})
 #'    \item Grace-Martion K. The Intraclass Correlation Coefficient in Mixed Models, \href{http://www.theanalysisfactor.com/the-intraclass-correlation-coefficient-in-mixed-models/}{web}
 #'    \item Hox J. 2002. Multilevel analysis: techniques and applications. Mahwah, NJ: Erlbaum
@@ -181,8 +181,6 @@
 #'
 #' sleepstudy$mygrp <- sample(1:45, size = 180, replace = TRUE)
 #' fit2 <- lmer(Reaction ~ Days + (1 | mygrp) + (1 | Subject), sleepstudy)
-#' icc(fit2)
-#' icc(fit2, adjusted = TRUE)
 #'
 #' icc1 <- icc(fit1)
 #' icc2 <- icc(fit2)
@@ -214,9 +212,6 @@
 #'   # show 50% interval
 #'   icc(m, prob = .5)
 #'
-#'   # adjusted ICC, 89% interval
-#'   icc(m, adjusted = TRUE)
-#'
 #'   # variances based on posterior predictive distribution
 #'   icc(m, ppd = TRUE)
 #' }}
@@ -246,14 +241,14 @@ icc.merMod <- function(x, adjusted = FALSE, ...) {
   if (adjusted) return(r2_mixedmodel(x, type = type, obj.name = deparse(substitute(x))))
 
   # get family
-  fitfam <- model_family(x)
+  fitfam <- insight::model_info(x)
 
 
   # random effects variances
   # for details on tau and sigma, see
   # Aguinis H, Gottfredson RK, Culpepper SA2013. Best-Practice Recommendations
   # for Estimating Cross-Level Interaction Effects Using Multilevel Modeling.
-  # Journal of Management 39(6): 1490–1528. doi:10.1177/0149206313478188.
+  # Journal of Management 39(6): 1490-1528. doi:10.1177/0149206313478188.
   reva <- lme4::VarCorr(x)
 
   # retrieve only intercepts
@@ -267,7 +262,7 @@ icc.merMod <- function(x, adjusted = FALSE, ...) {
   tau.11 <- unlist(lapply(reva, function(x) diag(x)[-1]))
 
   # residual variances, i.e. within-cluster-variance
-  resid.var <- get_residual_variance(x, var.cor = reva, fitfam, type = "ICC")
+  resid.var <- .get_variance_residual(x, var.cor = reva, fitfam, name = "ICC")
 
   # total variance, sum of random intercept and residual variances
   total_var <- sum(purrr::map_dbl(vars, ~ sum(.x)), resid.var)
@@ -320,7 +315,7 @@ icc.merMod <- function(x, adjusted = FALSE, ...) {
   # add attributes, for print method
   class(ri.icc) <- c("sj_icc_merMod", class(ri.icc))
   attr(ri.icc, "family") <- fitfam$family
-  attr(ri.icc, "link") <- fitfam$link.fun
+  attr(ri.icc, "link") <- fitfam$link_function
   attr(ri.icc, "formula") <- stats::formula(x)
   attr(ri.icc, "model") <- mt
   attr(ri.icc, "tau.00") <- tau.00
@@ -342,12 +337,14 @@ icc.merMod <- function(x, adjusted = FALSE, ...) {
 
 
 #' @importFrom lme4 VarCorr fixef getME
-#' @importFrom glmmTMB VarCorr fixef getME
 #' @importFrom stats family formula
 #' @importFrom purrr map map_dbl map_lgl
 #' @rdname icc
 #' @export
 icc.glmmTMB <- function(x, adjusted = FALSE, ...) {
+
+  if (!requireNamespace("glmmTMB", quietly = TRUE))
+    stop("Package `glmmTMB` is needed for this function. Please install it first.", call. = FALSE)
 
   add.args <- lapply(match.call(expand.dots = F)$`...`, function(x) x)
 
@@ -360,14 +357,14 @@ icc.glmmTMB <- function(x, adjusted = FALSE, ...) {
   if (adjusted) return(r2_mixedmodel(x, type = type, obj.name = deparse(substitute(x))))
 
   # get family
-  fitfam <- model_family(x)
+  fitfam <- insight::model_info(x)
 
 
   # random effects variances
   # for details on tau and sigma, see
   # Aguinis H, Gottfredson RK, Culpepper SA2013. Best-Practice Recommendations
   # for Estimating Cross-Level Interaction Effects Using Multilevel Modeling.
-  # Journal of Management 39(6): 1490–1528. doi:10.1177/0149206313478188.
+  # Journal of Management 39(6): 1490-1528. doi:10.1177/0149206313478188.
   reva <- glmmTMB::VarCorr(x)[[1]]
 
   # retrieve only intercepts
@@ -381,7 +378,7 @@ icc.glmmTMB <- function(x, adjusted = FALSE, ...) {
   tau.11 <- unlist(lapply(reva, function(x) diag(x)[-1]))
 
   # residual variances, i.e. within-cluster-variance
-  resid.var <- get_residual_variance(x, var.cor = reva, fitfam, type = "ICC")
+  resid.var <- .get_variance_residual(x, var.cor = reva, fitfam, name = "ICC")
 
   # total variance, sum of random intercept and residual variances
   total_var <- sum(purrr::map_dbl(vars, ~ sum(.x)), resid.var)
@@ -431,7 +428,7 @@ icc.glmmTMB <- function(x, adjusted = FALSE, ...) {
   # add attributes, for print method
   class(ri.icc) <- c("sj_icc_merMod", class(ri.icc))
   attr(ri.icc, "family") <- fitfam$family
-  attr(ri.icc, "link") <- fitfam$link.fun
+  attr(ri.icc, "link") <- fitfam$link_function
   attr(ri.icc, "formula") <- stats::formula(x)
   attr(ri.icc, "model") <- mt
   attr(ri.icc, "tau.00") <- tau.00
@@ -454,7 +451,7 @@ icc.glmmTMB <- function(x, adjusted = FALSE, ...) {
 
 #' @importFrom stats formula
 #' @importFrom purrr map map_dbl map_lgl
-#' @importFrom sjmisc row_sums is_empty
+#' @importFrom sjmisc row_sums is_empty typical_value
 #' @rdname icc
 #' @export
 icc.stanreg <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = FALSE, adjusted = FALSE, ...) {
@@ -463,7 +460,7 @@ icc.stanreg <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
     stop("Please install and load package `rstanarm` first.", call. = F)
 
   # get family
-  fitfam <- model_family(x)
+  fitfam <- insight::model_info(x)
   xdat <- as.data.frame(x)
 
   if (missing(ppd) && missing(adjusted) && !fitfam$is_linear) {
@@ -487,10 +484,10 @@ icc.stanreg <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
     resid.var <- total_var - tau.00
 
     icc_ <- c(
-      1 - typical_value(ri.icc, fun = typical),
-      typical_value(tau.00, fun = typical),
-      typical_value(resid.var, fun = typical),
-      typical_value(total_var, fun = typical)
+      1 - sjmisc::typical_value(ri.icc, fun = typical),
+      sjmisc::typical_value(tau.00, fun = typical),
+      sjmisc::typical_value(resid.var, fun = typical),
+      sjmisc::typical_value(total_var, fun = typical)
     )
 
     attr(icc_, "hdi.icc") <- rev(1 - hdi(ri.icc, prob = prob))
@@ -539,7 +536,7 @@ icc.stanreg <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
 
     # set default, if no residual variance is available
     if (is.null(sig)) {
-      if (fitfam$is_bin)
+      if (fitfam$is_binomial)
         sig <- sqrt((pi^2) / 3)
       else
         sig <- 1
@@ -591,29 +588,29 @@ icc.stanreg <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
       mt <- "Linear mixed model"
 
 
-    icc_ <- purrr::map_dbl(ri.icc, ~ typical_value(.x, fun = typical))
+    icc_ <- purrr::map_dbl(ri.icc, ~ sjmisc::typical_value(.x, fun = typical))
     attr(icc_, "hdi.icc") <- purrr::map(ri.icc, ~ hdi(.x, prob = prob))
 
     attr(icc_, "hdi.tau.00") <- purrr::map(tau.00, ~ hdi(.x, prob = prob))
-    tau.00 <- purrr::map_dbl(tau.00, ~ typical_value(.x, fun = typical))
+    tau.00 <- purrr::map_dbl(tau.00, ~ sjmisc::typical_value(.x, fun = typical))
 
     if (length(resid.var) > 10)
       attr(icc_, "hdi.sigma_2") <- hdi(resid.var, prob = prob)
-    resid.var <- typical_value(resid.var, fun = typical)
+    resid.var <- sjmisc::typical_value(resid.var, fun = typical)
 
     if (!is.null(tau.11)) {
       attr(icc_, "hdi.tau.11") <- purrr::map(tau.11, ~ hdi(.x, prob = prob))
-      tau.11 <- purrr::map_dbl(tau.11, ~ typical_value(.x, fun = typical))
+      tau.11 <- purrr::map_dbl(tau.11, ~ sjmisc::typical_value(.x, fun = typical))
     }
 
     if (!is.null(rho.01)) {
       attr(icc_, "hdi.rho.01") <- purrr::map(rho.01, ~ hdi(.x, prob = prob))
-      rho.01 <- purrr::map_dbl(rho.01, ~ typical_value(.x, fun = typical))
+      rho.01 <- purrr::map_dbl(rho.01, ~ sjmisc::typical_value(.x, fun = typical))
     }
 
     if (!is.null(tau.01)) {
       attr(icc_, "hdi.tau.01") <- purrr::map(tau.01, ~ hdi(.x, prob = prob))
-      tau.01 <- purrr::map_dbl(tau.01, ~ typical_value(.x, fun = typical))
+      tau.01 <- purrr::map_dbl(tau.01, ~ sjmisc::typical_value(.x, fun = typical))
     }
 
     attr(icc_, "tau.00") <- tau.00
@@ -629,7 +626,7 @@ icc.stanreg <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
 
   # add attributes, for print method
   attr(icc_, "family") <- fitfam$family
-  attr(icc_, "link") <- fitfam$link.fun
+  attr(icc_, "link") <- fitfam$link_function
   attr(icc_, "formula") <- stats::formula(x)
   attr(icc_, "prob") <- prob
 
@@ -644,15 +641,15 @@ icc.stanreg <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
 #' @importFrom sjmisc all_na
 #' @rdname icc
 #' @export
-icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = FALSE, adjusted = FALSE, ...) {
+icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = FALSE, ...) {
 
   if (!requireNamespace("brms", quietly = TRUE))
     stop("Please install and load package `brms` first.", call. = F)
 
   # get family
-  fitfam <- model_family(x)
+  fitfam <- insight::model_info(x)
 
-  if (missing(ppd) && missing(adjusted) && !fitfam$is_linear) {
+  if (missing(ppd) && !fitfam$is_linear) {
     #message("Variance decomposition is based on the posterior predictive distribution. Set `ppd = FALSE` to calculate \"classical\" ICC, and `adjusted = TRUE` for adjusted ICC.")
     message("Variance decomposition for non-Gaussian models should be based on the posterior predictive distribution. To do this, set `ppd = TRUE`.")
     ## TODO set ppd to FALSE by default later
@@ -674,10 +671,10 @@ icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
     resid.var <- total_var - tau.00
 
     icc_ <- c(
-      1 - typical_value(ri.icc, fun = typical),
-      typical_value(tau.00, fun = typical),
-      typical_value(resid.var, fun = typical),
-      typical_value(total_var, fun = typical)
+      1 - sjmisc::typical_value(ri.icc, fun = typical),
+      sjmisc::typical_value(tau.00, fun = typical),
+      sjmisc::typical_value(resid.var, fun = typical),
+      sjmisc::typical_value(total_var, fun = typical)
     )
 
     attr(icc_, "hdi.icc") <- rev(1 - hdi(ri.icc, prob = prob))
@@ -692,9 +689,6 @@ icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
     names(icc_) <- c("icc", "tau.00", "resid.var", "total.var")
     class(icc_) <- c("icc_ppd", class(icc_))
 
-  } else if (adjusted) {
-    # compute adjusted and conditional ICC
-    return(r2_mixedmodel(x, type = "ICC", obj.name = deparse(substitute(x))))
   } else {
 
     # get random effect variances for each sample of posterior
@@ -721,7 +715,7 @@ icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
 
     # set default, if no residual variance is available
     if (is.null(sig)) {
-      if (fitfam$is_bin)
+      if (fitfam$is_binomial)
         sig <- sqrt((pi^2) / 3)
       else
         sig <- 1
@@ -751,13 +745,13 @@ icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
     names(tau.00) <- sprintf("tau.00_%s", names(tau.00))
     names(tau.11) <- sprintf("tau.11_%s", names(tau.11))
 
-    icc_ <- purrr::map_dbl(ri.icc, ~ typical_value(.x, fun = typical))
+    icc_ <- purrr::map_dbl(ri.icc, ~ sjmisc::typical_value(.x, fun = typical))
 
-    attr(icc_, "tau.00") <- purrr::map_dbl(tau.00, ~ typical_value(.x, fun = typical))
+    attr(icc_, "tau.00") <- purrr::map_dbl(tau.00, ~ sjmisc::typical_value(.x, fun = typical))
     attr(icc_, "hdi.icc") <- purrr::map(ri.icc, ~ hdi(.x, prob = prob))
     attr(icc_, "hdi.tau.00") <- purrr::map(tau.00, ~ hdi(.x, prob = prob))
 
-    attr(icc_, "sigma_2") <- typical_value(resid.var, fun = typical)
+    attr(icc_, "sigma_2") <- sjmisc::typical_value(resid.var, fun = typical)
     attr(icc_, "hdi.sigma_2") <- hdi(resid.var, prob = prob)
 
     attr(icc_, "prob") <- prob
@@ -765,7 +759,7 @@ icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
     check_tau <- purrr::map_lgl(tau.11, ~ sjmisc::all_na(.x))
     if (any(!check_tau)) {
       tau.11 <- tau.11[!check_tau]
-      attr(icc_, "tau.11") <- purrr::map_dbl(tau.11, ~ typical_value(.x, fun = typical))
+      attr(icc_, "tau.11") <- purrr::map_dbl(tau.11, ~ sjmisc::typical_value(.x, fun = typical))
       attr(icc_, "hdi.tau.11") <- purrr::map(tau.11, ~ hdi(.x, prob = prob))
     }
 
@@ -779,7 +773,7 @@ icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
 
 
   attr(icc_, "family") <- fitfam$family
-  attr(icc_, "link") <- fitfam$link.fun
+  attr(icc_, "link") <- fitfam$link_function
   attr(icc_, "formula") <- stats::formula(x)
   attr(icc_, "model") <- "Bayesian mixed model"
   attr(ri.icc, "rnd.slope.model") <- any(has_rnd_slope)
@@ -810,7 +804,7 @@ icc.brmsfit <- function(x, re.form = NULL, typical = "mean", prob = .89, ppd = F
 #'           \code{re_var()} returns all random effects variances.
 #'
 #' @references \itemize{
-#'    \item Aguinis H, Gottfredson RK, Culpepper SA. 2013. Best-Practice Recommendations for Estimating Cross-Level Interaction Effects Using Multilevel Modeling. Journal of Management 39(6): 1490–1528 (\doi{10.1177/0149206313478188})
+#'    \item Aguinis H, Gottfredson RK, Culpepper SA. 2013. Best-Practice Recommendations for Estimating Cross-Level Interaction Effects Using Multilevel Modeling. Journal of Management 39(6): 1490-1528 (\doi{10.1177/0149206313478188})
 #'    \item Johnson PC, O'Hara RB. 2014. Extension of Nakagawa & Schielzeth's R2GLMM to random slopes models. Methods Ecol Evol, 5: 944-946. (\doi{10.1111/2041-210X.12225})
 #'    \item Nakagawa S, Johnson P, Schielzeth H (2017) The coefficient of determination R2 and intra-class correlation coefficient from generalized linear mixed-effects models revisted and expanded. J. R. Soc. Interface 14. \doi{10.1098/rsif.2017.0213}
 #'  }

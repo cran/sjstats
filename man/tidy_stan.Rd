@@ -14,7 +14,7 @@ tidy_stan(x, prob = 0.89, typical = "median", trans = NULL,
 the credible interval that is to be estimated. See \code{\link{hdi}}.}
 
 \item{typical}{The typical value that will represent the Bayesian point estimate.
-By default, the posterior median is returned. See \code{\link{typical_value}}
+By default, the posterior median is returned. See \code{\link[sjmisc]{typical_value}}
 for possible values for this argument.}
 
 \item{trans}{Name of a function or character vector naming a function, used
@@ -86,11 +86,11 @@ if (require("rstanarm")) {
 
 }
 \references{
-Kruschke JK. \emph{Doing Bayesian Data Analysis: A Tutorial with R, JAGS, and Stan.} 2nd edition. Academic Press, 2015
+Kruschke JK. \emph{Doing Bayesian Data Analysis: A Tutorial with R, JAGS, and Stan} 2nd edition. Academic Press, 2015
 \cr \cr
-Gelman A, Carlin JB, Stern HS, Dunson DB, Vehtari A, Rubin DB. \emph{Bayesian data analysis.} 3rd ed. Boca Raton: Chapman & Hall/CRC, 2013
+Gelman A, Carlin JB, Stern HS, Dunson DB, Vehtari A, Rubin DB. \emph{Bayesian data analysis} 3rd ed. Boca Raton: Chapman and Hall/CRC, 2013
 \cr \cr
-Gelman A, Rubin DB. \emph{Inference from iterative simulation using multiple sequences.} Statistical Science 1992;7: 457–511
+Gelman A, Rubin DB. \emph{Inference from iterative simulation using multiple sequences} Statistical Science 1992;7: 457-511
 \cr \cr
-McElreath R. \emph{Statistical Rethinking. A Bayesian Course with Examples in R and Stan.} Chapman and Hall, 2015
+McElreath R. \emph{Statistical Rethinking. A Bayesian Course with Examples in R and Stan} Chapman and Hall, 2015
 }

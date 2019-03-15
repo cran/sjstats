@@ -54,13 +54,13 @@
 #'      }
 #'    }
 #'
-#' @references Kruschke JK. \emph{Doing Bayesian Data Analysis: A Tutorial with R, JAGS, and Stan.} 2nd edition. Academic Press, 2015
+#' @references Kruschke JK. \emph{Doing Bayesian Data Analysis: A Tutorial with R, JAGS, and Stan} 2nd edition. Academic Press, 2015
 #' \cr \cr
-#' Gelman A, Carlin JB, Stern HS, Dunson DB, Vehtari A, Rubin DB. \emph{Bayesian data analysis.} 3rd ed. Boca Raton: Chapman & Hall/CRC, 2013
+#' Gelman A, Carlin JB, Stern HS, Dunson DB, Vehtari A, Rubin DB. \emph{Bayesian data analysis} 3rd ed. Boca Raton: Chapman and Hall/CRC, 2013
 #' \cr \cr
-#' Gelman A, Rubin DB. \emph{Inference from iterative simulation using multiple sequences.} Statistical Science 1992;7: 457–511
+#' Gelman A, Rubin DB. \emph{Inference from iterative simulation using multiple sequences} Statistical Science 1992;7: 457-511
 #' \cr \cr
-#' McElreath R. \emph{Statistical Rethinking. A Bayesian Course with Examples in R and Stan.} Chapman and Hall, 2015
+#' McElreath R. \emph{Statistical Rethinking. A Bayesian Course with Examples in R and Stan} Chapman and Hall, 2015
 #'
 #' @examples
 #' \dontrun{
@@ -73,7 +73,6 @@
 #' @importFrom purrr map flatten_dbl map_dbl modify_if
 #' @importFrom dplyr bind_cols select mutate slice inner_join n_distinct
 #' @importFrom stats mad formula
-#' @importFrom bayesplot rhat neff_ratio
 #' @importFrom sjmisc is_empty trim
 #' @export
 tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c("fixed", "random", "all"), digits = 2) {
@@ -97,7 +96,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
   out.hdi <- hdi(x, prob = prob, trans = trans, type = type)
 
   # get statistics
-  nr <- bayesplot::neff_ratio(x)
+  nr <- .neff_ratio(x)
 
   # we need names of elements, for correct removal
 
@@ -115,7 +114,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
   )
 
 
-  rh <- bayesplot::rhat(x)
+  rh <- .rhat(x)
 
   if (inherits(x, "brmsfit")) {
     cnames <- make.names(names(rh))
@@ -149,7 +148,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
     for (i in all.cols) mod.dat[[i]] <- trans(mod.dat[[i]])
   }
 
-  est <- purrr::map_dbl(mod.dat, ~ sjstats::typical_value(.x, fun = typical))
+  est <- purrr::map_dbl(mod.dat, ~ sjmisc::typical_value(.x, fun = typical))
 
   out <- data_frame(
     term = names(est),
@@ -388,7 +387,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
   if (inherits(x, "brmsfit"))
     attr(out, "formula") <- as.character(stats::formula(x))[1]
   else
-    attr(out, "formula") <- deparse(stats::formula(x))
+    attr(out, "formula") <- deparse(stats::formula(x), width.cutoff = 500L)
 
   # round values
   purrr::modify_if(out, is.numeric, ~ round(.x, digits = digits))
@@ -468,8 +467,10 @@ brms_clean <- function(out) {
     re.s <- string_starts_with(pattern = "Sigma[", x = out$term)
     lp <- string_starts_with(pattern = "lp__", x = out$term)
     priors <- string_starts_with(pattern = "prior_", x = out$term)
+    xme <- string_starts_with(pattern = "Xme_me", x = out$term)
+    xme.sd <- string_starts_with(pattern = "sdme_me", x = out$term)
 
-    removers <- unique(c(re.sd, re.cor, re.s, lp, priors))
+    removers <- unique(c(re.sd, re.cor, re.s, lp, priors, xme, xme.sd))
 
     if (!sjmisc::is_empty(removers))
       out <- dplyr::slice(out, !! -removers)
@@ -484,8 +485,10 @@ brms_clean <- function(out) {
   re.s <- string_starts_with(pattern = "Sigma[", x = colnames(out))
   lp <- string_starts_with(pattern = "lp__", x = colnames(out))
   priors <- string_starts_with(pattern = "prior_", x = colnames(out))
+  xme <- string_starts_with(pattern = "Xme_me", x = colnames(out))
+  xme.sd <- string_starts_with(pattern = "sdme_me", x = colnames(out))
 
-  removers <- unique(c(re.sd, re.cor, re.s, lp, priors))
+  removers <- unique(c(re.sd, re.cor, re.s, lp, priors, xme, xme.sd))
 
   if (!sjmisc::is_empty(removers))
     out <- dplyr::select(out, !! -removers)
@@ -509,4 +512,42 @@ n_of_chains <- function(x) {
     length(x$fit@stan_args)
   else
     length(x$stanfit@stan_args)
+}
+
+
+#' @keywords internal
+.neff_ratio <- function(x) {
+  if (!requireNamespace("rstan", quietly = TRUE))
+    stop("Package `rstan` is required. Please install it first.", call. = FALSE)
+
+  if (inherits(x, "brmsfit")) x <- x$fit
+
+  if (inherits(x, "stanfit")) {
+    s <- rstan::summary(x)
+    tss <- nrow(as.matrix(x, pars = "lp__"))
+    ratio <- s$summary[, "n_eff"]/tss
+  } else if (inherits(x, "stanreg")) {
+    s <- summary(x, pars = NULL, regex_pars = NULL)
+    ess <- s[, "n_eff"]
+    tss <- attr(s, "posterior_sample_size")
+    ratio <- ess/tss
+    ratio <- ratio[!names(ratio) %in% c("mean_PPD", "log-posterior")]
+  }
+}
+
+
+#' @keywords internal
+.rhat <- function(x) {
+  if (!requireNamespace("rstan", quietly = TRUE))
+    stop("Package `rstan` is required. Please install it first.", call. = FALSE)
+
+  if (inherits(x, "brmsfit")) x <- x$fit
+
+  if (inherits(x, "stanfit")) {
+    rstan::summary(x)$summary[, "Rhat"]
+  } else if (inherits(x, "stanreg")) {
+    s <- summary(x, pars = NULL, regex_pars = NULL)
+    rhat <- s[, "Rhat"]
+    rhat[!names(rhat) %in% c("mean_PPD", "log-posterior")]
+  }
 }

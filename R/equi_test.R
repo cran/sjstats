@@ -50,7 +50,6 @@ equi_test.data.frame <- function(x, rope, eff_size, out = c("txt", "viewer", "br
 #' @importFrom sjmisc add_columns var_rename is_empty add_variables
 #' @importFrom dplyr case_when select pull
 #' @importFrom stats sd
-#' @importFrom bayesplot neff_ratio
 equi_test_worker <- function(x, rope, eff_size, out, fm, ...) {
 
   if (fm$is_multivariate)
@@ -70,9 +69,11 @@ equi_test_worker <- function(x, rope, eff_size, out, fm, ...) {
     if (missing(rope)) {
       if (fm$is_linear)
         eff_range <- stats::sd(resp_val(x)) * eff_size
-      else if (fm$is_bin)
-        eff_range <- stats::sd(dat[[1]]) * eff_size / 4
-      else
+      else if (fm$is_bin) {
+        prob_resp <- mean(sjmisc::recode_to(as.numeric(as.vector(resp_val(x)))))
+        eff_size <- prob_resp / pi
+        eff_range <- (stats::qlogis(prob_resp + eff_size) - stats::qlogis(prob_resp - eff_size)) / 4
+      } else
         eff_range <- stats::sd(dat[[1]]) * eff_size
 
       rope <- c(-1, 1) * eff_range
@@ -80,7 +81,6 @@ equi_test_worker <- function(x, rope, eff_size, out, fm, ...) {
   }
 
   .hdi <- hdi(x = x, prob = .95, trans = NULL, type = "fixed")
-  .rope <- rope(x = x, rope = rope, trans = NULL, type = "fixed")
   .neff <- nrow(dat)
 
   result <- dplyr::case_when(
@@ -90,19 +90,24 @@ equi_test_worker <- function(x, rope, eff_size, out, fm, ...) {
     TRUE ~ "undecided"
   )
 
+  rdat <- dat[, colnames(dat) %in% .hdi$term, drop = FALSE]
+  # compute proportion of values within boundaries
+  .rope <- purrr::map_dbl(1:ncol(rdat), function(i) {
+    pd <- rdat[[i]]
+    pd <- sort(pd)
+    pd <- pd[pd >= .hdi$hdi.low[i] & pd <= .hdi$hdi.high[i]]
+    r <- dplyr::between(pd, rope[1], rope[2])
+    round(100 * sum(r) / length(pd), 3)
+  })
+
   # for convenience reasons, also add proportion of values outside rope
-  dat <- .hdi %>%
-    dplyr::select(-1) %>%
-    sjmisc::add_columns(.rope) %>%
-    dplyr::select(-3) %>%
-    sjmisc::add_variables(decision = result, .after = 1) %>%
-    sjmisc::var_rename(rope = "inside.rope")
+  dat <- sjmisc::add_variables(.hdi, decision = result, inside.rope = .rope, .after = 1)
 
   # indicate parameters with critical number of effective samples
 
   critical <- NULL
   if (inherits(x, c("stanfit", "stanreg", "brmsfit"))) {
-    nratio <- bayesplot::neff_ratio(x)
+    nratio <- .neff_ratio(x)
     nratio <- nratio[names(nratio) %in% dat$term]
     critical <- which(nratio < .7)
     if (!sjmisc::is_empty(critical))

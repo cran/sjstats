@@ -18,7 +18,7 @@ icc(x, ...)
   prob = 0.89, ppd = FALSE, adjusted = FALSE, ...)
 
 \method{icc}{brmsfit}(x, re.form = NULL, typical = "mean",
-  prob = 0.89, ppd = FALSE, adjusted = FALSE, ...)
+  prob = 0.89, ppd = FALSE, ...)
 }
 \arguments{
 \item{x}{Fitted mixed effects model (of class \code{merMod}, \code{glmmTMB},
@@ -38,7 +38,7 @@ to calculate the ICC for this group-level. Only applies if \code{ppd = TRUE}.}
 
 \item{typical}{Character vector, naming the function that will be used as
 measure of central tendency for the ICC. The default is "mean". See
-\link{typical_value} for options.}
+\code{\link[sjmisc]{typical_value}} for options.}
 
 \item{prob}{Vector of scalars between 0 and 1, indicating the mass within
 the credible interval that is to be estimated. See \code{\link{hdi}}.}
@@ -191,8 +191,6 @@ icc(fit1, adjusted = TRUE)
 
 sleepstudy$mygrp <- sample(1:45, size = 180, replace = TRUE)
 fit2 <- lmer(Reaction ~ Days + (1 | mygrp) + (1 | Subject), sleepstudy)
-icc(fit2)
-icc(fit2, adjusted = TRUE)
 
 icc1 <- icc(fit1)
 icc2 <- icc(fit2)
@@ -224,9 +222,6 @@ if (requireNamespace("brms", quietly = TRUE)) {
   # show 50\% interval
   icc(m, prob = .5)
 
-  # adjusted ICC, 89\% interval
-  icc(m, adjusted = TRUE)
-
   # variances based on posterior predictive distribution
   icc(m, ppd = TRUE)
 }}
@@ -234,7 +229,7 @@ if (requireNamespace("brms", quietly = TRUE)) {
 }
 \references{
 \itemize{
-   \item Aguinis H, Gottfredson RK, Culpepper SA. 2013. Best-Practice Recommendations for Estimating Cross-Level Interaction Effects Using Multilevel Modeling. Journal of Management 39(6): 1490–1528 (\doi{10.1177/0149206313478188})
+   \item Aguinis H, Gottfredson RK, Culpepper SA. 2013. Best-Practice Recommendations for Estimating Cross-Level Interaction Effects Using Multilevel Modeling. Journal of Management 39(6): 1490-1528 (\doi{10.1177/0149206313478188})
    \item Goldstein H, Browne W, Rasbash J. 2010. Partitioning Variation in Multilevel Models. Understanding Statistics, 1:4, 223-231 (\doi{10.1207/S15328031US0104_02})
    \item Grace-Martion K. The Intraclass Correlation Coefficient in Mixed Models, \href{http://www.theanalysisfactor.com/the-intraclass-correlation-coefficient-in-mixed-models/}{web}
    \item Hox J. 2002. Multilevel analysis: techniques and applications. Mahwah, NJ: Erlbaum

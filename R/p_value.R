@@ -111,6 +111,25 @@ p_value.svyglm <- function(fit, ...) {
 
 
 #' @export
+p_value.gmnl <- function(fit, ...) {
+  cs <- summary(fit)$CoefTable
+  p <- cs[, 4]
+  se <- cs[, 2]
+
+  pv <- make_it_so(p, se)
+
+  # rename intercepts
+  intercepts <- grepl(":(intercept)", pv$term, fixed = TRUE)
+  pv$term[intercepts] <- sprintf(
+    "(Intercept: %s)",
+    sub(":(intercept)", replacement = "", pv$term[intercepts], fixed = TRUE)
+  )
+
+  pv
+}
+
+
+#' @export
 p_value.polr <- function(fit, ...) {
   smry <- suppressMessages(as.data.frame(stats::coef(summary(fit))))
   tstat <- smry[[3]]

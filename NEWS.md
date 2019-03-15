@@ -1,3 +1,29 @@
+# sjstats 0.17.4
+
+## General
+
+* Following models/objects are now supported by model-information functions like `model_family()`, `link_inverse()` or `model_frame()`: `MixMod` (package **GLMMadaptive**), **MCMCglmm**, `mlogit` and `gmnl`.
+* Reduce package dependencies.
+
+## New functions
+
+* `cred_int()`, to compute uncertainty intervals of Bayesian models. Mimics the behaviour and style of `hdi()` and is thus a convenient complement to functions like `posterior_interval()`.
+
+## Changes to functions
+
+* `equi_test()` now finds better defaults for models with binomial outcome (like logistic regression models).
+* `r2()` for mixed models now also should work properly for mixed models fitted with **rstanarm**.
+* `anova_stats()` and alike (e.g. `eta_sq()`) now all preserve original term names.
+* `model_family()` now returns `$is_count = TRUE`, when model is a count-model, and `$is_beta = TRUE` for models with beta-family.
+* `pred_vars()` checks that return value has only unique values.
+* `pred_vars()` gets a `zi`-argument to return the variables from a model's zero-inflation-formula.
+
+## Bug fixes
+
+* Fix minor issues in `wtd_sd()` and `wtd_mean()` when weight was `NULL` (which usually shoudln't be the case anyway).
+* Fix potential issue with `deparse()`, cutting off very long formulas in various functions.
+* Fix encoding issues in help-files.
+
 # sjstats 0.17.3
 
 ## General
@@ -8,7 +34,7 @@
 
 * `boot_ci()` gets a `ci.lvl`-argument.
 * The `rotation`-argument in `pca_rotate()` now supports all rotations from `psych::principal()`.
-* `pred_vars()` gets a `fe.only`-argument to return only fixed effects terms from mixed models.
+* `pred_vars()` gets a `fe.only`-argument to return only fixed effects terms from mixed models, and a `disp`-argument to return the variables from a model's dispersion-formula.
 * `icc()` for Bayesian models gets a `adjusted`-argument, to calculate adjusted and conditional ICC (however, only for Gaussian models).
 * For `icc()` for non-Gaussian Bayes-models, a message is printed that recommends setting argument `ppd` to `TRUE`.
 * `resp_val()` and `resp_var()` now also work for **brms**-models with additional response information (like `trial()` in formula).
