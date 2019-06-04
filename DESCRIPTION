@@ -3,8 +3,8 @@ Type: Package
 Encoding: UTF-8
 Title: Collection of Convenient Functions for Common Statistical
         Computations
-Version: 0.17.4
-Date: 2019-03-15
+Version: 0.17.5
+Date: 2019-06-04
 Authors@R: person("Daniel", "Lüdecke", role = c("aut", "cre"), email = "d.luedecke@uke.de", comment = c(ORCID = "0000-0002-8895-3206"))
 Maintainer: Daniel Lüdecke <d.luedecke@uke.de>
 Description: Collection of convenient functions for common statistical computations,
@@ -24,20 +24,19 @@ Description: Collection of convenient functions for common statistical computati
              like Cronbach's Alpha, Cramer's V, Phi etc.
 License: GPL-3
 Depends: R (>= 3.2), stats, utils
-Imports: broom, dplyr, emmeans, insight, lme4, magrittr, MASS, Matrix,
-        modelr, purrr, rlang, sjlabelled (>= 1.0.17), sjmisc (>=
-        2.7.8), tidyr
-Suggests: brms, car, coin, ggplot2, ggridges, graphics, glmmTMB, knitr,
-        loo, mediation, nlme, pbkrtest (>= 0.4-7), pROC, psych, pwr,
-        sandwich, scales, splines, sjPlot, survey, rstan, rstantools,
-        rstanarm, rstudioapi, VGAM, Zelig, testthat
+Imports: bayestestR (>= 0.2.0), broom, dplyr, emmeans, insight (>=
+        0.3.0), lme4, magrittr, MASS, modelr, performance (>= 0.2.0),
+        purrr, rlang, sjlabelled (>= 1.0.17), sjmisc (>= 2.7.8), tidyr
+Suggests: brms, car, coin, ggplot2, graphics, httr, knitr, mediation,
+        nlme, pbkrtest (>= 0.4-7), pwr, sandwich, sjPlot, survey,
+        rstan, rstanarm, VGAM, Zelig, testthat
 URL: https://github.com/strengejacke/sjstats,
         https://strengejacke.github.io/sjstats
 BugReports: https://github.com/strengejacke/sjstats/issues
 RoxygenNote: 6.1.1
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2019-03-15 15:43:37 UTC; Daniel
+Packaged: 2019-06-04 12:32:17 UTC; mail
 Author: Daniel Lüdecke [aut, cre] (<https://orcid.org/0000-0002-8895-3206>)
 Repository: CRAN
-Date/Publication: 2019-03-15 16:20:03 UTC
+Date/Publication: 2019-06-04 13:10:02 UTC

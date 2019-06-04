@@ -1,3 +1,61 @@
+# sjstats 0.17.5
+
+## New functions
+
+* `epsilon_sq()`, to compute epsilon-squared effect-size.
+
+## Deprecated and defunct
+
+_sjstats_ is being re-structured, and many functions are re-implemented in new packages that are part of a new project called **easystats**. The aim of **easystats** is to provide a unifying and consistent framework to tame, discipline and harness the scary R statistics and their pesky models.
+
+Therefore, following functions are now deprecated:
+
+* `link_inverse()`, please use `insight::link_inverse()`
+* `model_family()`, please use `insight::model_info()`
+* `model_frame()`, please use `insight::get_data()`
+* `pred_vars()`, please use `insight::find_predictors()`
+* `re_grp_var()`, please use `insight::find_random()`
+* `grp_var()`, please use `insight::find_random()`
+* `resp_val()`, please use `insight::get_response()`
+* `resp_var()`, please use `insight::find_response()`
+* `var_names()`, please use `insight::clean_names()`
+* `overdisp()`, please use `performance::check_overdispersion()`
+* `zero_count()`, please use `performance::check_zeroinflation()`
+* `converge_ok()`, please use `performance::check_convergence()`
+* `is_singular()`, please use `performance::check_singularity()`
+* `reliab_test()`, please use `performance::item_reliability()`
+* `split_half()`, please use `performance::item_split_half()`
+* `predictive_accurarcy()`, please use `performance::performance_accuracy()`
+* `cronb()`, please use `performance::cronbachs_alpha()`
+* `difficulty()`, please use `performance::item_difficulty()`
+* `mic()`, please use `performance::item_intercor()`
+* `pca()`, please use `performance::principal_components()`
+* `pca_rotate()`, please use `performance::principal_components()`
+* `r2()`, please use `performance::r2()`
+* `icc()`, please use `performance::icc()`
+* `rmse()`, please use `performance::rmse()`
+* `rse()`, please use `performance::rse()`
+* `mse()`, please use `performance::mse()`
+* `hdi()`, please use `bayestestR::hdi()`
+* `cred_int()`, please use `bayestestR::ci()`
+* `rope()`, please use `bayestestR::rope()`
+* `n_eff()`, please use `bayestestR::effective_sample()`
+* `equi_test()`, please use `bayestestR::equivalence_test()`
+* `multicollin()`, please use `performance::check_collinearity()`
+* `normality()`, please use `performance::check_normality()`
+* `autocorrelation()`, please use `performance::check_autocorrelation()`
+* `heteroskedastic()`, please use `performance::check_heteroscedasticity()`
+* `outliers()`, please use `performance::check_outliers()`
+
+## Changes to functions
+
+* Anova-stats functions (like `eta_sq()`) get a `method`-argument to define the method for computing confidence intervals from bootstrapping.
+
+## Bug fixes
+
+* In some situations, `smpsize_lmm()` could result in negative sample-size recommendations. This was fixed, and a warning is now shown indicating that the parameters for the power-calculation should be modified.
+* Fixed issue with wrong calculated effect size `r` in `mwu()` if group-factor contained more than two groups.
+
 # sjstats 0.17.4
 
 ## General

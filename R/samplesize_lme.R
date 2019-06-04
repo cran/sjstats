@@ -64,7 +64,13 @@ smpsize_lmm <- function(eff.size, df.n = NULL, power = .8, sig.level = .05, k, n
 
   # if we have no information on the number of observations per cluster,
   # compute this number now
-  if (missing(n) || is.null(n)) n <- (obs * (1 - icc)) / (k - (obs * icc))
+  if (missing(n) || is.null(n)) {
+    n <- (obs * (1 - icc)) / (k - (obs * icc))
+    if (n < 1) {
+      warning("Minimum required number of subjects per cluster is negative and was adjusted to be positive. You may reduce the requirements for the multi-level structure (i.e. reduce `k` or `icc`), or you can increase the effect-size.", call. = FALSE)
+      n <- 1
+    }
+  }
 
   # adjust standard design by design effect
   total.n <- obs * deff(n = n, icc = icc)
@@ -141,19 +147,22 @@ deff <- function(n, icc = 0.05) {
 #' @export
 se_ybar <- function(fit) {
   # get model icc
-  icc <- icc(fit)
+  vars <- insight::get_variance(fit, verbose = FALSE)
 
   # get group variances
-  tau.00 <- unname(attr(icc, "tau.00", exact = T))
+  tau.00 <- unname(vars$var.intercept)
 
   # total variance
-  tot_var <- sum(tau.00, attr(icc, "sigma_2", exact = T))
+  tot_var <- sum(tau.00, vars$var.residual)
 
   # get number of groups
   m.cnt <- lme4::ngrps(fit)
 
   # compute number of observations per group (level-2-unit)
   obs <- round(stats::nobs(fit) / m.cnt)
+
+  # compute simple icc
+  icc <- tau.00 / tot_var
 
   # compute standard error of sample mean
   se <- purrr::map_dbl(seq_len(length(m.cnt)), ~ sqrt((tot_var / stats::nobs(fit)) * deff(n = obs[.x], icc = icc[.x])))

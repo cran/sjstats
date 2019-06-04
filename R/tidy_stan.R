@@ -5,11 +5,20 @@
 #'
 #' @param x A \code{stanreg}, \code{stanfit} or \code{brmsfit} object.
 #' @param trans Name of a function or character vector naming a function, used
-#'        to apply transformations on the estimate and HDI-values. The
-#'        values for standard errors are \emph{not} transformed!
+#'        to apply transformations on the estimates and uncertainty intervals. The
+#'        values for standard errors are \emph{not} transformed! If \code{trans}
+#'        is not \code{NULL}, \emph{credible intervals} instead of \emph{HDI}
+#'        are computed, due to the possible asymmetry of the HDI.
 #' @param digits Amount of digits to round numerical values in the output.
-#'
-#' @inheritParams hdi
+#' @param type For mixed effects models, specify the type of effects that should
+#'   be returned. \code{type = "fixed"} returns fixed effects only,
+#'   \code{type = "random"} the random effects and \code{type = "all"} returns
+#'   both fixed and random effects.
+#' @param prob Vector of scalars between 0 and 1, indicating the mass within
+#'   the credible interval that is to be estimated.
+#' @param typical The typical value that will represent the Bayesian point estimate.
+#'   By default, the posterior median is returned. See \code{\link[sjmisc]{typical_value}}
+#'   for possible values for this argument.
 #'
 #' @return A tidy data frame, summarizing \code{x}, with consistent column names.
 #'         To distinguish multiple HDI values, column names for the HDI get a suffix
@@ -31,7 +40,7 @@
 #'        The standard error (which is actually the \emph{median absolute deviation}).
 #'      }
 #'      \item{
-#'        The HDI (see \code{\link{hdi}}). Computation for HDI is based on the
+#'        The HDI. Computation for HDI is based on the
 #'        code from Kruschke 2015, pp. 727f.
 #'      }
 #'      \item{
@@ -74,6 +83,8 @@
 #' @importFrom dplyr bind_cols select mutate slice inner_join n_distinct
 #' @importFrom stats mad formula
 #' @importFrom sjmisc is_empty trim
+#' @importFrom insight model_info
+#' @importFrom bayestestR hdi ci
 #' @export
 tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c("fixed", "random", "all"), digits = 2) {
 
@@ -84,16 +95,47 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
   # check arguments
   type <- match.arg(type)
 
+  # get transformaton function
+  if (!is.null(trans)) trans <- match.fun(trans)
+
   # get data frame and family info
   mod.dat <- as.data.frame(x)
-  faminfo <- model_family(x)
+  faminfo <- insight::model_info(x)
+
+  if (insight::is_multivariate(x)) {
+    faminfo <- faminfo[[1]]
+  }
 
   # for brmsfit models, we need to remove some columns here to
   # match data rows later
   if (inherits(x, "brmsfit")) mod.dat <- brms_clean(mod.dat)
 
-  # compute HDI
-  out.hdi <- hdi(x, prob = prob, trans = trans, type = type)
+  # compute HDI / ci
+  if (!is.null(trans)) {
+    out.hdi <- bayestestR::ci(x, ci = prob, effects = "all", component = "all")
+    colnames(out.hdi)[1:4] <- c("term", "ci.lvl", "ci.low", "ci.high")
+    out.hdi$ci.low <- trans(out.hdi$ci.low)
+    out.hdi$ci.high <- trans(out.hdi$ci.high)
+  } else {
+    out.hdi <- bayestestR::hdi(x, ci = prob, effects = "all", component = "all")
+    colnames(out.hdi)[1:4] <- c("term", "ci.lvl", "hdi.low", "hdi.high")
+  }
+
+  # transform data frame for multiple ci-levels
+  if (length(unique(out.hdi$ci.lvl)) > 1) {
+    hdi_list <- lapply(
+      split(out.hdi, out.hdi$ci.lvl, drop = FALSE),
+      function(i) {
+        colnames(i)[3:4] <- sprintf("%s_%i", colnames(i)[3:4], i$ci.lvl[1])
+        i
+      })
+    hdi_frame <- Reduce(function(x, y) merge(x, y, all.y = TRUE, by = "term"), hdi_list)
+    to_remove <- string_starts_with("ci.lvl", colnames(hdi_frame))
+    to_remove <- c(to_remove, string_starts_with("Group.", colnames(hdi_frame)))
+    out.hdi <- hdi_frame[, -to_remove, drop = FALSE]
+  }
+
+  mod.dat <- mod.dat[, grepl("^(?!sigma_)", colnames(mod.dat), perl = TRUE)]
 
   # get statistics
   nr <- .neff_ratio(x)
@@ -102,9 +144,9 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
 
   if (inherits(x, "brmsfit")) {
     cnames <- make.names(names(nr))
-    keep <- cnames %in% out.hdi$term
+    keep <- cnames %in% names(mod.dat)
   } else {
-    keep <- names(nr) %in% out.hdi$term
+    keep <- names(nr) %in% names(mod.dat)
   }
 
   nr <- nr[keep]
@@ -118,9 +160,9 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
 
   if (inherits(x, "brmsfit")) {
     cnames <- make.names(names(rh))
-    keep <- cnames %in% out.hdi$term
+    keep <- cnames %in% names(mod.dat)
   } else {
-    keep <- names(rh) %in% out.hdi$term
+    keep <- names(rh) %in% names(mod.dat)
   }
 
   rh <- rh[keep]
@@ -134,14 +176,14 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
     rhat$term <- make.names(rhat$term)
   }
 
-  se <- mcse(x, type = type)
-  se <- se[se$term %in% out.hdi$term, ]
+  se <- bayestestR::mcse(x, effects = "all", component = "all")
+  colnames(se) <- c("term", "mcse")
+  se <- se[se$term %in% names(mod.dat), ]
 
 
   # transform estimate, if requested
 
   if (!is.null(trans)) {
-    trans <- match.fun(trans)
     all.cols <- sjmisc::seq_col(mod.dat)
     simp.pars <- string_starts_with("simo_mo", colnames(mod.dat))
     if (!sjmisc::is_empty(simp.pars)) all.cols <- all.cols[-simp.pars]
@@ -156,7 +198,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
     std.error = purrr::map_dbl(mod.dat, stats::mad)
   ) %>%
     dplyr::inner_join(
-      out.hdi,
+      out.hdi[, -2],
       by = "term"
     ) %>%
     dplyr::inner_join(
@@ -356,7 +398,7 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
 
     # get response variables
 
-    responses <- resp_var(x)
+    responses <- insight::find_response(x)
     resp.names <- names(responses)
 
 
@@ -378,11 +420,15 @@ tidy_stan <- function(x, prob = .89, typical = "median", trans = NULL, type = c(
   }
 
 
+  if (obj_has_name(out, "Component")) out[, "Component"] <- NULL
+  if (obj_has_name(out, "Group")) out[, "Group"] <- NULL
+
   class(out) <- c("tidy_stan", class(out))
 
   attr(out, "digits") <- digits
   attr(out, "model_name") <- deparse(substitute(x))
   attr(out, "prob") <- prob
+  attr(out, "trans") <- trans
 
   if (inherits(x, "brmsfit"))
     attr(out, "formula") <- as.character(stats::formula(x))[1]
@@ -533,6 +579,8 @@ n_of_chains <- function(x) {
     ratio <- ess/tss
     ratio <- ratio[!names(ratio) %in% c("mean_PPD", "log-posterior")]
   }
+
+  ratio
 }
 
 

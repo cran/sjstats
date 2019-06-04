@@ -71,8 +71,9 @@
 #' if (requireNamespace("brms", quietly = TRUE))
 #'   auto_prior(mf, efc, FALSE)
 #'
-#' @importFrom stats sd
-#' @importFrom dplyr select
+#' @importFrom stats sd na.omit
+#' @importFrom dplyr select n_distinct
+#' @importFrom insight find_predictors find_response
 #' @export
 auto_prior <- function(formula, data, gaussian, locations = NULL) {
 
@@ -82,14 +83,14 @@ auto_prior <- function(formula, data, gaussian, locations = NULL) {
   scale.b <- 2.5
   scale.y <- 10
 
-  pred <- pred_vars(formula)
-  y.name <- resp_var(formula)
+  pred <- insight::find_predictors(formula, effects = "all", flatten = TRUE)
+  y.name <- insight::find_response(formula, combine = TRUE)
 
   cols <- c(y.name, pred)
 
   data <- data %>%
     dplyr::select(!! cols) %>%
-    na.omit() %>%
+    stats::na.omit() %>%
     as.data.frame()
 
   y <- data[[y.name]]

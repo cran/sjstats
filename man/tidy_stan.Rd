@@ -11,15 +11,17 @@ tidy_stan(x, prob = 0.89, typical = "median", trans = NULL,
 \item{x}{A \code{stanreg}, \code{stanfit} or \code{brmsfit} object.}
 
 \item{prob}{Vector of scalars between 0 and 1, indicating the mass within
-the credible interval that is to be estimated. See \code{\link{hdi}}.}
+the credible interval that is to be estimated.}
 
 \item{typical}{The typical value that will represent the Bayesian point estimate.
 By default, the posterior median is returned. See \code{\link[sjmisc]{typical_value}}
 for possible values for this argument.}
 
 \item{trans}{Name of a function or character vector naming a function, used
-to apply transformations on the estimate and HDI-values. The
-values for standard errors are \emph{not} transformed!}
+to apply transformations on the estimates and uncertainty intervals. The
+values for standard errors are \emph{not} transformed! If \code{trans}
+is not \code{NULL}, \emph{credible intervals} instead of \emph{HDI}
+are computed, due to the possible asymmetry of the HDI.}
 
 \item{type}{For mixed effects models, specify the type of effects that should
 be returned. \code{type = "fixed"} returns fixed effects only,
@@ -53,7 +55,7 @@ The returned data frame has an additonal class-attribute,
        The standard error (which is actually the \emph{median absolute deviation}).
      }
      \item{
-       The HDI (see \code{\link{hdi}}). Computation for HDI is based on the
+       The HDI. Computation for HDI is based on the
        code from Kruschke 2015, pp. 727f.
      }
      \item{
