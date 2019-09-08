@@ -15,6 +15,24 @@ overdisp <- function(x, ...) {
 }
 
 
+
+#' @rdname samplesize_mixed
+#' @export
+smpsize_lmm <- function(eff.size, df.n = NULL, power = .8, sig.level = .05, k, n, icc = 0.05) {
+  .Deprecated("samplesize_mixed()")
+  samplesize_mixed(eff.size, df.n, power, sig.level, k = k, n, icc)
+}
+
+
+#' @rdname design_effect
+#' @export
+deff <- function(n, icc = 0.05) {
+  .Deprecated("design_effect()")
+  design_effect(n, icc)
+}
+
+
+
 #' @importFrom performance check_zeroinflation
 #' @rdname overdisp
 #' @export
@@ -87,21 +105,21 @@ mic <- function(x, ...) {
 }
 
 
-#' @importFrom performance principal_components
+#' @importFrom parameters principal_components
 #' @rdname overdisp
 #' @export
 pca <- function(x, ...) {
-  .Deprecated("performance::principal_components()")
-  performance::principal_components(x)
+  .Deprecated("parameters::principal_components()")
+  parameters::principal_components(x)
 }
 
 
-#' @importFrom performance principal_components
+#' @importFrom parameters principal_components
 #' @rdname overdisp
 #' @export
 pca_rotate <- function(x, ...) {
-  .Deprecated("performance::principal_components()")
-  performance::principal_components(x, rotation = "varimax")
+  .Deprecated("parameters::principal_components()")
+  parameters::principal_components(x, rotation = "varimax")
 }
 
 
@@ -208,4 +226,94 @@ var_names <- function(x) {
 pred_accuracy <- function(x, ...) {
   .Deprecated("performance::performance_accuracy()")
   performance::performance_accuracy(x, ...)
+}
+
+
+#' @importFrom performance check_outliers
+#' @rdname overdisp
+#' @export
+outliers <- function(x) {
+  .Deprecated("performance::check_outliers()")
+  performance::check_outliers(x)
+}
+
+
+#' @importFrom performance check_heteroscedasticity
+#' @rdname overdisp
+#' @export
+heteroskedastic <- function(x) {
+  .Deprecated("performance::check_heteroscedasticity()")
+  performance::check_heteroscedasticity(x)
+}
+
+
+#' @importFrom performance check_autocorrelation
+#' @rdname overdisp
+#' @export
+autocorrelation <- function(x) {
+  .Deprecated("performance::check_autocorrelation()")
+  performance::check_autocorrelation(x)
+}
+
+
+#' @importFrom performance check_normality
+#' @rdname overdisp
+#' @export
+normality <- function(x) {
+  .Deprecated("performance::check_normality()")
+  performance::check_normality(x)
+}
+
+
+#' @importFrom performance check_collinearity
+#' @rdname overdisp
+#' @export
+multicollin <- function(x) {
+  .Deprecated("performance::check_collinearity()")
+  performance::check_collinearity(x)
+}
+
+
+#' @importFrom performance check_model
+#' @rdname overdisp
+#' @export
+check_assumptions <- function(x) {
+  .Deprecated("performance::check_model()")
+  performance::check_model(x)
+}
+
+
+#' @importFrom performance r2
+#' @rdname overdisp
+#' @export
+r2 <- function(x) {
+  .Deprecated("performance::r2()")
+  performance::r2(x)
+}
+
+
+#' @importFrom performance icc
+#' @rdname overdisp
+#' @export
+icc <- function(x) {
+  .Deprecated("performance::icc()")
+  performance::icc(x)
+}
+
+
+#' @importFrom bayestestR hdi
+#' @rdname overdisp
+#' @export
+hdi <- function(x) {
+  .Deprecated("bayestestR::hdi()")
+  bayestestR::hdi(x)
+}
+
+
+#' @importFrom bayestestR rope
+#' @rdname overdisp
+#' @export
+rope <- function(x) {
+  .Deprecated("bayestestR::rope()")
+  bayestestR::rope(x)
 }

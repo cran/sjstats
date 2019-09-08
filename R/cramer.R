@@ -1,24 +1,25 @@
 #' @rdname xtab_statistics
 #' @export
-phi <- function(tab, ...) {
-  UseMethod("phi")
+cramer <- function(tab, ...) {
+  UseMethod("cramer")
 }
 
 
 #' @export
-phi.table <- function(tab, ...) {
-  .phi(tab)
+cramer.table <- function(tab, ...) {
+  .cramer(tab)
 }
 
 
 #' @export
-phi.ftable <- function(tab, ...) {
-  .phi(tab)
+cramer.ftable <- function(tab, ...) {
+  .cramer(tab)
 }
 
 
+#' @rdname xtab_statistics
 #' @export
-phi.formula <- function(formula, data, ci.lvl = NULL, n = 1000, method = c("dist", "quantile"), ...) {
+cramer.formula <- function(formula, data, ci.lvl = NULL, n = 1000, method = c("dist", "quantile"), ...) {
   terms <- all.vars(formula)
   tab <- table(data[[terms[1]]], data[[terms[2]]])
   method <- match.arg(method)
@@ -33,24 +34,21 @@ phi.formula <- function(formula, data, ci.lvl = NULL, n = 1000, method = c("dist
           dat <- as.data.frame(x)
           table(dat[[1]], dat[[2]])
         }),
-        phis = sapply(.data$tables, function(x) .cramer(x))
+        cramers = sapply(.data$tables, function(x) .cramer(x))
       ) %>%
-      dplyr::pull("phis") %>%
+      dplyr::pull("cramers") %>%
       boot_ci(ci.lvl = ci.lvl, method = method)
 
     data_frame(
-      phi = .phi(tab),
+      cramer = .cramer(tab),
       conf.low = ci$conf.low,
       conf.high = ci$conf.high
     )
   }
 }
 
-
-.phi <- function(tab) {
+.cramer <- function(tab) {
   # convert to flat table
   if (!inherits(tab, "ftable")) tab <- stats::ftable(tab)
-
-  tb <- summary(MASS::loglm(~1 + 2, tab))$tests
-  sqrt(tb[2, 1] / sum(tab))
+  sqrt(phi(tab)^2 / min(dim(tab) - 1))
 }
