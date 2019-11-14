@@ -1,3 +1,18 @@
+# sjstats 0.17.7
+
+## Deprecated and defunct
+
+_sjstats_ is being re-structured, and many functions are re-implemented in new packages that are part of a new project called **easystats**. The aim of **easystats** is to provide a unifying and consistent framework to tame, discipline and harness the scary R statistics and their pesky models.
+
+Therefore, following functions are now deprecated:
+
+* `p_value()`, please use `parameters::p_value()`
+* `se()`, please use `parameters::standard_error()`
+
+## General
+
+* Revise some functions to cope with the forthcoming _insight_ update.
+
 # sjstats 0.17.6
 
 ## General
@@ -51,8 +66,8 @@ Therefore, following functions are now deprecated:
 * `cronb()`, please use `performance::cronbachs_alpha()`
 * `difficulty()`, please use `performance::item_difficulty()`
 * `mic()`, please use `performance::item_intercor()`
-* `pca()`, please use `performance::principal_components()`
-* `pca_rotate()`, please use `performance::principal_components()`
+* `pca()`, please use `parameters::principal_components()`
+* `pca_rotate()`, please use `parameters::principal_components()`
 * `r2()`, please use `performance::r2()`
 * `icc()`, please use `performance::icc()`
 * `rmse()`, please use `performance::rmse()`
