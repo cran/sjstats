@@ -1,5 +1,5 @@
 #' @title Measures of association for contingency tables
-#' @name xtab_statistics
+#' @name crosstable_statistics
 #'
 #' @description This function calculates various measure of association for
 #'              contingency tables and returns the statistic and p-value.
@@ -33,14 +33,14 @@
 #'          \code{\link[stats]{chisq.test}}, \code{\link[stats]{fisher.test}} or
 #'          \code{\link[stats]{cor.test}}.
 #'
-#' @inheritParams grpmean
+#' @inheritParams means_by_group
 #' @inheritParams bootstrap
 #' @inheritParams boot_ci
 #'
 #' @return For \code{phi()}, the table's Phi value. For \code{cramer()}, the
 #'         table's Cramer's V.
 #'         \cr \cr
-#'         For \code{xtab_statistics()}, a list with following components:
+#'         For \code{crosstable_statistics()}, a list with following components:
 #'         \describe{
 #'           \item{\code{estimate}}{the value of the estimated measure of association.}
 #'           \item{\code{p.value}}{the p-value for the test.}
@@ -86,16 +86,16 @@
 #' cramer(e16sex ~ c161sex, data = efc, ci.lvl = .95, n = 100)
 #'
 #' # 2x2 table, compute Phi automatically
-#' xtab_statistics(efc, e16sex, c161sex)
+#' crosstable_statistics(efc, e16sex, c161sex)
 #'
 #' # more dimensions than 2x2, compute Cramer's V automatically
-#' xtab_statistics(efc, c172code, c161sex)
+#' crosstable_statistics(efc, c172code, c161sex)
 #'
 #' # ordinal data, use Kendall's tau
-#' xtab_statistics(efc, e42dep, quol_5, statistics = "kendall")
+#' crosstable_statistics(efc, e42dep, quol_5, statistics = "kendall")
 #'
 #' # calcilate Spearman's rho, with continuity correction
-#' xtab_statistics(efc,
+#' crosstable_statistics(efc,
 #'   e42dep,
 #'   quol_5,
 #'   statistics = "spearman",
@@ -108,7 +108,7 @@
 #' @importFrom MASS loglm
 #' @importFrom rlang quo_name enquo
 #' @export
-xtab_statistics <- function(data, x1 = NULL, x2 = NULL, statistics = c("auto", "cramer", "phi", "spearman", "kendall", "pearson", "fisher"), weights = NULL, ...) {
+crosstable_statistics <- function(data, x1 = NULL, x2 = NULL, statistics = c("auto", "cramer", "phi", "spearman", "kendall", "pearson", "fisher"), weights = NULL, ...) {
   # match arguments
   statistics <- match.arg(statistics)
 
@@ -250,3 +250,7 @@ xtab_statistics <- function(data, x1 = NULL, x2 = NULL, statistics = c("auto", "
     fisher = use.fisher
   ))
 }
+
+#' @rdname crosstable_statistics
+#' @export
+xtab_statistics <- crosstable_statistics

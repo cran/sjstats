@@ -13,8 +13,8 @@
 #'          May be one of \code{"exact"}, \code{"approximate"} or \code{"asymptotic"}
 #'          (default). See \code{\link[coin]{wilcox_test}} for details.
 #'
-#' @inheritParams wtd_se
-#' @inheritParams grpmean
+#' @inheritParams weighted_sd
+#' @inheritParams means_by_group
 #'
 #' @return (Invisibly) returns a data frame with U, p and Z-values for each group-comparison
 #'         as well as effect-size r; additionally, group-labels and groups' n's are
@@ -200,3 +200,8 @@ mwu <- function(data,
 
   ret.df
 }
+
+
+#' @rdname mwu
+#' @export
+mannwhitney <- mwu
