@@ -1,3 +1,10 @@
+# sjstats 0.17.9
+
+## Bug fixes
+
+* Fixed documentation for `chisq_gof()`.
+* Fixed issue in `anova_stats()` with incorrect effect sizes for certain Anova types (that included an intercept).
+
 # sjstats 0.17.8
 
 ## Deprecated and defunct

@@ -8,38 +8,52 @@
 <meta name="generator" content="pandoc" />
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <meta name="author" content="Daniel Lüdecke" />
 
-<meta name="date" content="2020-01-21" />
+<meta name="date" content="2020-02-06" />
 
 <title>Statistics for Mixed Effects Models</title>
 
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
 
 
 <style type="text/css">code{white-space: pre;}</style>
 <style type="text/css" data-origin="pandoc">
-a.sourceLine { display: inline-block; line-height: 1.25; }
-a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
-a.sourceLine:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
 div.sourceCode { margin: 1em 0; }
 pre.sourceCode { margin: 0; }
 @media screen {
 div.sourceCode { overflow: auto; }
 }
 @media print {
-code.sourceCode { white-space: pre-wrap; }
-a.sourceLine { text-indent: -1em; padding-left: 1em; }
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
 }
-pre.numberSource a.sourceLine
-  { position: relative; left: -4em; }
-pre.numberSource a.sourceLine::before
-  { content: attr(title);
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
     position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; pointer-events: all; display: inline-block;
+    border: none; display: inline-block;
     -webkit-touch-callout: none; -webkit-user-select: none;
     -khtml-user-select: none; -moz-user-select: none;
     -ms-user-select: none; user-select: none;
@@ -48,9 +62,9 @@ pre.numberSource a.sourceLine::before
   }
 pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
 div.sourceCode
-  {  }
+  {   }
 @media screen {
-a.sourceLine::before { text-decoration: underline; }
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 code span.al { color: #ff0000; font-weight: bold; } /* Alert */
 code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
@@ -117,9 +131,6 @@ padding-right: 2em;
 font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
 font-size: 14px;
 line-height: 1.35;
-}
-#header {
-text-align: center;
 }
 #TOC {
 clear: both;
@@ -288,7 +299,8 @@ code > span.st { color: #d14; }
 code > span.co { color: #888888; font-style: italic; } 
 code > span.ot { color: #007020; } 
 code > span.al { color: #ff0000; font-weight: bold; } 
-code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61717; background-color: #e3d2d2; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
 </style>
 
 
@@ -303,7 +315,7 @@ code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61
 
 <h1 class="title toc-ignore">Statistics for Mixed Effects Models</h1>
 <h4 class="author">Daniel Lüdecke</h4>
-<h4 class="date">2020-01-21</h4>
+<h4 class="date">2020-02-06</h4>
 
 
 
@@ -315,56 +327,56 @@ code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61
 <li><code>scale_weights()</code></li>
 </ul>
 <p>Befor we start, we fit a simple linear mixed model:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb1-1" title="1"><span class="kw">library</span>(sjstats)</a>
-<a class="sourceLine" id="cb1-2" title="2"><span class="kw">library</span>(lme4)</a>
-<a class="sourceLine" id="cb1-3" title="3"><span class="co"># load sample data</span></a>
-<a class="sourceLine" id="cb1-4" title="4"><span class="kw">data</span>(sleepstudy)</a>
-<a class="sourceLine" id="cb1-5" title="5"></a>
-<a class="sourceLine" id="cb1-6" title="6"><span class="co"># fit linear mixed model</span></a>
-<a class="sourceLine" id="cb1-7" title="7">m &lt;-<span class="st"> </span><span class="kw">lmer</span>(Reaction <span class="op">~</span><span class="st"> </span>Days <span class="op">+</span><span class="st"> </span>(Days <span class="op">|</span><span class="st"> </span>Subject), <span class="dt">data =</span> sleepstudy)</a>
-<a class="sourceLine" id="cb1-8" title="8"></a>
-<a class="sourceLine" id="cb1-9" title="9"><span class="kw">set.seed</span>(<span class="dv">2018</span>)</a>
-<a class="sourceLine" id="cb1-10" title="10">sleepstudy<span class="op">$</span>mygrp &lt;-<span class="st"> </span><span class="kw">sample</span>(<span class="dv">1</span><span class="op">:</span><span class="dv">45</span>, <span class="dt">size =</span> <span class="dv">180</span>, <span class="dt">replace =</span> <span class="ot">TRUE</span>)</a>
-<a class="sourceLine" id="cb1-11" title="11">m2 &lt;-<span class="st"> </span><span class="kw">lmer</span>(Reaction <span class="op">~</span><span class="st"> </span>Days <span class="op">+</span><span class="st"> </span>(<span class="dv">1</span> <span class="op">|</span><span class="st"> </span>mygrp) <span class="op">+</span><span class="st"> </span>(<span class="dv">1</span> <span class="op">|</span><span class="st"> </span>Subject), sleepstudy)</a></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a><span class="kw">library</span>(sjstats)</span>
+<span id="cb1-2"><a href="#cb1-2"></a><span class="kw">library</span>(lme4)</span>
+<span id="cb1-3"><a href="#cb1-3"></a><span class="co"># load sample data</span></span>
+<span id="cb1-4"><a href="#cb1-4"></a><span class="kw">data</span>(sleepstudy)</span>
+<span id="cb1-5"><a href="#cb1-5"></a></span>
+<span id="cb1-6"><a href="#cb1-6"></a><span class="co"># fit linear mixed model</span></span>
+<span id="cb1-7"><a href="#cb1-7"></a>m &lt;-<span class="st"> </span><span class="kw">lmer</span>(Reaction <span class="op">~</span><span class="st"> </span>Days <span class="op">+</span><span class="st"> </span>(Days <span class="op">|</span><span class="st"> </span>Subject), <span class="dt">data =</span> sleepstudy)</span>
+<span id="cb1-8"><a href="#cb1-8"></a></span>
+<span id="cb1-9"><a href="#cb1-9"></a><span class="kw">set.seed</span>(<span class="dv">2018</span>)</span>
+<span id="cb1-10"><a href="#cb1-10"></a>sleepstudy<span class="op">$</span>mygrp &lt;-<span class="st"> </span><span class="kw">sample</span>(<span class="dv">1</span><span class="op">:</span><span class="dv">45</span>, <span class="dt">size =</span> <span class="dv">180</span>, <span class="dt">replace =</span> <span class="ot">TRUE</span>)</span>
+<span id="cb1-11"><a href="#cb1-11"></a>m2 &lt;-<span class="st"> </span><span class="kw">lmer</span>(Reaction <span class="op">~</span><span class="st"> </span>Days <span class="op">+</span><span class="st"> </span>(<span class="dv">1</span> <span class="op">|</span><span class="st"> </span>mygrp) <span class="op">+</span><span class="st"> </span>(<span class="dv">1</span> <span class="op">|</span><span class="st"> </span>Subject), sleepstudy)</span></code></pre></div>
 <div id="sample-size-calculation-for-mixed-models" class="section level2">
 <h2>Sample Size Calculation for Mixed Models</h2>
 <p>The first two functions, <code>design_effect()</code> and <code>samplesize_mixed()</code>, can be used to approximately calculate the sample size in the context of power calculation. Calculating the sample size for simple linear models is pretty straightforward, however, for (linear) mixed models, statistical power is affected through the change of the variance of test statistics. This is what <em>Hsieh et al. (2003)</em> call a <em>design effect</em> (or variance inflation factor, VIF). Once this design effect is calculated, the sample size calculated for a standard design can be adjusted accordingly.</p>
 <div id="design-effect-for-two-level-mixed-models" class="section level3">
 <h3>Design Effect for Two-Level Mixed Models</h3>
 <p><code>design_effect()</code> computes this design effect for linear mixed models with two-level design. It requires the approximated average number of observations per grouping cluster (i.e. level-2 unit) and the assumed intraclass correlation coefficient (ICC) for the multilevel-model. Typically, the minimum assumed value for the ICC is <em>0.05</em>.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb2-1" title="1"><span class="co"># Design effect for two-level model with 30 observations per</span></a>
-<a class="sourceLine" id="cb2-2" title="2"><span class="co"># cluster group (level-2 unit) and an assumed intraclass</span></a>
-<a class="sourceLine" id="cb2-3" title="3"><span class="co"># correlation coefficient of 0.05.</span></a>
-<a class="sourceLine" id="cb2-4" title="4"><span class="kw">design_effect</span>(<span class="dt">n =</span> <span class="dv">30</span>)</a>
-<a class="sourceLine" id="cb2-5" title="5"><span class="co">#&gt; [1] 2.45</span></a>
-<a class="sourceLine" id="cb2-6" title="6"></a>
-<a class="sourceLine" id="cb2-7" title="7"><span class="co"># Design effect for two-level model with 24 observation per cluster</span></a>
-<a class="sourceLine" id="cb2-8" title="8"><span class="co"># group and an assumed intraclass correlation coefficient of 0.2.</span></a>
-<a class="sourceLine" id="cb2-9" title="9"><span class="kw">design_effect</span>(<span class="dt">n =</span> <span class="dv">24</span>, <span class="dt">icc =</span> <span class="fl">0.2</span>)</a>
-<a class="sourceLine" id="cb2-10" title="10"><span class="co">#&gt; [1] 5.6</span></a></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1"></a><span class="co"># Design effect for two-level model with 30 observations per</span></span>
+<span id="cb2-2"><a href="#cb2-2"></a><span class="co"># cluster group (level-2 unit) and an assumed intraclass</span></span>
+<span id="cb2-3"><a href="#cb2-3"></a><span class="co"># correlation coefficient of 0.05.</span></span>
+<span id="cb2-4"><a href="#cb2-4"></a><span class="kw">design_effect</span>(<span class="dt">n =</span> <span class="dv">30</span>)</span>
+<span id="cb2-5"><a href="#cb2-5"></a><span class="co">#&gt; [1] 2.45</span></span>
+<span id="cb2-6"><a href="#cb2-6"></a></span>
+<span id="cb2-7"><a href="#cb2-7"></a><span class="co"># Design effect for two-level model with 24 observation per cluster</span></span>
+<span id="cb2-8"><a href="#cb2-8"></a><span class="co"># group and an assumed intraclass correlation coefficient of 0.2.</span></span>
+<span id="cb2-9"><a href="#cb2-9"></a><span class="kw">design_effect</span>(<span class="dt">n =</span> <span class="dv">24</span>, <span class="dt">icc =</span> <span class="fl">0.2</span>)</span>
+<span id="cb2-10"><a href="#cb2-10"></a><span class="co">#&gt; [1] 5.6</span></span></code></pre></div>
 </div>
 <div id="calculating-the-sample-size-for-linear-mixed-models" class="section level3">
 <h3>Calculating the Sample Size for Linear Mixed Models</h3>
 <p><code>samplesize_mixed()</code> combines the functions for power calculation from the <strong>pwr</strong>-package and design effect <code>design_effect()</code>. It computes an approximated sample size for linear mixed models (two-level-designs), based on power-calculation for standard design and adjusted for design effect for 2-level-designs.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb3-1" title="1"><span class="co"># Sample size for multilevel model with 30 cluster groups and a small to</span></a>
-<a class="sourceLine" id="cb3-2" title="2"><span class="co"># medium effect size (Cohen&#39;s d) of 0.3. 27 subjects per cluster and</span></a>
-<a class="sourceLine" id="cb3-3" title="3"><span class="co"># hence a total sample size of about 802 observations is needed.</span></a>
-<a class="sourceLine" id="cb3-4" title="4"><span class="kw">samplesize_mixed</span>(<span class="dt">eff.size =</span> <span class="fl">.3</span>, <span class="dt">k =</span> <span class="dv">30</span>)</a>
-<a class="sourceLine" id="cb3-5" title="5"><span class="co">#&gt; $`Subjects per Cluster`</span></a>
-<a class="sourceLine" id="cb3-6" title="6"><span class="co">#&gt; [1] 27</span></a>
-<a class="sourceLine" id="cb3-7" title="7"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb3-8" title="8"><span class="co">#&gt; $`Total Sample Size`</span></a>
-<a class="sourceLine" id="cb3-9" title="9"><span class="co">#&gt; [1] 802</span></a>
-<a class="sourceLine" id="cb3-10" title="10"></a>
-<a class="sourceLine" id="cb3-11" title="11"><span class="co"># Sample size for multilevel model with 20 cluster groups and a medium</span></a>
-<a class="sourceLine" id="cb3-12" title="12"><span class="co"># to large effect size for linear models of 0.2. Five subjects per cluster and</span></a>
-<a class="sourceLine" id="cb3-13" title="13"><span class="co"># hence a total sample size of about 107 observations is needed.</span></a>
-<a class="sourceLine" id="cb3-14" title="14"><span class="kw">samplesize_mixed</span>(<span class="dt">eff.size =</span> <span class="fl">.2</span>, <span class="dt">df.n =</span> <span class="dv">5</span>, <span class="dt">k =</span> <span class="dv">20</span>, <span class="dt">power =</span> <span class="fl">.9</span>)</a>
-<a class="sourceLine" id="cb3-15" title="15"><span class="co">#&gt; $`Subjects per Cluster`</span></a>
-<a class="sourceLine" id="cb3-16" title="16"><span class="co">#&gt; [1] 5</span></a>
-<a class="sourceLine" id="cb3-17" title="17"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb3-18" title="18"><span class="co">#&gt; $`Total Sample Size`</span></a>
-<a class="sourceLine" id="cb3-19" title="19"><span class="co">#&gt; [1] 107</span></a></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a><span class="co"># Sample size for multilevel model with 30 cluster groups and a small to</span></span>
+<span id="cb3-2"><a href="#cb3-2"></a><span class="co"># medium effect size (Cohen&#39;s d) of 0.3. 27 subjects per cluster and</span></span>
+<span id="cb3-3"><a href="#cb3-3"></a><span class="co"># hence a total sample size of about 802 observations is needed.</span></span>
+<span id="cb3-4"><a href="#cb3-4"></a><span class="kw">samplesize_mixed</span>(<span class="dt">eff.size =</span> <span class="fl">.3</span>, <span class="dt">k =</span> <span class="dv">30</span>)</span>
+<span id="cb3-5"><a href="#cb3-5"></a><span class="co">#&gt; $`Subjects per Cluster`</span></span>
+<span id="cb3-6"><a href="#cb3-6"></a><span class="co">#&gt; [1] 27</span></span>
+<span id="cb3-7"><a href="#cb3-7"></a><span class="co">#&gt; </span></span>
+<span id="cb3-8"><a href="#cb3-8"></a><span class="co">#&gt; $`Total Sample Size`</span></span>
+<span id="cb3-9"><a href="#cb3-9"></a><span class="co">#&gt; [1] 802</span></span>
+<span id="cb3-10"><a href="#cb3-10"></a></span>
+<span id="cb3-11"><a href="#cb3-11"></a><span class="co"># Sample size for multilevel model with 20 cluster groups and a medium</span></span>
+<span id="cb3-12"><a href="#cb3-12"></a><span class="co"># to large effect size for linear models of 0.2. Five subjects per cluster and</span></span>
+<span id="cb3-13"><a href="#cb3-13"></a><span class="co"># hence a total sample size of about 107 observations is needed.</span></span>
+<span id="cb3-14"><a href="#cb3-14"></a><span class="kw">samplesize_mixed</span>(<span class="dt">eff.size =</span> <span class="fl">.2</span>, <span class="dt">df.n =</span> <span class="dv">5</span>, <span class="dt">k =</span> <span class="dv">20</span>, <span class="dt">power =</span> <span class="fl">.9</span>)</span>
+<span id="cb3-15"><a href="#cb3-15"></a><span class="co">#&gt; $`Subjects per Cluster`</span></span>
+<span id="cb3-16"><a href="#cb3-16"></a><span class="co">#&gt; [1] 5</span></span>
+<span id="cb3-17"><a href="#cb3-17"></a><span class="co">#&gt; </span></span>
+<span id="cb3-18"><a href="#cb3-18"></a><span class="co">#&gt; $`Total Sample Size`</span></span>
+<span id="cb3-19"><a href="#cb3-19"></a><span class="co">#&gt; [1] 107</span></span></code></pre></div>
 <p>There are more ways to perform power calculations for multilevel models, however, most of these require very detailed knowledge about the sample characteristics and performing simulation studys. <code>samplesize_mixed()</code> is a more pragmatic alternative to these approaches.</p>
 </div>
 </div>
@@ -374,22 +386,22 @@ code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61
 <p><code>scale_weights()</code> implements an algorithm proposed by <em>Aaparouhov (2006)</em> and <em>Carle (2009)</em> to rescale design weights in survey data to account for the grouping structure of multilevel models, which then can be used for multilevel modelling.</p>
 <p>To calculate a weight-vector that can be used in multilevel models, <code>scale_weights()</code> needs the data frame with survey data as <code>x</code>-argument. This data frame should contain 1) a <em>cluster ID</em> (argument <code>cluster.id</code>), which represents the <em>strata</em> of the survey data (the level-2-cluster variable) and 2) the probability weights (argument <code>pweight</code>), which represents the design or sampling weights of the survey data (level-1-weight).</p>
 <p><code>scale_weights()</code> then returns the original data frame, including two new variables: <code>svywght_a</code>, where the sample weights <code>pweight</code> are adjusted by a factor that represents the proportion of cluster size divided by the sum of sampling weights within each cluster. The adjustment factor for <code>svywght_b</code> is the sum of sample weights within each cluster devided by the sum of squared sample weights within each cluster (see <em>Carle (2009)</em>, Appendix B, for details).</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb4-1" title="1"><span class="kw">data</span>(nhanes_sample)</a>
-<a class="sourceLine" id="cb4-2" title="2"><span class="kw">scale_weights</span>(nhanes_sample, SDMVSTRA, WTINT2YR)</a>
-<a class="sourceLine" id="cb4-3" title="3"><span class="co">#&gt; # A tibble: 2,992 x 9</span></a>
-<a class="sourceLine" id="cb4-4" title="4"><span class="co">#&gt;    total   age RIAGENDR RIDRETH1 SDMVPSU SDMVSTRA WTINT2YR svywght_a svywght_b</span></a>
-<a class="sourceLine" id="cb4-5" title="5"><span class="co">#&gt;    &lt;dbl&gt; &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;   &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;</span></a>
-<a class="sourceLine" id="cb4-6" title="6"><span class="co">#&gt;  1     1  2.2         1        3       2       31   97594.     1.57      1.20 </span></a>
-<a class="sourceLine" id="cb4-7" title="7"><span class="co">#&gt;  2     7  2.08        2        3       1       29   39599.     0.623     0.525</span></a>
-<a class="sourceLine" id="cb4-8" title="8"><span class="co">#&gt;  3     3  1.48        2        1       2       42   26620.     0.898     0.544</span></a>
-<a class="sourceLine" id="cb4-9" title="9"><span class="co">#&gt;  4     4  1.32        2        4       2       33   34999.     0.708     0.550</span></a>
-<a class="sourceLine" id="cb4-10" title="10"><span class="co">#&gt;  5     1  2           2        1       1       41   14746.     0.422     0.312</span></a>
-<a class="sourceLine" id="cb4-11" title="11"><span class="co">#&gt;  6     6  2.2         2        4       1       38   28232.     0.688     0.516</span></a>
-<a class="sourceLine" id="cb4-12" title="12"><span class="co">#&gt;  7   350  1.6         1        3       2       33   93162.     1.89      1.46 </span></a>
-<a class="sourceLine" id="cb4-13" title="13"><span class="co">#&gt;  8    NA  1.48        2        3       1       29   82276.     1.29      1.09 </span></a>
-<a class="sourceLine" id="cb4-14" title="14"><span class="co">#&gt;  9     3  2.28        2        4       1       41   24726.     0.707     0.523</span></a>
-<a class="sourceLine" id="cb4-15" title="15"><span class="co">#&gt; 10    30  0.84        1        3       2       35   39895.     0.760     0.594</span></a>
-<a class="sourceLine" id="cb4-16" title="16"><span class="co">#&gt; # ... with 2,982 more rows</span></a></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1"></a><span class="kw">data</span>(nhanes_sample)</span>
+<span id="cb4-2"><a href="#cb4-2"></a><span class="kw">scale_weights</span>(nhanes_sample, SDMVSTRA, WTINT2YR)</span>
+<span id="cb4-3"><a href="#cb4-3"></a><span class="co">#&gt; # A tibble: 2,992 x 9</span></span>
+<span id="cb4-4"><a href="#cb4-4"></a><span class="co">#&gt;    total   age RIAGENDR RIDRETH1 SDMVPSU SDMVSTRA WTINT2YR svywght_a svywght_b</span></span>
+<span id="cb4-5"><a href="#cb4-5"></a><span class="co">#&gt;    &lt;dbl&gt; &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;   &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;</span></span>
+<span id="cb4-6"><a href="#cb4-6"></a><span class="co">#&gt;  1     1  2.2         1        3       2       31   97594.     1.57      1.20 </span></span>
+<span id="cb4-7"><a href="#cb4-7"></a><span class="co">#&gt;  2     7  2.08        2        3       1       29   39599.     0.623     0.525</span></span>
+<span id="cb4-8"><a href="#cb4-8"></a><span class="co">#&gt;  3     3  1.48        2        1       2       42   26620.     0.898     0.544</span></span>
+<span id="cb4-9"><a href="#cb4-9"></a><span class="co">#&gt;  4     4  1.32        2        4       2       33   34999.     0.708     0.550</span></span>
+<span id="cb4-10"><a href="#cb4-10"></a><span class="co">#&gt;  5     1  2           2        1       1       41   14746.     0.422     0.312</span></span>
+<span id="cb4-11"><a href="#cb4-11"></a><span class="co">#&gt;  6     6  2.2         2        4       1       38   28232.     0.688     0.516</span></span>
+<span id="cb4-12"><a href="#cb4-12"></a><span class="co">#&gt;  7   350  1.6         1        3       2       33   93162.     1.89      1.46 </span></span>
+<span id="cb4-13"><a href="#cb4-13"></a><span class="co">#&gt;  8    NA  1.48        2        3       1       29   82276.     1.29      1.09 </span></span>
+<span id="cb4-14"><a href="#cb4-14"></a><span class="co">#&gt;  9     3  2.28        2        4       1       41   24726.     0.707     0.523</span></span>
+<span id="cb4-15"><a href="#cb4-15"></a><span class="co">#&gt; 10    30  0.84        1        3       2       35   39895.     0.760     0.594</span></span>
+<span id="cb4-16"><a href="#cb4-16"></a><span class="co">#&gt; # ... with 2,982 more rows</span></span></code></pre></div>
 </div>
 </div>
 <div id="references" class="section level1">
