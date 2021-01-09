@@ -3,7 +3,7 @@ Type: Package
 Encoding: UTF-8
 Title: Collection of Convenient Functions for Common Statistical
         Computations
-Version: 0.18.0
+Version: 0.18.1
 Authors@R: person("Daniel", "Lüdecke", role = c("aut", "cre"), email = "d.luedecke@uke.de", comment = c(ORCID = "0000-0002-8895-3206"))
 Maintainer: Daniel Lüdecke <d.luedecke@uke.de>
 Description: Collection of convenient functions for common statistical computations,
@@ -15,19 +15,19 @@ Description: Collection of convenient functions for common statistical computati
              lies on weighted variants of common statistical measures and tests 
              like weighted standard error, mean, t-test, correlation, and more.
 License: GPL-3
-Depends: R (>= 3.2), utils
-Imports: bayestestR (>= 0.4.0), broom, dplyr (>= 0.8.1), effectsize,
-        emmeans, insight (>= 0.8.0), lme4, magrittr, MASS, modelr,
-        parameters (>= 0.4.0), performance (>= 0.4.0), purrr, rlang,
-        sjlabelled (>= 1.1.1), sjmisc (>= 2.8.2), stats, tidyr
-Suggests: brms, car, coin, ggplot2, graphics, nlme, pscl, pwr, sjPlot,
-        survey, rstan, rstanarm, testthat
-URL: https://github.com/strengejacke/sjstats,
-        https://strengejacke.github.io/sjstats
+Depends: R (>= 3.5), utils
+Imports: bayestestR, broom, dplyr, effectsize, emmeans, insight, lme4,
+        magrittr, MASS, modelr, parameters, performance, purrr, rlang,
+        sjlabelled, sjmisc, stats, tidyr
+Suggests: brms, car, coin, ggplot2, graphics, pscl, pwr, sjPlot,
+        survey, rstan, testthat
+URL: https://strengejacke.github.io/sjstats/
 BugReports: https://github.com/strengejacke/sjstats/issues
-RoxygenNote: 7.1.0
+RoxygenNote: 7.1.1
+Config/testthat/edition: 3
+Config/testthat/parallel: true
 NeedsCompilation: no
-Packaged: 2020-05-06 07:12:08 UTC; Daniel
+Packaged: 2021-01-08 15:40:21 UTC; Daniel
 Author: Daniel Lüdecke [aut, cre] (<https://orcid.org/0000-0002-8895-3206>)
 Repository: CRAN
-Date/Publication: 2020-05-06 07:50:02 UTC
+Date/Publication: 2021-01-09 13:50:02 UTC

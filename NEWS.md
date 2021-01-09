@@ -1,4 +1,31 @@
-# sjstats 0.18.
+# sjstats 0.18.1
+
+## Deprecated and defunct
+
+_sjstats_ is being re-structured, and many functions are re-implemented in new packages that are part of a new project called **easystats**.
+
+Therefore, following functions are now defunct:
+
+* `mediation()`, , please use `bayestestR::mediation()`.
+* `eta_sq()`, please use `effectsize::eta_squared()`.
+* `omega_sq()`, please use `effectsize::omega_squared()`.
+* `epsilon_sq()`, please use `effectsize::epsilon_squared()`.
+* `odds_to_rr()`, please use `effectsize::oddsratio_to_riskratio()`.
+* `std_beta()`, please use `effectsize::standardize_parameters()`.
+* `robust()`, please use `parameters::standard_error_robust()`.
+* `scale_weights()`, , please use `parameters::rescale_weights()`.
+
+## General
+
+* Improved printing for `weighted_mannwhitney()`.
+
+* `weighted_chisqtest()` can now be computed for given probabilities.
+
+* `means_by_group()` now contains numeric values in the returned data frame. Value formatting is completely done insight the print-method.
+
+* Updated imports.
+
+# sjstats 0.18.0
 
 ## General
 

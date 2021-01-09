@@ -1,13 +1,8 @@
-#' @importFrom stats formula
+#' @importFrom stats model.matrix
+#' @importFrom insight get_data
 #' @export
 model.matrix.gls <- function(object, ...) {
-  if (!requireNamespace("nlme"))
-    stop("Package `nlme` is required, please install it first.", call. = FALSE)
-
-  cbind(
-    `(Intercept)` = 1,
-    nlme::getData(object)[, all.vars(stats::formula(object))]
-  )
+  stats::model.matrix(object, data = insight::get_data(object))
 }
 
 
@@ -384,17 +379,9 @@ print.sj_mwu <- function(x, ...) {
       )
     }
 
-    pval <- .dat[i, "p"]
-    if (pval < 0.001) {
-      pval <- 0.001
-      p.string <- "<"
-    } else {
-      p.string <- "="
-    }
-
     cat(sprintf(
-      "  U = %.3f, W = %.3f, p %s %.3f, Z = %.3f\n",
-      .dat[i, "u"], .dat[i, "w"], p.string, pval, .dat[i, "z"]
+      "  U = %.3f, W = %.3f, %s, Z = %.3f\n",
+      .dat[i, "u"], .dat[i, "w"], insight::format_p(.dat[i, "p"]), .dat[i, "z"]
     ))
 
     string_es <- "effect-size r"
@@ -420,14 +407,7 @@ print.sj_mwu <- function(x, ...) {
     kw <- stats::kruskal.test(x$data$dv, x$data$grp)
     cat(sprintf("chi-squared = %.3f\n", kw$statistic))
     cat(sprintf("df = %i\n", kw$parameter))
-    if (kw$p.value < 0.001) {
-      p  <- 0.001
-      p.string <- "<"
-    } else {
-      p <- kw$p.value
-      p.string <- "="
-    }
-    cat(sprintf("p %s %.3f\n", p.string, p))
+    cat(paste(insight::format_p(kw$p.value, stars = TRUE), "\n"))
   }
 }
 
@@ -438,10 +418,11 @@ print.sj_outliers <- function(x, ...) {
 }
 
 
+#' @importFrom insight format_p
 #' @export
 print.sj_xtab_stat <- function(x, ...) {
   # get length of method name, to align output
-  l <- max(nchar(c(x$method, x$stat.name, "p-value")))
+  l <- max(nchar(c(x$method, x$stat.name, "p-value", "Observations")))
 
   # headline
   insight::print_color("\n# Measure of Association for Contingency Tables\n", "blue")
@@ -455,12 +436,26 @@ print.sj_xtab_stat <- function(x, ...) {
   # print test statistic
   cat(sprintf("  %*s: %.4f\n", l, x$stat.name, x$statistic))
   cat(sprintf("  %*s: %.4f\n", l, x$method, x$estimate))
+  cat(sprintf("  %*s: %g\n", l, "df", x$df))
+  cat(sprintf("  %*s: %s\n", l, "p-value", insight::format_p(x$p.value, stars = TRUE, name = NULL)))
+  cat(sprintf("  %*s: %g\n", l, "Observations", x$n_obs))
+}
 
-  # check if p <.001
-  if (x$p.value < 0.001)
-    cat(sprintf("  %*s: <0.001\n", l, "p-value", x$p.value))
-  else
-    cat(sprintf("  %*s: %.4f\n", l, "p-value", x$p.value))
+
+
+#' @export
+print.sj_xtab_stat2 <- function(x, ...) {
+  # get length of method name, to align output
+  l <- max(nchar(c(x$stat.name, "p-value", "Observations")))
+
+  # headline
+  insight::print_color(paste0("\n# ", x$method, "\n\n"), "blue")
+
+  # print test statistic
+  cat(sprintf("  %*s: %.4f\n", l, x$stat.name, x$estimate))
+  cat(sprintf("  %*s: %g\n", l, "df", x$df))
+  cat(sprintf("  %*s: %s\n", l, "p-value", insight::format_p(x$p.value, stars = TRUE, name = NULL)))
+  cat(sprintf("  %*s: %g\n", l, "Observations", x$n_obs))
 }
 
 
@@ -468,12 +463,12 @@ print.sj_xtab_stat <- function(x, ...) {
 #' @export
 print.sj_grpmean <- function(x, ...) {
   cat("\n")
-  print_grpmean(x, ...)
+  print_grpmean(x, digits = attributes(x)$digits, ...)
 }
 
 
-#' @importFrom insight format_table print_color
-print_grpmean <- function(x, ...) {
+#' @importFrom insight export_table print_color format_value format_p
+print_grpmean <- function(x, digits = NULL, ...) {
   # headline
   insight::print_color(sprintf(
     "# Grouped Means for %s by %s\n\n",
@@ -481,8 +476,17 @@ print_grpmean <- function(x, ...) {
     attr(x, "grp.label", exact = TRUE)
   ), "blue")
 
+  if (is.null(digits)) {
+    digits <- 2
+  }
+
+  x$mean <- insight::format_value(x$mean, digits = digits)
+  x$std.dev <- insight::format_value(x$std.dev, digits = digits)
+  x$std.error <- insight::format_value(x$std.error, digits = digits)
+  x$p.value <- insight::format_p(x$p.value, name = NULL)
+
   colnames(x) <- c("Category", "Mean", "N", "SD", "SE", "p")
-  cat(insight::format_table(x))
+  cat(insight::export_table(x))
 
   # statistics
   cat(sprintf(
@@ -508,57 +512,10 @@ print.sj_grpmeans <- function(x, ...) {
     insight::print_color(sprintf("Grouped by:\n%s\n\n", grp), "cyan")
 
     # print grpmean-table
-    print_grpmean(dat, ...)
+    print_grpmean(dat, digits = attributes(x)$digits, ...)
 
     cat("\n\n")
   })
-}
-
-
-#' @export
-print.sj_mediation <- function(x, digits = 2, ...) {
-  insight::print_color("\n# Causal Mediation Analysis for Stan Model\n\n", "blue")
-  insight::print_color(sprintf(
-    "  Treatment: %s\n   Mediator: %s\n   Response: %s\n",
-    attr(x, "treatment", exact = TRUE),
-    attr(x, "mediator", exact = TRUE),
-    attr(x, "response", exact = TRUE)
-  ), "cyan")
-
-  cat("\n")
-
-  prop.med <- 100 * x[5, 2:4]
-  x <- x[c(1, 2, 4), ]
-
-  x$value <- format(round(x$value, digits = digits))
-  x$hdi.low <- format(round(x$hdi.low, digits = digits))
-  x$hdi.high <- format(round(x$hdi.high, digits = digits))
-  prop.med <- format(round(prop.med, digits = digits))
-
-  # ensure minimum width for column header
-  if (max(nchar(x$value)) < 8) x$value <- format(x$value, width = 8, justify = "right")
-
-  indent.width1 <- max(nchar(x$value)) + 17
-  indent.width2 <- max(nchar(x$hdi.low)) + max(nchar(x$hdi.high)) + 4
-
-  cat(sprintf(
-    "%s%s\n",
-    format("Estimate", width = indent.width1, justify = "right"),
-    format(sprintf("HDI (%i%%)", as.integer(100 * attr(x, "prob", exact = TRUE))), width = indent.width2, justify = "right")
-  ))
-
-  cat(sprintf("  Direct effect: %s [%s %s]\n", x$value[1], x$hdi.low[1], x$hdi.high[1]))
-  cat(sprintf("Indirect effect: %s [%s %s]\n", x$value[2], x$hdi.low[2], x$hdi.high[2]))
-  cat(sprintf("   Total effect: %s [%s %s]\n", x$value[3], x$hdi.low[3], x$hdi.high[3]))
-
-  insight::print_color(
-    sprintf(
-      "\nProportion mediated: %s%% [%s%% %s%%]\n",
-      prop.med[1], prop.med[2], prop.med[3])
-  , "red")
-
-  if (prop.med[1] < 0)
-    message("\nDirect and indirect effects have opposite directions. The proportion mediated is not meaningful.")
 }
 
 
@@ -677,14 +634,13 @@ print.sj_ttest <- function(x, ...) {
 
 #' @export
 print.sj_wmwu <- function(x, ...) {
-  insight::print_color(sprintf("\n%s (%s)\n", x$method, x$alternative), "blue")
+  insight::print_color(sprintf("\n# %s\n", x$method), "blue")
 
   group <- attr(x, "group.name", exact = TRUE)
   xn <- attr(x, "x.name", exact = TRUE)
 
-  insight::print_color(sprintf("\n# comparison of %s by %s\n", xn, group), "cyan")
-  insight::print_color(sprintf("# Chisq=%.2f  df=%i  p-value=%.3f\n\n", x$statistic, as.integer(x$parameter), x$p.value), "cyan")
-  cat(sprintf("  difference in mean rank score: %.3f\n\n", x$estimate))
+  insight::print_color(sprintf("\n  comparison of %s by %s\n", xn, group), "cyan")
+  cat(sprintf("  Chisq=%.2f  df=%i  p-value=%.3f\n\n", x$statistic, as.integer(x$parameter), x$p.value))
 }
 
 
@@ -703,8 +659,9 @@ print.sj_wcor <- function(x, ...) {
 }
 
 
-#' @importFrom sjmisc round_num
+#' @importFrom insight export_table
 #' @export
 print.sj_anova_stat <- function(x, digits = 3, ...) {
-  print.data.frame(sjmisc::round_num(x, digits), ..., row.names = TRUE)
+  x$p.value <- insight::format_p(x$p.value, name = NULL)
+  cat(insight::export_table(x, digits = digits, protect_integers = TRUE))
 }

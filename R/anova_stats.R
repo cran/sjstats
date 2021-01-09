@@ -1,11 +1,41 @@
+#' @title Effect size statistics for anova
+#' @name anova_stats
+#' @description Returns the (partial) eta-squared, (partial) omega-squared,
+#'   epsilon-squared statistic or Cohen's F for all terms in an anovas.
+#'   \code{anova_stats()} returns a tidy summary, including all these statistics
+#'   and power for each term.
+#'
+#' @param model A fitted anova-model of class \code{aov} or \code{anova}. Other
+#'   models are coerced to \code{\link[stats]{anova}}.
+#' @param digits Amount of digits for returned values.
+#'
+#' @return A data frame with all statistics is returned (excluding confidence intervals).
+#'
+#' @references Levine TR, Hullett CR (2002): Eta Squared, Partial Eta Squared, and Misreporting of Effect Size in Communication Research.
+#'   \cr \cr
+#'   Tippey K, Longnecker MT (2016): An Ad Hoc Method for Computing Pseudo-Effect Size for Mixed Model.
+#'
+#' @examples
+#' # load sample data
+#' data(efc)
+#'
+#' # fit linear model
+#' fit <- aov(
+#'   c12hour ~ as.factor(e42dep) + as.factor(c172code) + c160age,
+#'   data = efc
+#' )
+#' \dontrun{
+#' anova_stats(car::Anova(fit, type = 2))
+#' }
 #' @importFrom sjmisc add_columns round_num
 #' @importFrom stats anova
-#' @rdname eta_sq
 #' @export
 anova_stats <- function(model, digits = 3) {
   if (!requireNamespace("pwr", quietly = TRUE)) {
     stop("Package `pwr` needed for this function to work. Please install it.", call. = FALSE)
   }
+
+  # .Deprecated("effectsize::effectsize()", package = "effectsize")
 
   # get tidy summary table
   aov.sum <- aov_stat_summary(model)
@@ -43,9 +73,12 @@ anova_stats <- function(model, digits = 3) {
     }
   )
 
-  sjmisc::add_variables(as, power = power) %>%
+  out <- sjmisc::add_variables(as, power = power) %>%
     sjmisc::round_num(digits = digits) %>%
     as.data.frame()
+
+  class(out) <- c("sj_anova_stat", class(out))
+  out
 }
 
 

@@ -6,8 +6,13 @@
 \alias{p_value}
 \alias{se}
 \alias{cohens_f}
-\alias{std_beta}
+\alias{eta_sq}
+\alias{epsilon_sq}
+\alias{omega_sq}
+\alias{scale_weights}
+\alias{tidy_stan}
 \alias{robust}
+\alias{mediation}
 \title{Deprecated functions}
 \usage{
 r2(x)
@@ -20,9 +25,19 @@ se(x, ...)
 
 cohens_f(x, ...)
 
-std_beta(x, ...)
+eta_sq(x, ...)
+
+epsilon_sq(x, ...)
+
+omega_sq(x, ...)
+
+scale_weights(x, ...)
+
+tidy_stan(x, ...)
 
 robust(x, ...)
+
+mediation(x, ...)
 }
 \arguments{
 \item{x}{An object.}

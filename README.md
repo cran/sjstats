@@ -11,8 +11,6 @@ This package aims at providing, **first**, shortcuts for statistical measures, w
 The comprised tools include:
 
 * Especially for mixed models: design effect, sample size calculation
-* Especially for Bayesian models: mediation analysis
-* For anova-tables: Eta-squared, Partial Eta-squared, Omega-squared, Partial Omega-squared and Epsilon-squared statistics
 * Weighted statistics and tests for: mean, median, standard error, standard deviation, correlation, Chi-squared test, t-test, Mann-Whitney-U-test
 
 ## Documentation
@@ -33,9 +31,9 @@ devtools::install_github("strengejacke/sjstats")
 
 [![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/sjstats)](https://cran.r-project.org/package=sjstats)
 &#160;&#160;
-[![downloads](http://cranlogs.r-pkg.org/badges/sjstats)](http://cranlogs.r-pkg.org/)
+[![downloads](http://cranlogs.r-pkg.org/badges/sjstats)](https://cranlogs.r-pkg.org:443/)
 &#160;&#160;
-[![total](http://cranlogs.r-pkg.org/badges/grand-total/sjstats)](http://cranlogs.r-pkg.org/)
+[![total](http://cranlogs.r-pkg.org/badges/grand-total/sjstats)](https://cranlogs.r-pkg.org:443/)
 
 To install the latest stable release from CRAN, type following command into the R console:
 
