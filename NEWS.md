@@ -1,3 +1,7 @@
+# sjstats 0.18.2
+
+* Fix issues with changes in forthcoming upstream packages.
+
 # sjstats 0.18.1
 
 ## Deprecated and defunct
@@ -13,7 +17,7 @@ Therefore, following functions are now defunct:
 * `odds_to_rr()`, please use `effectsize::oddsratio_to_riskratio()`.
 * `std_beta()`, please use `effectsize::standardize_parameters()`.
 * `robust()`, please use `parameters::standard_error_robust()`.
-* `scale_weights()`, , please use `parameters::rescale_weights()`.
+* `scale_weights()`, , please use `datawizard::rescale_weights()`.
 
 ## General
 

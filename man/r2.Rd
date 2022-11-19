@@ -2,26 +2,18 @@
 % Please edit documentation in R/Deprecated.R
 \name{r2}
 \alias{r2}
-\alias{icc}
-\alias{p_value}
-\alias{se}
 \alias{cohens_f}
 \alias{eta_sq}
 \alias{epsilon_sq}
 \alias{omega_sq}
 \alias{scale_weights}
-\alias{tidy_stan}
 \alias{robust}
-\alias{mediation}
+\alias{icc}
+\alias{p_value}
+\alias{se}
 \title{Deprecated functions}
 \usage{
 r2(x)
-
-icc(x)
-
-p_value(x, ...)
-
-se(x, ...)
 
 cohens_f(x, ...)
 
@@ -33,11 +25,13 @@ omega_sq(x, ...)
 
 scale_weights(x, ...)
 
-tidy_stan(x, ...)
-
 robust(x, ...)
 
-mediation(x, ...)
+icc(x)
+
+p_value(x, ...)
+
+se(x, ...)
 }
 \arguments{
 \item{x}{An object.}
