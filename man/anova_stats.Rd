@@ -17,11 +17,12 @@ A data frame with all statistics is returned (excluding confidence intervals).
 }
 \description{
 Returns the (partial) eta-squared, (partial) omega-squared,
-  epsilon-squared statistic or Cohen's F for all terms in an anovas.
-  \code{anova_stats()} returns a tidy summary, including all these statistics
-  and power for each term.
+epsilon-squared statistic or Cohen's F for all terms in an anovas.
+\code{anova_stats()} returns a tidy summary, including all these statistics
+and power for each term.
 }
 \examples{
+\dontshow{if (requireNamespace("car")) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
 # load sample data
 data(efc)
 
@@ -30,12 +31,11 @@ fit <- aov(
   c12hour ~ as.factor(e42dep) + as.factor(c172code) + c160age,
   data = efc
 )
-\dontrun{
 anova_stats(car::Anova(fit, type = 2))
-}
+\dontshow{\}) # examplesIf}
 }
 \references{
 Levine TR, Hullett CR (2002): Eta Squared, Partial Eta Squared, and Misreporting of Effect Size in Communication Research.
-  \cr \cr
-  Tippey K, Longnecker MT (2016): An Ad Hoc Method for Computing Pseudo-Effect Size for Mixed Model.
+\cr \cr
+Tippey K, Longnecker MT (2016): An Ad Hoc Method for Computing Pseudo-Effect Size for Mixed Model.
 }

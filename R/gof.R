@@ -48,7 +48,6 @@
 #' # equal to population
 #' chisq_gof(efc$e42dep, prop.table(table(efc$e42dep)))
 #'
-#' @importFrom stats na.omit fitted resid formula as.formula lm pnorm chisq.test
 #' @export
 chisq_gof <- function(x, prob = NULL, weights = NULL) {
   if (inherits(x, "glm")) {
@@ -73,7 +72,7 @@ chisq_gof <- function(x, prob = NULL, weights = NULL) {
     dat$cJ <- cJ
     dat$vJ <- vJ
 
-    RSS <- sum(stats::resid(stats::lm(form, data = dat, weights = vJ))^2)
+    RSS <- sum(vJ * stats::resid(stats::lm(form, data = dat, weights = vJ))^2)
     A <- 2 * (length(y_hat) - sum(1 / wt))
     z <- (X2 - x$df.residual) / sqrt(A + RSS)
 

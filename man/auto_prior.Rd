@@ -25,62 +25,56 @@ A \code{brmsprior}-object.
 }
 \description{
 This function creates default priors for brms-regression
-  models, based on the same automatic prior-scale adjustment as in
-  \pkg{rstanarm}.
+models, based on the same automatic prior-scale adjustment as in
+\pkg{rstanarm}.
 }
 \details{
 \code{auto_prior()} is a small, convenient function to create
-  some default priors for brms-models with automatically adjusted prior
-  scales, in a similar way like \pkg{rstanarm} does. The default scale for
-  the intercept is 10, for coefficients 2.5. If the outcome is gaussian,
-  both scales are multiplied with \code{sd(y)}. Then, for categorical
-  variables, nothing more is changed. For numeric variables, the scales
-  are divided by the standard deviation of the related variable.
-  \cr \cr
-  All prior distributions are \emph{normal} distributions. \code{auto_prior()}
-  is intended to quickly create default priors with feasible scales. If
-  more precise definitions of priors is necessary, this needs to be done
-  directly with brms-functions like \code{set_prior()}.
+some default priors for brms-models with automatically adjusted prior
+scales, in a similar way like \pkg{rstanarm} does. The default scale for
+the intercept is 10, for coefficients 2.5. If the outcome is gaussian,
+both scales are multiplied with \code{sd(y)}. Then, for categorical
+variables, nothing more is changed. For numeric variables, the scales
+are divided by the standard deviation of the related variable.
+\cr \cr
+All prior distributions are \emph{normal} distributions. \code{auto_prior()}
+is intended to quickly create default priors with feasible scales. If
+more precise definitions of priors is necessary, this needs to be done
+directly with brms-functions like \code{set_prior()}.
 }
 \note{
 As \code{auto_prior()} also sets priors on the intercept, the model
-  formula used in \code{brms::brm()} must be rewritten to something like
-  \code{y ~ 0 + intercept ...}, see \code{\link[brms]{set_prior}}.
+formula used in \code{brms::brm()} must be rewritten to something like
+\code{y ~ 0 + intercept ...}, see \code{\link[brms]{set_prior}}.
 }
 \examples{
-library(sjmisc)
+\dontshow{if (requireNamespace("brms")) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
 data(efc)
 efc$c172code <- as.factor(efc$c172code)
-efc$c161sex <- to_label(efc$c161sex)
+efc$c161sex <- as.factor(efc$c161sex)
 
 mf <- formula(neg_c_7 ~ c161sex + c160age + c172code)
-
-if (requireNamespace("brms", quietly = TRUE))
-  auto_prior(mf, efc, TRUE)
+auto_prior(mf, efc, TRUE)
 
 ## compare to
-# library(rstanarm)
-# m <- stan_glm(mf, data = efc, chains = 2, iter = 200)
+# m <- rstanarm::stan_glm(mf, data = efc, chains = 2, iter = 200)
 # ps <- prior_summary(m)
 # ps$prior_intercept$adjusted_scale
 # ps$prior$adjusted_scale
 
 ## usage
 # ap <- auto_prior(mf, efc, TRUE)
-# brm(mf, data = efc, priors = ap)
+# brm(mf, data = efc, prior = ap)
 
 # add informative priors
 mf <- formula(neg_c_7 ~ c161sex + c172code)
 
-if (requireNamespace("brms", quietly = TRUE)) {
-  auto_prior(mf, efc, TRUE) +
-    brms::prior(normal(.1554, 40), class = "b", coef = "c160age")
-}
+auto_prior(mf, efc, TRUE) +
+  brms::prior(normal(.1554, 40), class = "b", coef = "c160age")
 
 # example with binary response
 efc$neg_c_7d <- ifelse(efc$neg_c_7 < median(efc$neg_c_7, na.rm = TRUE), 0, 1)
 mf <- formula(neg_c_7d ~ c161sex + c160age + c172code + e17age)
-
-if (requireNamespace("brms", quietly = TRUE))
-  auto_prior(mf, efc, FALSE)
+auto_prior(mf, efc, FALSE)
+\dontshow{\}) # examplesIf}
 }

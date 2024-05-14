@@ -1,11 +1,11 @@
 #' @title Proportions of values in a vector
 #' @name prop
 #'
-#' @description \code{prop()} calculates the proportion of a value or category
-#'                in a variable. \code{props()} does the same, but allows for
+#' @description `prop()` calculates the proportion of a value or category
+#'                in a variable. `props()` does the same, but allows for
 #'                multiple logical conditions in one statement. It is similar
-#'                to \code{mean()} with logical predicates, however, both
-#'                \code{prop()} and \code{props()} work with grouped data frames.
+#'                to `mean()` with logical predicates, however, both
+#'                `prop()` and `props()` work with grouped data frames.
 #'
 #' @param data A data frame. May also be a grouped data frame (see 'Examples').
 #' @param ... One or more value pairs of comparisons (logical predicates). Put
@@ -14,17 +14,17 @@
 #'              'Examples'.
 #' @param weights Vector of weights that will be applied to weight all observations.
 #'          Must be a vector of same length as the input vector. Default is
-#'          \code{NULL}, so no weights are used.
+#'          `NULL`, so no weights are used.
 #' @param na.rm Logical, whether to remove NA values from the vector when the
-#'          proportion is calculated. \code{na.rm = FALSE} gives you the raw
-#'          percentage of a value in a vector, \code{na.rm = TRUE} the valid
+#'          proportion is calculated. `na.rm = FALSE` gives you the raw
+#'          percentage of a value in a vector, `na.rm = TRUE` the valid
 #'          percentage.
 #' @param digits Amount of digits for returned values.
 #'
-#' @details \code{prop()} only allows one logical statement per comparison,
-#'          while \code{props()} allows multiple logical statements per comparison.
-#'          However, \code{prop()} supports weighting of variables before calculating
-#'          proportions, and comparisons may also be quoted. Hence, \code{prop()}
+#' @details `prop()` only allows one logical statement per comparison,
+#'          while `props()` allows multiple logical statements per comparison.
+#'          However, `prop()` supports weighting of variables before calculating
+#'          proportions, and comparisons may also be quoted. Hence, `prop()`
 #'          also processes comparisons, which are passed as character vector
 #'          (see 'Examples').
 #'
@@ -35,7 +35,7 @@
 #'         returns a data frame with one column per group with grouping categories,
 #'         followed by one column with proportions per condition.
 #'
-#' @examples
+#' @examplesIf getRversion() >= "4.2.0" && requireNamespace("datawizard", quietly = TRUE)
 #' data(efc)
 #'
 #' # proportion of value 1 in e42dep
@@ -52,10 +52,10 @@
 #' prop(efc, e42dep == 1, e42dep > 2, na.rm = FALSE)
 #'
 #' # for factors or character vectors, use quoted or unquoted values
-#' library(sjmisc)
+#' library(datawizard)
 #' # convert numeric to factor, using labels as factor levels
-#' efc$e16sex <- to_label(efc$e16sex)
-#' efc$n4pstu <- to_label(efc$n4pstu)
+#' efc$e16sex <- to_factor(efc$e16sex)
+#' efc$n4pstu <- to_factor(efc$n4pstu)
 #'
 #' # get proportion of female older persons
 #' prop(efc, e16sex == female)
@@ -70,38 +70,16 @@
 #' )
 #'
 #' # also works with pipe-chains
-#' library(dplyr)
-#' efc %>% prop(e17age > 70)
-#' efc %>% prop(e17age > 70, e16sex == 1)
-#'
-#' # and with group_by
-#' efc %>%
-#'   group_by(e16sex) %>%
-#'   prop(e42dep > 2)
-#'
-#' efc %>%
-#'   select(e42dep, c161sex, c172code, e16sex) %>%
-#'   group_by(c161sex, c172code) %>%
-#'   prop(e42dep > 2, e16sex == 1)
-#'
-#' # same for "props()"
-#' efc %>%
-#'   select(e42dep, c161sex, c172code, c12hour, n4pstu) %>%
-#'   group_by(c161sex, c172code) %>%
-#'   props(
-#'     e42dep > 2,
-#'     c12hour > 20 & c12hour < 40,
-#'     n4pstu == 'Care Level 1' | n4pstu == 'Care Level 3'
-#'   )
+#' efc |> prop(e17age > 70)
+#' efc |> prop(e17age > 70, e16sex == 1)
 #' @export
 prop <- function(data, ..., weights = NULL, na.rm = TRUE, digits = 4) {
   # check argument
-  if (!is.data.frame(data)) stop("`data` needs to be a data frame.", call. = F)
-
-  # get dots
-  dots <- match.call(expand.dots = FALSE)$`...`
-
-  proportions(data, dots, weight.by = weights, na.rm, digits, multi_logical = FALSE)
+  if (!is.data.frame(data)) {
+    insight::format_error("`data` needs to be a data frame.")
+  }
+  dots <- match.call(expand.dots = FALSE)[["..."]]
+  .proportions(data, dots = dots, weight.by = weights, na.rm, digits, multi_logical = FALSE)
 }
 
 
@@ -109,111 +87,58 @@ prop <- function(data, ..., weights = NULL, na.rm = TRUE, digits = 4) {
 #' @export
 props <- function(data, ..., na.rm = TRUE, digits = 4) {
   # check argument
-  if (!is.data.frame(data)) stop("`data` needs to be a data frame.", call. = F)
-
-  # get dots
-  dots <- match.call(expand.dots = FALSE)$`...`
-
-  proportions(data, dots, NULL, na.rm, digits, multi_logical = TRUE)
+  if (!is.data.frame(data)) {
+    insight::format_error("`data` needs to be a data frame.")
+  }
+  dots <- match.call(expand.dots = FALSE)[["..."]]
+  .proportions(data, dots = dots, NULL, na.rm, digits, multi_logical = TRUE)
 }
 
 
-#' @importFrom purrr map_df
-proportions <- function(data, dots, weight.by, na.rm, digits, multi_logical) {
+.proportions <- function(data, dots, weight.by, na.rm, digits, multi_logical) {
   # remember comparisons
   comparisons <- lapply(dots, function(x) {
     # to character, and remove spaces and quotes
-    x <- gsub(" ", "", deparse(x), fixed = T)
+    x <- gsub(" ", "", deparse(x), fixed = TRUE)
     x <- gsub("\"", "", x, fixed = TRUE)
     x
   })
 
-  # do we have a grouped data frame?
   if (inherits(data, "grouped_df")) {
-
-    # remember order of values
-    reihenfolge <- NULL
-
-    # get grouped data
-    grps <- get_grouped_data(data)
-
-    # now get proportions for each subset
-    fr <- purrr::map_df(
-      seq_len(nrow(grps)),
-      function(i) {
-        # get data from grouped data frame
-        .d <- grps$data[[i]]
-
-        # iterate dots (comparing conditions)
-        if (multi_logical)
-          result <- lapply(dots, get_multiple_proportion, .d, na.rm, digits)
-        else
-          result <- lapply(dots, get_proportion, .d, weight.by, na.rm, digits)
-
-        as.data.frame(t(unlist(result)))
-      }
-    )
-
-
-    # now we need the values from the groups of the grouped data frame
-    for (i in (ncol(grps) - 1):1) {
-      # get value label
-      var.name <- colnames(grps)[i]
-      val.labels <- suppressWarnings(
-        rep(sjlabelled::get_labels(data[[var.name]]), length.out = nrow(fr))
-      )
-
-      # if we have no value labels, use values instead
-      if (is.null(val.labels)) {
-        val.labels <-
-          rep(unique(sort(data[[var.name]])), length.out = nrow(fr))
-      }
-
-      # add row order, based on values of grouping variables
-      reihenfolge <- rep(sort(unique(sjlabelled::as_numeric(data[[var.name]]))), length.out = nrow(fr)) %>%
-        as.data.frame() %>%
-        dplyr::bind_cols(reihenfolge)
-
-      # bind values as column
-      fr <- dplyr::bind_cols(data.frame(val.labels, stringsAsFactors = FALSE), fr)
-    }
-
-    # get column names. we need variable labels as column names
-    var.names <- colnames(grps)[seq_len(ncol(grps) - 1)]
-    var.labels <- sjlabelled::get_label(data[, var.names], def.value = var.names)
-
-    # set variable labels and comparisons as colum names
-    colnames(fr) <- c(var.labels, comparisons)
-
-    # order rows by values of grouping variables
-    fr <- fr[do.call(order, reihenfolge), ]
-
-    return(fr)
-
+    grps <- attributes(data)$groups
+    result <- lapply(grps[[".rows"]], function(x) {
+      .process_prop(data[x, , drop = FALSE], comparisons, dots, multi_logical, na.rm, digits, weight.by)
+    })
   } else {
-    # iterate dots (comparing conditions)
-    if (multi_logical)
-      result <- lapply(dots, get_multiple_proportion, data, na.rm, digits)
-    else
-      result <- lapply(dots, get_proportion, data, weight.by, na.rm, digits)
-
-    # if we have more than one proportion, return a data frame. this allows us
-    # to save more information, the condition and the proportion value
-    if (length(comparisons) > 1) {
-      return(data_frame(
-        condition = as.character(unlist(comparisons)),
-        prop = unlist(result)
-      ))
-    }
-
-    return(unlist(result))
+    result <- .process_prop(data, comparisons, dots, multi_logical, na.rm, digits, weight.by)
   }
+  result
+}
+
+
+.process_prop <- function(data, comparisons, dots, multi_logical, na.rm, digits, weight.by) {
+  # iterate dots (comparing conditions)
+  if (multi_logical)
+    result <- lapply(dots, get_multiple_proportion, data, na.rm, digits)
+  else
+    result <- lapply(dots, get_proportion, data, weight.by, na.rm, digits)
+
+  # if we have more than one proportion, return a data frame. this allows us
+  # to save more information, the condition and the proportion value
+  if (length(comparisons) > 1) {
+    return(data_frame(
+      condition = as.character(unlist(comparisons)),
+      prop = unlist(result)
+    ))
+  }
+
+  unlist(result)
 }
 
 
 get_proportion <- function(x, data, weight.by, na.rm, digits) {
   # to character, and remove spaces and quotes
-  x <- gsub(" ", "", deparse(x), fixed = T)
+  x <- gsub(" ", "", deparse(x), fixed = TRUE)
   x <- gsub("\"", "", x, fixed = TRUE)
 
   # split expression at ==, < or >
@@ -237,22 +162,19 @@ get_proportion <- function(x, data, weight.by, na.rm, digits) {
   if (!is.null(weight.by)) f <- weight(f, weights = weight.by)
 
   # get proportions
-  if (x.parts[2] == "==")
-    dummy <- f == v
-  else if (x.parts[2] == "!=")
-    dummy <- f != v
-  else if (x.parts[2] == "<")
-    dummy <- f < v
-  else if (x.parts[2] == ">")
-    dummy <- f > v
-  else
-    dummy <- f == v
+  dummy <- switch(x.parts[2],
+    "==" = f == v,
+    "!=" = f != v,
+    "<" = f < v,
+    ">" = f > v,
+    f == v
+  )
 
   # remove missings?
-  if (na.rm) dummy <- na.omit(dummy)
+  if (na.rm) dummy <- stats::na.omit(dummy)
 
   # get proportion
-  round(sum(dummy, na.rm = T) / length(dummy), digits = digits)
+  round(sum(dummy, na.rm = TRUE) / length(dummy), digits = digits)
 }
 
 
@@ -261,8 +183,8 @@ get_multiple_proportion <- function(x, data, na.rm, digits) {
   dummy <- with(data, eval(parse(text = deparse(x))))
 
   # remove missings?
-  if (na.rm) dummy <- na.omit(dummy)
+  if (na.rm) dummy <- stats::na.omit(dummy)
 
   # get proportion
-  round(sum(dummy, na.rm = T) / length(dummy), digits = digits)
+  round(sum(dummy, na.rm = TRUE) / length(dummy), digits = digits)
 }
