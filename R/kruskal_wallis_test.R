@@ -132,12 +132,13 @@ kruskal_wallis_test <- function(data,
   colnames(dat) <- c("x", "g", "w")
 
   # number of groups
-  n_groups <- vapply(stats::na.omit(unique(grp)), function(g) {
-    sum(dat$w[dat$grp == g], na.rm = TRUE)
+  n_groups <- vapply(stats::na.omit(unique(grp)), function(i) {
+    round(sum(dat$w[dat$g == i], na.rm = TRUE))
   }, numeric(1))
 
   if (paired) {
     ## TODO: paired no working. should call `friedman.test()`
+    insight::format_error("Paired Kruskal-Wallis test is using weights is not implemented yet.")
   } else {
     design <- survey::svydesign(ids = ~0, data = dat, weights = ~w)
     result <- survey::svyranktest(formula = x ~ g, design, test = "KruskalWallis")
